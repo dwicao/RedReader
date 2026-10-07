@@ -53,7 +53,13 @@ jobs:
                 run: ./gradlew checkstyle --stacktrace --info
 
             -   name: Android Lint
+                id: lint
                 run: ./gradlew lint
 
+            -   name: Print lint report
+                if: failure()
+                run: grep -ohE '<error [^>]*/>' build/reports/lint-results*.xml || true
+
             -   name: Unit tests
+                if: success() || steps.lint.outcome == 'failure'
                 run: ./gradlew test

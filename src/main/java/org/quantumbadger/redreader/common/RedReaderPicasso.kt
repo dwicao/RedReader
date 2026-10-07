@@ -17,6 +17,7 @@
 
 package org.quantumbadger.redreader.common
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.squareup.picasso.OkHttp3Downloader
 import com.squareup.picasso.Picasso
@@ -27,6 +28,7 @@ import java.io.File
 // Provides the project-wide Picasso instance, backed by RedReader's own
 // OkHttpClient so that image downloads honour the user's proxy/Tor settings
 // (the default Picasso downloader would bypass them).
+@SuppressLint("StaticFieldLeak")
 object RedReaderPicasso {
 
 	private const val CACHE_SIZE_BYTES = 50L * 1024 * 1024
