@@ -160,8 +160,8 @@ public abstract class RedditListingManager {
 			return;
 		}
 
-		int firstVisible;
-		int lastVisible;
+		final int firstVisible;
+		final int lastVisible;
 
 		if(mLayoutManager instanceof StaggeredGridLayoutManager) {
 

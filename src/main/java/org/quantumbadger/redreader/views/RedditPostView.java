@@ -427,7 +427,8 @@ public final class RedditPostView extends FlingableItemView
 
 			final boolean showGridImage = mGridMode && newPost.shouldShowGridImage();
 
-			final boolean showThumbnail = !showInlinePreview && !showGridImage && newPost.hasThumbnail;
+			final boolean showThumbnail
+					= !showInlinePreview && !showGridImage && newPost.hasThumbnail;
 
 			if(!showInlinePreview) {
 				mImagePreviewLoadingSpinner.setVisibility(GONE);
