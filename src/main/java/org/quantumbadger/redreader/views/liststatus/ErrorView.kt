@@ -31,7 +31,7 @@ import org.quantumbadger.redreader.fragments.ErrorPropertiesDialog
 class ErrorView @JvmOverloads constructor(
 	activity: AppCompatActivity,
 	error: RRError,
-	onRetry: (() -> Unit)? = null
+	onRetry: Runnable? = null
 ) : StatusListItemView(activity) {
 
 	init {
@@ -75,7 +75,7 @@ class ErrorView @JvmOverloads constructor(
 			}
 			onRetry != null -> {
 				resolveButton.setText(R.string.error_resolution_button_retry)
-				resolveButton.setOnClickListener { onRetry() }
+				resolveButton.setOnClickListener { onRetry.run() }
 			}
 			else -> resolveButton.setVisibility(GONE)
 		}
