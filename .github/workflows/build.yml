@@ -13,6 +13,13 @@ jobs:
         steps:
             -   uses: actions/checkout@v4
 
+            -   name: Assert release build skips R8
+                run: |
+                    if grep -A5 'getByName("release")' build.gradle.kts | grep -q 'isMinifyEnabled = true'; then
+                        echo "Release must stay minify-free so it matches the debug code path" >&2
+                        exit 1
+                    fi
+
             -   name: Set up Java 21
                 uses: actions/setup-java@v4
                 with:

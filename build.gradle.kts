@@ -82,7 +82,7 @@ android {
 		applicationId = "org.quantumbadger.redreader"
 		minSdk = libs.versions.sdk.min.get().toInt()
 		targetSdk = libs.versions.sdk.target.get().toInt()
-		versionCode = 121
+		versionCode = 122
 		versionName = "1.27"
 
 		vectorDrawables.generatedDensities("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi")
@@ -96,7 +96,7 @@ android {
 
 	buildTypes {
 		getByName("release") {
-			isMinifyEnabled = true
+			isMinifyEnabled = false
 			isShrinkResources = false
 			proguardFiles(
 				getDefaultProguardFile("proguard-android-optimize.txt"),
