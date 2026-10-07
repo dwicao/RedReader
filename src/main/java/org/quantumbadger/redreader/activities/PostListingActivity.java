@@ -590,6 +590,11 @@ public class PostListingActivity extends RefreshableActivity
 	}
 
 	@Override
+	protected boolean baseActivityContentExtendsBehindNavigationBar() {
+		return true;
+	}
+
+	@Override
 	public PostSort getPostSort() {
 		return controller.getSort();
 	}
