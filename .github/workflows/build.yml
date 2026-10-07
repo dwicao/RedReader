@@ -13,10 +13,19 @@ jobs:
         steps:
             -   uses: actions/checkout@v4
 
-            -   name: Assert release build skips R8
+            -   name: Assert release build policy
                 run: |
-                    if grep -A5 'getByName("release")' build.gradle.kts | grep -q 'isMinifyEnabled = true'; then
-                        echo "Release must stay minify-free so it matches the debug code path" >&2
+                    block="$(grep -A5 'getByName("release")' build.gradle.kts)"
+                    if ! printf '%s\n' "$block" | grep -q 'isMinifyEnabled = true'; then
+                        echo "Release must keep minify ON (small APKs)" >&2
+                        exit 1
+                    fi
+                    if ! printf '%s\n' "$block" | grep -q 'isShrinkResources = false'; then
+                        echo "Release must keep shrinkResources OFF (no resource-shrinking crashes)" >&2
+                        exit 1
+                    fi
+                    if ! grep -q -- '-dontobfuscate' proguard-rules.pro; then
+                        echo "proguard-rules.pro must keep -dontobfuscate (no obfuscation)" >&2
                         exit 1
                     fi
 
