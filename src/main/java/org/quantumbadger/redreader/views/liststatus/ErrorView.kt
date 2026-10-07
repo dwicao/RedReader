@@ -28,7 +28,11 @@ import org.quantumbadger.redreader.compose.ctx.GlobalNetworkRetry
 import org.quantumbadger.redreader.fragments.AccountListDialog
 import org.quantumbadger.redreader.fragments.ErrorPropertiesDialog
 
-class ErrorView(activity: AppCompatActivity, error: RRError) : StatusListItemView(activity) {
+class ErrorView @JvmOverloads constructor(
+	activity: AppCompatActivity,
+	error: RRError,
+	onRetry: (() -> Unit)? = null
+) : StatusListItemView(activity) {
 
 	init {
 		val view = LayoutInflater.from(activity).inflate(
@@ -45,28 +49,36 @@ class ErrorView(activity: AppCompatActivity, error: RRError) : StatusListItemVie
 		title.text = error.title
 		message.text = error.message
 
-		error.resolution?.apply {
-			resolveButton.setText(buttonText)
+		val resolution = error.resolution
 
-			when (this) {
-				RRError.Resolution.ACCEPT_REDDIT_TERMS -> {
-					resolveButton.setOnClickListener {
-						RedditTermsActivity.launch(activity, false)
+		when {
+			resolution != null -> {
+				resolveButton.setText(resolution.buttonText)
+
+				when (resolution) {
+					RRError.Resolution.ACCEPT_REDDIT_TERMS -> {
+						resolveButton.setOnClickListener {
+							RedditTermsActivity.launch(activity, false)
+						}
 					}
-				}
-				RRError.Resolution.ACCOUNTS_LIST -> {
-					resolveButton.setOnClickListener {
-						AccountListDialog.show(activity)
+					RRError.Resolution.ACCOUNTS_LIST -> {
+						resolveButton.setOnClickListener {
+							AccountListDialog.show(activity)
+						}
 					}
-				}
-				RRError.Resolution.RETRY -> {
-					resolveButton.setOnClickListener {
-						GlobalNetworkRetry.intValue++
+					RRError.Resolution.RETRY -> {
+						resolveButton.setOnClickListener {
+							GlobalNetworkRetry.intValue++
+						}
 					}
 				}
 			}
-
-		} ?: resolveButton.setVisibility(GONE)
+			onRetry != null -> {
+				resolveButton.setText(R.string.error_resolution_button_retry)
+				resolveButton.setOnClickListener { onRetry() }
+			}
+			else -> resolveButton.setVisibility(GONE)
+		}
 
 		detailsButton.setOnClickListener {
 			ErrorPropertiesDialog.newInstance(error)

@@ -714,6 +714,37 @@ public class PostListingFragment extends RRFragment
 		}
 	}
 
+	private void retryPostListing() {
+
+		General.checkThisIsUIThread();
+
+		if(mRequest != null) {
+			return;
+		}
+
+		mPostListingManager.removeFooterErrors();
+
+		if(mAfter == null) {
+
+			final Context context = getContext();
+
+			mRequest = createPostListingRequest(
+					UriString.from(mPostListingURL.generateJsonUri()),
+					RedditAccountManager.getInstance(context).getDefaultAccount(),
+					mSession,
+					DownloadStrategyIfNotCached.INSTANCE,
+					true);
+
+			mPostListingManager.setLoadingVisible(true);
+			CacheManager.getInstance(context).makeRequest(mRequest);
+
+		} else {
+			mLastAfter = null;
+			mReadyToDownloadMore = true;
+			onLoadMoreItemsCheck();
+		}
+	}
+
 	public void onSubscribe() {
 
 		if(mPostListingURL.pathType() != RedditURLParser.SUBREDDIT_POST_LISTING_URL) {
@@ -1079,6 +1110,7 @@ public class PostListingFragment extends RRFragment
 
 								mPostListingManager.addPosts(downloadedPosts);
 								mPostListingManager.setLoadingVisible(false);
+								mPostListingManager.removeFooterErrors();
 
 								if(mPostCount == 0
 										&& (mAfter == null || mAfter.equals(mLastAfter))) {
@@ -1137,11 +1169,16 @@ public class PostListingFragment extends RRFragment
 
 						AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
+							mRequest = null;
 							mPostListingManager.setLoadingVisible(false);
+							mReadyToDownloadMore = true;
+							mLastAfter = null;
 
+							mPostListingManager.removeFooterErrors();
 							mPostListingManager.addFooterError(new ErrorView(
 									activity,
-									error));
+									error,
+									PostListingFragment.this::retryPostListing));
 						});
 					}
 				});

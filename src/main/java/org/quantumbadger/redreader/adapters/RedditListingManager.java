@@ -84,6 +84,11 @@ public abstract class RedditListingManager {
 				new GroupedRecyclerViewItemFrameLayout(view));
 	}
 
+	public void removeFooterErrors() {
+		General.checkThisIsUIThread();
+		mAdapter.removeAllFromGroup(GROUP_FOOTER_ERRORS);
+	}
+
 	public void addPostHeader(final RedditPostHeaderView view) {
 		General.checkThisIsUIThread();
 		mAdapter.appendToGroup(
