@@ -237,7 +237,7 @@
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content">
 
-				<FrameLayout
+				<org.quantumbadger.redreader.views.InlinePreviewHolderView
 						android:id="@+id/reddit_post_image_preview_holder"
 						android:layout_width="match_parent"
 						android:layout_height="0dp"
@@ -278,9 +278,9 @@
 								android:src="@drawable/icon_play"
 								tools:ignore="ContentDescription"/>
 
-					</androidx.constraintlayout.widget.ConstraintLayout>
+						</androidx.constraintlayout.widget.ConstraintLayout>
 
-				</FrameLayout>
+				</org.quantumbadger.redreader.views.InlinePreviewHolderView>
 
 			</androidx.constraintlayout.widget.ConstraintLayout>
 
