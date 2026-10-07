@@ -58,7 +58,9 @@ jobs:
 
             -   name: Print lint report
                 if: failure()
-                run: grep -ohE '<error [^>]*/>' build/reports/lint-results*.xml || true
+                run: |
+                    files=$(find . -name 'lint-results*.xml')
+                    [ -n "$files" ] && sed 's|<issue|\n<issue|g' $files | grep 'severity="Error"' || true
 
             -   name: Unit tests
                 if: success() || steps.lint.outcome == 'failure'

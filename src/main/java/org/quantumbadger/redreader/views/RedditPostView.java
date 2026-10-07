@@ -486,6 +486,7 @@ public final class RedditPostView extends FlingableItemView
 					final int imageCount = newPost.src.getGalleryImageCount();
 
 					if(imageCount > 1) {
+						//noinspection SetTextI18n
 						mGridImageCount.setText("[1/" + imageCount + "]");
 						mGridImageCount.setVisibility(VISIBLE);
 					} else {
