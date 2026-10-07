@@ -397,7 +397,7 @@ public final class RedditPostView extends FlingableItemView
 	public void reset(@NonNull final RedditPreparedPost newPost) {
 
 		final boolean isNewPost = newPost != mPost;
-		final boolean showInlinePreview = newPost.shouldShowInlinePreview();
+		final boolean showInlinePreview = !mGridMode && newPost.shouldShowInlinePreview();
 
 		if(isNewPost) {
 
@@ -425,7 +425,6 @@ public final class RedditPostView extends FlingableItemView
 				mCommentsText.setText(String.valueOf(newPost.src.getSrc().getNum_comments()));
 			}
 
-			final boolean showInlinePreview = !mGridMode && newPost.shouldShowInlinePreview();
 			final boolean showGridImage = mGridMode && newPost.shouldShowGridImage();
 
 			final boolean showThumbnail = !showInlinePreview && !showGridImage && newPost.hasThumbnail;
@@ -505,7 +504,7 @@ public final class RedditPostView extends FlingableItemView
 
 		// Attaching to the preview loader calls back into this view, so must happen after
 		// mPost has been updated
-		if(isNewPost && showInlinePreview && !mGridMode) {
+		if(isNewPost && showInlinePreview) {
 			attachInlinePreview(newPost);
 		}
 

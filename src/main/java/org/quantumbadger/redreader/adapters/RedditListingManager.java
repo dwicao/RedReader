@@ -21,6 +21,7 @@ import android.content.Context;
 import android.view.View;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.views.LoadingSpinnerView;
 import org.quantumbadger.redreader.views.RedditPostHeaderView;
@@ -159,9 +160,32 @@ public abstract class RedditListingManager {
 			return;
 		}
 
-		mAdapter.setPreloadWindow(
-				mLayoutManager.findFirstVisibleItemPosition(),
-				mLayoutManager.findLastVisibleItemPosition());
+		int firstVisible;
+		int lastVisible;
+
+		if(mLayoutManager instanceof StaggeredGridLayoutManager) {
+
+			final int[] firstPositions = ((StaggeredGridLayoutManager)mLayoutManager)
+					.findFirstVisibleItemPositions(null);
+			final int[] lastPositions = ((StaggeredGridLayoutManager)mLayoutManager)
+					.findLastVisibleItemPositions(null);
+
+			firstVisible = firstPositions == null || firstPositions.length == 0
+					? RecyclerView.NO_POSITION : firstPositions[0];
+			lastVisible = lastPositions == null || lastPositions.length == 0
+					? RecyclerView.NO_POSITION : lastPositions[0];
+
+		} else if(mLayoutManager instanceof LinearLayoutManager) {
+
+			firstVisible = ((LinearLayoutManager)mLayoutManager).findFirstVisibleItemPosition();
+			lastVisible = ((LinearLayoutManager)mLayoutManager).findLastVisibleItemPosition();
+
+		} else {
+			firstVisible = RecyclerView.NO_POSITION;
+			lastVisible = RecyclerView.NO_POSITION;
+		}
+
+		mAdapter.setPreloadWindow(firstVisible, lastVisible);
 	}
 
 	/**
