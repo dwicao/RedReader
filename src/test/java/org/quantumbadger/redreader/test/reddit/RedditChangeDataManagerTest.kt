@@ -17,7 +17,10 @@
 
 package org.quantumbadger.redreader.test.reddit
 
+import android.content.pm.PackageInfo
+import android.content.pm.Signature
 import android.os.Looper
+import android.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -39,7 +42,26 @@ class RedditChangeDataManagerTest {
 
 	@Before
 	fun setUp() {
-		PrefsUtility.init(RuntimeEnvironment.getApplication())
+
+		val context = RuntimeEnvironment.getApplication()
+
+		val packageInfo = PackageInfo()
+		packageInfo.packageName = context.packageName
+		packageInfo.versionName = "1.27"
+		packageInfo.signatures = arrayOf(
+			Signature(Base64.decode(TEST_CERTIFICATE_BASE64, Base64.DEFAULT)))
+
+		shadowOf(context.packageManager).installPackage(packageInfo)
+
+		PrefsUtility.init(context)
+	}
+
+	companion object {
+
+		// A throwaway self-signed X.509 certificate, so that
+		// AndroidCommon.getPackageInfo() can resolve signature hashes under Robolectric.
+		private const val TEST_CERTIFICATE_BASE64 =
+			"MIIC1jCCAb6gAwIBAgIJAMU5jGz7lskpMA0GCSqGSIb3DQEBDAUAMBkxFzAVBgNVBAMTDnJlZHJlYWRlci10ZXN0MB4XDTI2MTAwODEwMzUzOVoXDTM2MTAwNTEwMzUzOVowGTEXMBUGA1UEAxMOcmVkcmVhZGVyLXRlc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDWpM7FQu12CGoMoVZi78GfNZ/WwShK084J+dfflYEFYqRfmM1z/ICwBcoz06kZ6PhZVwSzX/8lire32zgSAmc8fY1o3j5zIzlfCssUC3mX8FARu/LGVA+GLTLe9N1w5AQkjdcwLNJ7xyIn6kPTtrdh0kmDmycSNngRrogxKgwNVJ5KUFlPc68sTbq1y56AUQjuly2AWASfk9LjuBnOkg7sOMrqhrhW6qCWQ2tlgrqphdoVGHqPYuEHYHprrZXYDysXVXP+2MMQ3BZ1NjEZNNh4hQRy5X9nTrmw6TJFaEDtvwqEtVYZBrpyJvJfvP/fyOpi6j+xy621vbzw+Zf9mw9RAgMBAAGjITAfMB0GA1UdDgQWBBR/X8s9F9dS3HWtkjyiWcX85TimKDANBgkqhkiG9w0BAQwFAAOCAQEAxpYFpIM2tGTAxVqicyvk+wn2gC1CQBP3/njVeeke9dCz4ifCYfGNhiVkYIc7MbAbr+GNY7Vdyu8jJUeF1diKQ7ojgtsqfAfWD6Q0byGg5UFWMSEEro2trDcxMgR7EjBkmiQwS1Us1/IHzyJJAZBCPvqVTDcxatsen92WYV9aZ3wMYna/OOzo37zBrsVQ1jpLkVFcFMA7Yi8hoCG7z0we8pddYmy5NZElMGNnOcKoy4DVR8KsE0LnfywSwISgXjkBcQbIHCGWTaQemuAMPEYof6kx0yVX4EDPD05Sn3XixYrqnWXucu7iQSLQ3BqX/X9PUzPi/alciWU6vuKloBlK9Q=="
 	}
 
 	private fun managerFor(testName: String): RedditChangeDataManager =
