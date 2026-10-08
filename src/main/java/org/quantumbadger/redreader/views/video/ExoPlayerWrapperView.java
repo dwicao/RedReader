@@ -38,7 +38,9 @@ import androidx.annotation.StringRes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.LoadControl;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.ui.AspectRatioFrameLayout;
@@ -99,8 +101,13 @@ public class ExoPlayerWrapperView extends FrameLayout {
 
 		final DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
 
+		final LoadControl loadControl = new DefaultLoadControl.Builder()
+				.setBufferDurationsMs(50_000, 50_000, 500, 2_000)
+				.build();
+
 		mVideoPlayer = new ExoPlayer.Builder(context)
 				.setTrackSelector(trackSelector)
+				.setLoadControl(loadControl)
 				.build();
 
 		final PlayerView videoPlayerView = (PlayerView)LayoutInflater.from(context).inflate(

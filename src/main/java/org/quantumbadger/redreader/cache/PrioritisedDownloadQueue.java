@@ -31,6 +31,9 @@ class PrioritisedDownloadQueue {
 	private final PrioritisedCachedThreadPool mDownloadThreadPool
 			= new PrioritisedCachedThreadPool(5, "Download");
 
+	private final PrioritisedCachedThreadPool mMediaThreadPool
+			= new PrioritisedCachedThreadPool(10, "Media Download");
+
 	public PrioritisedDownloadQueue(final Context context) {
 		new RedditQueueProcessor().start();
 	}
@@ -45,7 +48,12 @@ class PrioritisedDownloadQueue {
 
 		} else if(request.queueType == CacheRequest.DownloadQueueType.IMMEDIATE
 				|| request.queueType == CacheRequest.DownloadQueueType.IMGUR_API) {
-			new CacheDownloadThread(download, true, "Cache Download Thread: Immediate");
+
+			if(request.priority.primary < 0) {
+				new CacheDownloadThread(download, true, "Cache Download Thread: Immediate");
+			} else {
+				mMediaThreadPool.add(download);
+			}
 
 		} else {
 			mDownloadThreadPool.add(download);

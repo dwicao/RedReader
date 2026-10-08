@@ -17,6 +17,8 @@
 
 package org.quantumbadger.redreader.cache;
 
+import org.quantumbadger.redreader.common.Constants;
+
 final class CacheDownloadThread extends Thread {
 	private final CacheDownload singleDownload;
 
@@ -34,7 +36,12 @@ final class CacheDownloadThread extends Thread {
 
 	@Override
 	public void run() {
-		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+
+		android.os.Process.setThreadPriority(
+				singleDownload.getPriority().primary >= Constants.Priority.IMAGE_PRECACHE
+						? android.os.Process.THREAD_PRIORITY_BACKGROUND
+						: android.os.Process.THREAD_PRIORITY_FOREGROUND);
+
 		singleDownload.doDownload();
 	}
 }

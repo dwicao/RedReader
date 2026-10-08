@@ -75,7 +75,7 @@ public final class CacheManager {
 
 	private final PrioritisedDownloadQueue downloadQueue;
 	private final PrioritisedCachedThreadPool mDiskCacheThreadPool
-			= new PrioritisedCachedThreadPool(2, "Disk Cache");
+			= new PrioritisedCachedThreadPool(4, "Disk Cache");
 
 	private final Context context;
 

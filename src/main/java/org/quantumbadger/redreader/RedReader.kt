@@ -84,7 +84,10 @@ class RedReader : Application() {
         }.start()
 
 		Alarms.onBoot(this)
-        AnnouncementDownloader.performDownload(this)
-        NewMessageChecker.checkForNewMessages(this)
+
+		AndroidCommon.UI_THREAD_HANDLER.postDelayed({
+			AnnouncementDownloader.performDownload(this)
+			NewMessageChecker.checkForNewMessages(this)
+		}, 10_000L)
     }
 }

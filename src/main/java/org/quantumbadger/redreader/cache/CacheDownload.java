@@ -17,6 +17,7 @@
 
 package org.quantumbadger.redreader.cache;
 
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -197,7 +198,8 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 					return;
 				}
 
-				final MemoryDataStream stream = new MemoryDataStream(64 * 1024);
+				final MemoryDataStream stream = new MemoryDataStream(
+					getInitialCapacity(bodyBytes));
 
 				mInitiator.notifyDataStreamAvailable(
 						stream::getInputStream,
@@ -214,18 +216,25 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 
 					int bytesRead;
 					long totalBytesRead = 0;
+					long lastProgressNotifyMs = 0;
 
-					while((bytesRead = tryReadFully(is, buf)) > 0) {
+					while((bytesRead = is.read(buf)) > 0) {
 
 						totalBytesRead += bytesRead;
 
 						stream.writeBytes(buf, 0, bytesRead);
 
 						if(bodyBytes != null) {
-							mInitiator.notifyProgress(
-									false,
-									totalBytesRead,
-									bodyBytes);
+							final long now = SystemClock.elapsedRealtime();
+
+							if(now - lastProgressNotifyMs >= 100
+									|| totalBytesRead >= bodyBytes) {
+								lastProgressNotifyMs = now;
+								mInitiator.notifyProgress(
+										false,
+										totalBytesRead,
+										bodyBytes);
+							}
 						}
 
 						if(mCancelled) {
@@ -233,6 +242,13 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 							stream.setFailed(new IOException("Download cancelled"));
 							return;
 						}
+					}
+
+					if(bodyBytes != null) {
+						mInitiator.notifyProgress(
+								false,
+								totalBytesRead,
+								bodyBytes);
 					}
 
 					stream.setComplete();
@@ -372,24 +388,12 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 		doDownload();
 	}
 
-	private static int tryReadFully(
-			final InputStream src,
-			final byte[] dst
-	) throws IOException {
-		int totalBytesRead = 0;
+	private static int getInitialCapacity(@Nullable final Long bodyBytes) {
 
-		while(true) {
-			final int bytesRead = src.read(dst, totalBytesRead, dst.length - totalBytesRead);
-
-			if (bytesRead <= 0) {
-				return totalBytesRead;
-			}
-
-			totalBytesRead += bytesRead;
-
-			if (totalBytesRead >= dst.length) {
-				return totalBytesRead;
-			}
+		if(bodyBytes == null || bodyBytes <= 0 || bodyBytes > 256L * 1024 * 1024) {
+			return 64 * 1024;
 		}
+
+		return (int)(bodyBytes + 64 * 1024);
 	}
 }

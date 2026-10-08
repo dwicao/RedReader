@@ -399,6 +399,11 @@ public class PostListingFragment extends RRFragment
 							}
 						};
 
+						final TimestampBound subredditAboutBound = forceDownload
+								? TimestampBound.NONE
+								: TimestampBound.notOlderThan(
+										PrefsUtility.pref_cache_rerequest_postlist_age());
+
 						try {
 							RedditSubredditManager
 									.getInstance(
@@ -408,7 +413,7 @@ public class PostListingFragment extends RRFragment
 									.getSubreddit(
 											new SubredditCanonicalId(
 													subredditPostListURL.subreddit),
-											TimestampBound.NONE,
+											subredditAboutBound,
 											subredditHandler,
 											null);
 						} catch(final InvalidSubredditNameException e) {
@@ -1057,39 +1062,37 @@ public class PostListingFragment extends RRFragment
 										precacheComments(activity, preparedPost, positionInList);
 									}
 
-									LinkHandler.getImageInfo(
-											activity,
-											parsedPost.getUrl(),
-											new Priority(
-													Constants.Priority.IMAGE_PRECACHE,
-													positionInList),
-											new GetImageInfoListener() {
+									if(precacheImages) {
+										LinkHandler.getImageInfo(
+												activity,
+												parsedPost.getUrl(),
+												new Priority(
+														Constants.Priority.IMAGE_PRECACHE,
+														positionInList),
+												new GetImageInfoListener() {
 
-												@Override
-												public void onFailure(
-														@NonNull final RRError error) {
-												}
-
-												@Override
-												public void onNotAnImage() {
-												}
-
-												@Override
-												public void onSuccess(final ImageInfo info) {
-
-													if(!precacheImages) {
-														return;
+													@Override
+													public void onFailure(
+															@NonNull final RRError error) {
 													}
 
-													precacheImage(
-															activity,
-															info,
-															positionInList,
-															gifViewMode,
-															imageViewMode,
-															videoViewMode);
-												}
-											});
+													@Override
+													public void onNotAnImage() {
+													}
+
+													@Override
+													public void onSuccess(final ImageInfo info) {
+
+														precacheImage(
+																activity,
+																info,
+																positionInList,
+																gifViewMode,
+																imageViewMode,
+																videoViewMode);
+													}
+												});
+									}
 
 									downloadedPosts.add(new RedditPostListItem(
 											preparedPost,

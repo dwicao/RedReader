@@ -27,6 +27,20 @@ just precommit
 - `org.gradle.daemon=false` and an 8 GB heap are set in `gradle.properties` — builds are slow by design; don't try to "fix" it by re-enabling anything locally.
 - Compilation targets **Java 11** (version catalog), CI *runs* on Java 21. Kotlin 2.2.x, Compose compiler plugin applied at root.
 
+### Local build setup (this device: Termux, aarch64 Android)
+
+- Android SDK lives at `~/android-sdk` with `local.properties` pointing at it (gitignored — recreate if missing: `sdk.dir=/data/data/com.termux/files/home/android-sdk`). Installed: platform-36, build-tools 36.0.0+36.1.0, platform-tools, cmdline-tools 23.
+- **`cmdline-tools/bin/sdkmanager` and `bin/android` are x86_64 ELFs and will NOT run on this aarch64 device.** Use the JVM entry point instead (works because the real logic is in `lib/**.jar`):
+  ```sh
+  SDK=~/android-sdk
+  CP=$(find $SDK/cmdline-tools/latest/lib -name '*.jar' | tr '\n' ':')
+  yes | java -cp "$CP" com.android.sdklib.tool.sdkmanager.SdkManagerCli \
+      --sdk_root=$SDK --install "platforms;android-36" "build-tools;36.0.0"
+  ```
+- **AGP's Maven-downloaded aapt2 is also x86_64.** `~/.gradle/gradle.properties` (user-level, outside the repo) contains `android.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2` (Termux's native aapt2 2.20) — without it, `processDebugResources` fails with "Daemon startup failed".
+- Robolectric **native-graphics** tests (`EdgeToEdgeInsetsTest`, `ScaledBitmapDecoderTest`, `MPDParserTest`, ~24 tests) fail here with `The Robolectric native runtime is not supported on Linux (aarch64)` — environmental, pre-existing; they pass in CI (x86_64 glibc). Don't chase these as regressions; compare against a clean `git stash` run if in doubt.
+- Known third-party aarch64 blockers: none remaining for `pmd checkstyle lint test`; `assembleRelease` R8 should work (pure JVM) but hasn't been verified here.
+
 ## Release build policy (CI-enforced, do not break)
 
 `.github/workflows/build.yml` greps `build.gradle.kts` and `proguard-rules.pro` and **fails the build** if:
