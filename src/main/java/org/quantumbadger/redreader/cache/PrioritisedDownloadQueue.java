@@ -19,6 +19,7 @@ package org.quantumbadger.redreader.cache;
 
 import android.content.Context;
 
+import org.quantumbadger.redreader.common.Constants;
 import org.quantumbadger.redreader.common.PrioritisedCachedThreadPool;
 
 import java.util.HashSet;
@@ -33,6 +34,9 @@ class PrioritisedDownloadQueue {
 
 	private final PrioritisedCachedThreadPool mMediaThreadPool
 			= new PrioritisedCachedThreadPool(10, "Media Download");
+
+	private final PrioritisedCachedThreadPool mFallbackThreadPool
+			= new PrioritisedCachedThreadPool(10, "Media Fallback");
 
 	public PrioritisedDownloadQueue(final Context context) {
 		new RedditQueueProcessor().start();
@@ -51,6 +55,8 @@ class PrioritisedDownloadQueue {
 
 			if(request.priority.primary < 0) {
 				new CacheDownloadThread(download, true, "Cache Download Thread: Immediate");
+			} else if(request.priority.primary >= Constants.Priority.MEDIA_FALLBACK) {
+				mFallbackThreadPool.add(download);
 			} else {
 				mMediaThreadPool.add(download);
 			}

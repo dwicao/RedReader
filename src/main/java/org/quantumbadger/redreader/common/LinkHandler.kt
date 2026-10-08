@@ -674,6 +674,27 @@ object LinkHandler {
 		return getImageUrlPatternMatch(url) != null
 	}
 
+	/**
+	 * True when fetching the URL yields something BitmapFactory can decode directly:
+	 * a reddit image host, or an image/gif URL by extension. Unlike isProbablyAnImage,
+	 * this rejects video paths (v.redd.it) and web pages (imgur/gfycat/streamable...).
+	 */
+	@JvmStatic
+	fun isDirectImageUrl(url: UriString?): Boolean {
+		if (url == null) {
+			return false
+		}
+
+		if (url.value.contains("://i.redd.it/")
+				|| url.value.contains("://preview.redd.it/")) {
+			return true
+		}
+
+		val match = getImageUrlPatternMatch(url) ?: return false
+		return match.mediaType == ImageInfo.MediaType.IMAGE
+				|| match.mediaType == ImageInfo.MediaType.GIF
+	}
+
 	@JvmStatic
 	fun getImgurImageInfo(
 		context: Context,

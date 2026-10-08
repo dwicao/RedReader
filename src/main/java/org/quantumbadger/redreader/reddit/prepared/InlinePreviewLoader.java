@@ -25,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 
+import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.cache.CacheManager;
@@ -36,7 +37,9 @@ import org.quantumbadger.redreader.common.Constants;
 import org.quantumbadger.redreader.common.DisplayUtils;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.GenericFactory;
+import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.Optional;
+import org.quantumbadger.redreader.common.PrioritisedCachedThreadPool;
 import org.quantumbadger.redreader.common.Priority;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.UriString;
@@ -97,18 +100,33 @@ public final class InlinePreviewLoader {
 		public final int boxWidthPx;
 		public final int boxHeightPx;
 
+		// True when the JSON had no preview metadata and the source URL is a fallback
+		public final boolean isFallback;
+
+		// True when the source is a frame to be extracted from the post's video
+		public final boolean isVideoPoster;
+
+		// When set, loaded after the placeholder URL as a higher-quality upgrade
+		@Nullable public final UriString upgradeUrl;
+
 		private PreviewDetails(
 				@NonNull final UriString url,
 				final int imageWidthPx,
 				final int imageHeightPx,
 				final int boxWidthPx,
-				final int boxHeightPx) {
+				final int boxHeightPx,
+				final boolean isFallback,
+				final boolean isVideoPoster,
+				@Nullable final UriString upgradeUrl) {
 
 			this.url = url;
 			this.imageWidthPx = imageWidthPx;
 			this.imageHeightPx = imageHeightPx;
 			this.boxWidthPx = boxWidthPx;
 			this.boxHeightPx = boxHeightPx;
+			this.isFallback = isFallback;
+			this.isVideoPoster = isVideoPoster;
+			this.upgradeUrl = upgradeUrl;
 		}
 	}
 
@@ -145,10 +163,6 @@ public final class InlinePreviewLoader {
 		final RedditParsedPost.ImagePreviewDetails preview
 				= post.src.getPreview(boxWidth, 0);
 
-		if(preview == null || preview.width < 10 || preview.height < 10) {
-			return null;
-		}
-
 		// A preview is displayed at the width of the post, which is normally the width of
 		// the window, so scaling the height limit by the same factor as the width gives the
 		// height to decode within. This is only an estimate of the size the image will be
@@ -159,17 +173,84 @@ public final class InlinePreviewLoader {
 				((long)getMaxPreviewHeightPx(windowVisibleDisplayFrame.height()) * boxWidth)
 						/ windowWidth));
 
-		final int boxHeight = Math.max(1, Math.min(
-				maxBoxHeight,
-				(int)(((long)preview.height * boxWidth) / preview.width)));
+		final UriString sourceUrl;
+		final int imageWidthPx;
+		final int imageHeightPx;
+		final int boxHeight;
+		final boolean isFallback;
+		final boolean isVideoPoster;
+		final UriString upgradeUrl;
+
+		if(preview != null && preview.width >= 10 && preview.height >= 10) {
+
+			sourceUrl = preview.url;
+			imageWidthPx = preview.width;
+			imageHeightPx = preview.height;
+			isFallback = false;
+			isVideoPoster = false;
+			upgradeUrl = null;
+			boxHeight = Math.max(1, Math.min(
+					maxBoxHeight,
+					(int)(((long)preview.height * boxWidth) / preview.width)));
+
+		} else {
+
+			// The listing JSON sometimes has no preview metadata at all. Prefer the small
+			// thumbnail as an instant placeholder, upgrading to the full-size image once
+			// it arrives; the holder's provisional square ratio is corrected when each
+			// bitmap's real size is known.
+			final UriString thumb = post.src.getThumbnailUrl();
+			final UriString postUrl = post.src.getUrl();
+			final boolean directImage = LinkHandler.isDirectImageUrl(postUrl);
+
+			UriString resolved;
+			UriString upgrade = null;
+
+			if(RedditPreparedPost.isUsableThumbnailUrl(thumb) && directImage) {
+				resolved = thumb;
+				upgrade = postUrl;
+			} else {
+				resolved = RedditPreparedPost.resolveInlinePreviewSource(
+						null,
+						thumb,
+						postUrl,
+						directImage);
+			}
+
+			boolean videoPoster = false;
+
+			if(resolved == null
+					&& post.isVideoPreview()
+					&& postUrl != null) {
+				resolved = postUrl;
+				videoPoster = true;
+			}
+
+			if(resolved == null) {
+				return null;
+			}
+
+			sourceUrl = resolved;
+			upgradeUrl = upgrade;
+			isVideoPoster = videoPoster;
+			isFallback = !videoPoster && postUrl != null && resolved.equals(postUrl);
+			imageWidthPx = boxWidth;
+			imageHeightPx = boxWidth;
+			boxHeight = Math.max(1, Math.min(maxBoxHeight, boxWidth));
+		}
 
 		return new PreviewDetails(
-				preview.url,
-				preview.width,
-				preview.height,
+				sourceUrl,
+				imageWidthPx,
+				imageHeightPx,
 				boxWidth,
-				boxHeight);
+				boxHeight,
+				isFallback,
+				isVideoPoster,
+				upgradeUrl);
 	}
+
+	private static final long LOAD_TIMEOUT_MS = 20_000;
 
 	@NonNull private final BaseActivity mActivity;
 	@NonNull private final RedditPreparedPost mPost;
@@ -183,6 +264,10 @@ public final class InlinePreviewLoader {
 	@Nullable private RRError mError;
 
 	@Nullable private CacheRequest mRequest;
+
+	@Nullable private Runnable mTimeoutRunnable;
+
+	@Nullable private UriString mPendingUpgradeUrl;
 
 	// Incremented whenever the current load is superseded or released, so that results
 	// arriving later from a background thread can be discarded
@@ -273,6 +358,10 @@ public final class InlinePreviewLoader {
 
 	private void release() {
 
+		cancelTimeout();
+
+		mPendingUpgradeUrl = null;
+
 		// Discard any result which is still on its way from a background thread
 		mGeneration++;
 
@@ -294,10 +383,13 @@ public final class InlinePreviewLoader {
 			mRequest.cancel();
 		}
 
+		cancelTimeout();
+
 		final int generation = ++mGeneration;
 
 		mLoadedForWidthPx = details.boxWidthPx;
 		mLoadedForHeightPx = details.boxHeightPx;
+		mPendingUpgradeUrl = details.upgradeUrl;
 
 		// When reloading at a higher resolution, keep showing the image we already have
 		// until the new one is ready, rather than flashing up a loading spinner
@@ -308,11 +400,57 @@ public final class InlinePreviewLoader {
 			notifyListener();
 		}
 
+		if(details.isVideoPoster) {
+
+			Log.d(TAG, "MediaTrace: extracting video poster for " + details.url);
+
+			RedditPreparedPost.VIDEO_POSTER_POOL.add(
+					new PrioritisedCachedThreadPool.Task() {
+
+						@NonNull
+						@Override
+						public Priority getPriority() {
+							return new Priority(Constants.Priority.MEDIA_FALLBACK);
+						}
+
+						@Override
+						public void run() {
+
+							final Bitmap poster = RedditPreparedPost.extractVideoPoster(
+									mActivity,
+									details.url,
+									details.boxWidthPx);
+
+							AndroidCommon.runOnUiThread(() -> {
+
+								if(poster == null) {
+									onLoadFailed(generation, new RRError(
+											mActivity.getString(R.string.error_connection_title),
+											mActivity.getString(R.string.error_connection_message),
+											false,
+											new IOException("Failed to extract video poster")));
+								} else {
+									onLoadSucceeded(generation, poster);
+								}
+							});
+						}
+					});
+
+			scheduleTimeout(generation, details.url);
+			return;
+		}
+
+		final int previewPriority = details.isFallback
+				? Constants.Priority.MEDIA_FALLBACK
+				: Constants.Priority.INLINE_IMAGE_PREVIEW;
+
+		Log.d(TAG, "MediaTrace: loading preview " + details.url);
+
 		mRequest = new CacheRequest(
 				details.url,
 				RedditAccountManager.getAnon(),
 				null,
-				new Priority(Constants.Priority.INLINE_IMAGE_PREVIEW),
+				new Priority(previewPriority),
 				DownloadStrategyIfNotCached.INSTANCE,
 				Constants.FileType.INLINE_IMAGE_PREVIEW,
 				CacheRequest.DownloadQueueType.IMMEDIATE,
@@ -320,6 +458,42 @@ public final class InlinePreviewLoader {
 				new LoadCallbacks(generation, details));
 
 		CacheManager.getInstance(mActivity).makeRequest(mRequest);
+
+		scheduleTimeout(generation, details.url);
+	}
+
+	private void scheduleTimeout(final int generation, @NonNull final UriString url) {
+
+		mTimeoutRunnable = () -> {
+
+			mTimeoutRunnable = null;
+
+			if(generation != mGeneration || mState != State.LOADING) {
+				return;
+			}
+
+			Log.e(TAG, "MediaTrace: preview load timed out for " + url);
+
+			mRequest = null;
+			mBitmap = null;
+			mError = new RRError(
+					mActivity.getString(R.string.error_connection_title),
+					mActivity.getString(R.string.error_connection_message),
+					false,
+					new IOException("Timed out loading inline preview"));
+			mState = State.FAILED;
+			notifyListener();
+		};
+
+		AndroidCommon.UI_THREAD_HANDLER.postDelayed(mTimeoutRunnable, LOAD_TIMEOUT_MS);
+	}
+
+	private void cancelTimeout() {
+
+		if(mTimeoutRunnable != null) {
+			AndroidCommon.UI_THREAD_HANDLER.removeCallbacks(mTimeoutRunnable);
+			mTimeoutRunnable = null;
+		}
 	}
 
 	@UiThread
@@ -330,12 +504,30 @@ public final class InlinePreviewLoader {
 			return;
 		}
 
+		cancelTimeout();
+
 		mRequest = null;
 		mBitmap = bitmap;
 		mError = null;
 		mState = State.LOADED;
 
 		notifyListener();
+
+		if(mPendingUpgradeUrl != null) {
+
+			final UriString upgradeUrl = mPendingUpgradeUrl;
+			mPendingUpgradeUrl = null;
+
+			startLoad(new PreviewDetails(
+					upgradeUrl,
+					mLoadedForWidthPx,
+					mLoadedForHeightPx,
+					mLoadedForWidthPx,
+					mLoadedForHeightPx,
+					true,
+					false,
+					null));
+		}
 	}
 
 	@UiThread
@@ -345,7 +537,27 @@ public final class InlinePreviewLoader {
 			return;
 		}
 
+		cancelTimeout();
+
 		mRequest = null;
+
+		if(mPendingUpgradeUrl != null) {
+
+			final UriString upgradeUrl = mPendingUpgradeUrl;
+			mPendingUpgradeUrl = null;
+
+			startLoad(new PreviewDetails(
+					upgradeUrl,
+					mLoadedForWidthPx,
+					mLoadedForHeightPx,
+					mLoadedForWidthPx,
+					mLoadedForHeightPx,
+					true,
+					false,
+					null));
+
+			return;
+		}
 
 		if(mState == State.LOADED && mBitmap != null) {
 			// A reload at a higher resolution failed -- keep showing the lower resolution

@@ -24,6 +24,7 @@ import com.squareup.picasso.Picasso
 import okhttp3.Cache
 import org.quantumbadger.redreader.http.okhttp.OKHTTPBackend
 import java.io.File
+import java.util.concurrent.Executors
 
 // Provides the project-wide Picasso instance, backed by RedReader's own
 // OkHttpClient so that image downloads honour the user's proxy/Tor settings
@@ -76,6 +77,7 @@ object RedReaderPicasso {
 
 		return Picasso.Builder(context)
 			.downloader(OkHttp3Downloader(client))
+			.executor(Executors.newFixedThreadPool(6))
 			.build()
 	}
 }

@@ -1058,6 +1058,29 @@ public class PostListingFragment extends RRFragment
 										continue;
 									}
 
+									if(General.isSensitiveDebugLoggingEnabled()) {
+										Log.d(TAG, "MediaTrace classify id=" + post.getIdAlone()
+												+ " thumbField=" + post.getThumbnail()
+												+ " direct=" + LinkHandler.isDirectImageUrl(
+														parsedPost.getUrl())
+												+ " video=" + preparedPost.isVideoPreview()
+												+ " inline="
+														+ preparedPost.shouldShowInlinePreview()
+												+ " hasThumb=" + preparedPost.hasThumbnail
+												+ " url=" + parsedPost.getUrl());
+									}
+
+									if(General.isSensitiveDebugLoggingEnabled()
+											&& !preparedPost.hasThumbnail
+											&& !preparedPost.shouldShowInlinePreview()) {
+										Log.i(TAG, "No media available for post "
+												+ post.getIdAlone()
+												+ ": domain=" + post.getDomain()
+												+ " url=" + post.getUrl()
+												+ " over18=" + post.getOver_18()
+												+ " spoiler=" + post.getSpoiler());
+									}
+
 									if(precacheComments) {
 										precacheComments(activity, preparedPost, positionInList);
 									}

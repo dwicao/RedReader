@@ -100,7 +100,14 @@ public class PrioritisedCachedThreadPool {
 				}
 
 				assert taskToRun != null;
-				taskToRun.run();
+
+				try {
+					taskToRun.run();
+				} catch(final Throwable ignore) {
+					// The worker must survive a failing task: a dead worker permanently
+					// shrinks the pool, as mRunningThreads is only decremented on clean
+					// exit. Request-level failure reporting happens in CacheManager.
+				}
 			}
 		}
 	}

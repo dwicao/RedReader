@@ -252,6 +252,7 @@ public final class Constants {
 		public static final int API_COMMENT_LIST = -300;
 		public static final int THUMBNAIL = 100;
 		public static final int INLINE_IMAGE_PREVIEW = 100;
+		public static final int MEDIA_FALLBACK = 400;
 		public static final int IMAGE_PRECACHE = 500;
 		public static final int COMMENT_PRECACHE = 500;
 		public static final int IMAGE_VIEW = -400;

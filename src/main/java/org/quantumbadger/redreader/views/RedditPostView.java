@@ -108,6 +108,12 @@ public final class RedditPostView extends FlingableItemView
 	@SuppressWarnings("PMD.ImmutableField")
 	private LoadingSpinnerView mGridLoadingSpinner;
 
+	private static final long GRID_LOAD_TIMEOUT_MS = 20_000;
+
+	@Nullable private Runnable mGridLoadTimeout;
+
+	private boolean mGridOriginalShown;
+
 	private int mUsageId = 0;
 
 	@Nullable private InlinePreviewLoader mPreviewLoader = null;
@@ -222,9 +228,19 @@ public final class RedditPostView extends FlingableItemView
 					}
 					return;
 				}
-				mThumbnailView.setImageBitmap((Bitmap)msg.obj);
+				final Bitmap bitmap = (Bitmap)msg.obj;
+
+				if(!mGridMode || !mGridOriginalShown) {
+					mThumbnailView.setImageBitmap(bitmap);
+				}
 				if(mGridMode) {
 					mGridLoadingSpinner.setVisibility(GONE);
+
+					if(mPost != null && mPost.isVideoPreview()) {
+						applyGridColumnImageAspect(
+								bitmap.getWidth(),
+								bitmap.getHeight());
+					}
 				}
 			}
 		};
@@ -416,6 +432,7 @@ public final class RedditPostView extends FlingableItemView
 			mPostErrors.removeAllViews();
 
 			mUsageId++;
+			mGridOriginalShown = false;
 
 			// Cancel any in-flight grid image load for this view, so a stale
 			// request from a previous bind can't paint over the new post's
@@ -467,6 +484,10 @@ public final class RedditPostView extends FlingableItemView
 
 				final Bitmap thumbnail = newPost.getThumbnail(this, mUsageId);
 				mThumbnailView.setImageBitmap(thumbnail);
+
+				if(thumbnail == null && newPost.isVideoPreview()) {
+					newPost.ensureVideoPoster(mActivity, mThumbnailSizePrefPixels);
+				}
 
 				mThumbnailView.setVisibility(VISIBLE);
 
@@ -738,6 +759,8 @@ public final class RedditPostView extends FlingableItemView
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
+		startGridLoadTimeout(post, usageId);
+
 		// Load the preview through Picasso with fit(), which downsamples the
 		// decoded bitmap to the card's actual size (a fraction of the screen
 		// width) instead of decoding the full-resolution image into memory.
@@ -752,6 +775,8 @@ public final class RedditPostView extends FlingableItemView
 						if(usageId != mUsageId) {
 							return;
 						}
+
+						cancelGridLoadTimeout();
 
 						mGridLoadingSpinner.setVisibility(GONE);
 
@@ -789,7 +814,7 @@ public final class RedditPostView extends FlingableItemView
 
 		final UriString url = post.src.getUrl();
 
-		if(url == null || !LinkHandler.isProbablyAnImage(url)) {
+		if(url == null || !LinkHandler.isDirectImageUrl(url)) {
 			showGridFallbackThumbnail(post, usageId);
 			return;
 		}
@@ -797,6 +822,16 @@ public final class RedditPostView extends FlingableItemView
 		mThumbnailView.setVisibility(VISIBLE);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
+
+		startGridLoadTimeout(post, usageId);
+
+		mGridOriginalShown = false;
+
+		final Bitmap placeholder = post.getThumbnail(this, mUsageId);
+		if(placeholder != null) {
+			mThumbnailView.setImageBitmap(placeholder);
+		}
+		post.ensureThumbnail(mActivity, mThumbnailSizePrefPixels);
 
 		// Provisional square aspect ratio, corrected once the image is loaded.
 		// Reset the holder to a constraint-sized height so the ratio actually
@@ -829,6 +864,10 @@ public final class RedditPostView extends FlingableItemView
 				if(usageId != mUsageId) {
 					return;
 				}
+
+				cancelGridLoadTimeout();
+
+				mGridOriginalShown = true;
 
 				final int width = bitmap.getWidth();
 				final int height = bitmap.getHeight();
@@ -915,9 +954,65 @@ public final class RedditPostView extends FlingableItemView
 		return (tenths / 10.0) + suffix;
 	}
 
+	private void startGridLoadTimeout(
+			@NonNull final RedditPreparedPost post,
+			final int usageId) {
+
+		cancelGridLoadTimeout();
+
+		mGridLoadTimeout = new Runnable() {
+			@Override
+			public void run() {
+
+				mGridLoadTimeout = null;
+
+				if(usageId != mUsageId || mGridLoadingSpinner.getVisibility() != VISIBLE) {
+					return;
+				}
+
+				Log.e(
+						TAG,
+						"MediaTrace: grid image load timed out for " + post.src.getUrl());
+
+				showGridFallbackThumbnail(post, usageId);
+			}
+		};
+
+		thumbnailHandler.postDelayed(mGridLoadTimeout, GRID_LOAD_TIMEOUT_MS);
+	}
+
+	private void cancelGridLoadTimeout() {
+
+		if(mGridLoadTimeout != null) {
+			thumbnailHandler.removeCallbacks(mGridLoadTimeout);
+			mGridLoadTimeout = null;
+		}
+	}
+
+	private void applyGridColumnImageAspect(
+			final int imageWidthPx,
+			final int imageHeightPx) {
+
+		if(imageWidthPx < 1 || imageHeightPx < 1) {
+			return;
+		}
+
+		final ConstraintLayout.LayoutParams imageHolderLayoutParams
+				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
+
+		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+		imageHolderLayoutParams.height = 0;
+		imageHolderLayoutParams.dimensionRatio
+				= String.valueOf((float)imageWidthPx / (float)imageHeightPx);
+
+		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+	}
+
 	private void showGridFallbackThumbnail(
 			@NonNull final RedditPreparedPost post,
 			final int usageId) {
+
+		cancelGridLoadTimeout();
 
 		mGridLoadingSpinner.setVisibility(GONE);
 		mGridPlayOverlay.setVisibility(GONE);
@@ -938,12 +1033,26 @@ public final class RedditPostView extends FlingableItemView
 		mThumbnailView.setImageBitmap(thumbnail);
 		mThumbnailView.setVisibility(VISIBLE);
 
-		// Only show the spinner when a thumbnail download is actually in flight:
-		// for preview-enabled posts the constructor skips the thumbnail download,
-		// and showing a spinner that can never resolve is worse than the fallback
-		// background.
-		if(thumbnail == null && post.hasThumbnail && !post.shouldShowInlinePreview()) {
-			mGridLoadingSpinner.setVisibility(VISIBLE);
+		if(post.isVideoPreview()) {
+			mGridPlayOverlay.setVisibility(VISIBLE);
+
+			if(thumbnail != null) {
+				applyGridColumnImageAspect(
+						thumbnail.getWidth(),
+						thumbnail.getHeight());
+			}
+
+			post.ensureVideoPoster(
+					mActivity,
+					Math.max(mThumbnailSizePrefPixels, 720));
+
+		} else {
+
+			post.ensureThumbnail(mActivity, mThumbnailSizePrefPixels);
+
+			if(thumbnail == null && post.hasThumbnail) {
+				mGridLoadingSpinner.setVisibility(VISIBLE);
+			}
 		}
 	}
 
@@ -960,10 +1069,18 @@ public final class RedditPostView extends FlingableItemView
 
 			case LOADED:
 
-				mImagePreviewImageView.setImageBitmap(loader.getBitmap());
+				final Bitmap loadedPreviewBitmap = loader.getBitmap();
+
+				mImagePreviewImageView.setImageBitmap(loadedPreviewBitmap);
 				mImagePreviewLoadingSpinner.setVisibility(GONE);
 				mImagePreviewOuter.setVisibility(VISIBLE);
 				setBottomMargin(true);
+
+				if(loadedPreviewBitmap != null) {
+					mImagePreviewHolder.setImageSize(
+							loadedPreviewBitmap.getWidth(),
+							loadedPreviewBitmap.getHeight());
+				}
 
 				if(mPost.isVideoPreview()) {
 					mImagePreviewPlayOverlay.setVisibility(VISIBLE);

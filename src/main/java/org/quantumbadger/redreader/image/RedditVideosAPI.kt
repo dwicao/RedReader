@@ -36,7 +36,10 @@ import org.quantumbadger.redreader.common.time.TimestampUTC
 import org.quantumbadger.redreader.http.FailedRequestBody
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 object RedditVideosAPI {
 	private const val TAG = "RedditVideosAPI"
@@ -159,5 +162,81 @@ object RedditVideosAPI {
 					}
 				})
 		)
+	}
+
+	@JvmStatic
+	fun resolveVideoUrlBlocking(
+		context: Context,
+		postUrl: UriString,
+		timeoutMs: Long
+	): UriString? {
+
+		val marker = "v.redd.it/"
+
+		if (!postUrl.value.contains(marker)) {
+			return postUrl
+		}
+
+		val id = postUrl.value.substringAfter(marker)
+			.substringBefore('/')
+			.trim()
+
+		if (id.isEmpty()) {
+			return postUrl
+		}
+
+		val apiUrl = UriString("https://v.redd.it/$id/DASHPlaylist.mpd")
+
+		val latch = CountDownLatch(1)
+		val result = AtomicReference<UriString?>(null)
+
+		CacheManager.getInstance(context).makeRequest(
+			CacheRequest(
+				apiUrl,
+				RedditAccountManager.getAnon(),
+				null,
+				Priority(Constants.Priority.MEDIA_FALLBACK),
+				DownloadStrategyIfNotCached.INSTANCE,
+				Constants.FileType.IMAGE_INFO,
+				CacheRequest.DownloadQueueType.IMMEDIATE,
+				context,
+				object : CacheRequestCallbacks {
+
+					override fun onDataStreamComplete(
+						stream: GenericFactory<SeekableInputStream, IOException>,
+						timestamp: TimestampUTC,
+						session: UUID,
+						fromCache: Boolean,
+						mimetype: String?
+					) {
+						try {
+							val mpd = stream.create().use(::readWholeStreamAsUTF8)
+							val parsed = parseMPD(mpd)
+							val filename = parsed.video?.filename
+
+							if (filename != null) {
+								result.set(UriString("https://v.redd.it/$id/$filename"))
+								Log.d(TAG, "MediaTrace: resolved video URL for $id to $filename")
+							} else {
+								Log.e(TAG, "MediaTrace: no video track in manifest for $id")
+							}
+						} catch (e: Exception) {
+							Log.e(TAG, "MediaTrace: failed to parse manifest for $id", e)
+						} finally {
+							latch.countDown()
+						}
+					}
+
+					override fun onFailure(error: RRError) {
+						Log.e(TAG, "MediaTrace: manifest request failed for "
+								+ apiUrl + ": " + error)
+						latch.countDown()
+					}
+				})
+		)
+
+		latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+
+		return result.get()
 	}
 }

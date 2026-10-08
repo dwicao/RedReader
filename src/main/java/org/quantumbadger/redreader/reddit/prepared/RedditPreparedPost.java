@@ -22,6 +22,7 @@ import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.media.MediaMetadataRetriever;
 import android.text.SpannableStringBuilder;
 import android.util.Log;
 
@@ -42,8 +43,10 @@ import org.quantumbadger.redreader.common.BetterSSB;
 import org.quantumbadger.redreader.common.Constants;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.GenericFactory;
+import org.quantumbadger.redreader.common.HexUtils;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
+import org.quantumbadger.redreader.common.PrioritisedCachedThreadPool;
 import org.quantumbadger.redreader.common.Priority;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.ScreenreaderPronunciation;
@@ -51,19 +54,28 @@ import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.common.datastream.SeekableInputStream;
 import org.quantumbadger.redreader.common.time.TimeFormatHelper;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
+import org.quantumbadger.redreader.image.RedditVideosAPI;
 import org.quantumbadger.redreader.image.ThumbnailScaler;
 import org.quantumbadger.redreader.reddit.api.RedditPostActions;
 import org.quantumbadger.redreader.reddit.kthings.RedditIdAndType;
 import org.quantumbadger.redreader.views.RedditPostView;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class RedditPreparedPost implements RedditChangeDataManager.Listener {
 
 	private static final String TAG = "RedditPreparedPost";
+
+	public static final PrioritisedCachedThreadPool VIDEO_POSTER_POOL
+			= new PrioritisedCachedThreadPool(6, "VideoPoster");
 
 	public final RedditParsedPost src;
 	private final RedditChangeDataManager mChangeDataManager;
@@ -81,6 +93,10 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 	private ThumbnailLoadedCallback thumbnailCallback;
 	private int usageId = -1;
+
+	private final AtomicBoolean mPosterRequested = new AtomicBoolean(false);
+
+	private final AtomicBoolean mThumbnailRequested = new AtomicBoolean(false);
 
 	public TimestampUTC lastChange;
 
@@ -115,13 +131,14 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 		mIsProbablyAnImage = LinkHandler.isProbablyAnImage(post.getUrl());
 
-		hasThumbnail = showThumbnails && hasThumbnail(post);
+		hasThumbnail = showThumbnails && (hasThumbnail(post) || post.isVideoPreview());
 
 		final int thumbnailWidth = General.dpToPixels(
 				context,
 				PrefsUtility.images_thumbnail_size_dp());
 
-		if(hasThumbnail && hasThumbnail(post) && !shouldShowInlinePreview()) {
+		if(hasThumbnail && hasThumbnail(post) && !shouldShowInlinePreview()
+				&& mThumbnailRequested.compareAndSet(false, true)) {
 			downloadThumbnail(context, allowHighResThumbnails, thumbnailWidth, cm, listId);
 		}
 
@@ -135,7 +152,8 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				|| "i.imgur.com".equals(src.getDomain())
 				|| "streamable.com".equals(src.getDomain())
 				|| "i.redd.it".equals(src.getDomain())
-				|| "v.redd.it".equals(src.getDomain()));
+				|| "v.redd.it".equals(src.getDomain())
+				|| LinkHandler.isDirectImageUrl(src.getUrl()));
 	}
 
 	// In grid ("column") mode the card image is the post's high-res preview,
@@ -155,6 +173,178 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 	public boolean isVideoPreview() {
 		return src.isVideoPreview();
+	}
+
+	public void ensureVideoPoster(final Context context, final int sizePixels) {
+
+		final UriString url = src.getUrl();
+
+		if(url == null || !src.isVideoPreview()) {
+			return;
+		}
+
+		if(!mPosterRequested.compareAndSet(false, true)) {
+			return;
+		}
+
+		Log.d(TAG, "MediaTrace: extracting video poster for " + url);
+
+		VIDEO_POSTER_POOL.add(new PrioritisedCachedThreadPool.Task() {
+
+			@NonNull
+			@Override
+			public Priority getPriority() {
+				return new Priority(Constants.Priority.MEDIA_FALLBACK);
+			}
+
+			@Override
+			public void run() {
+
+				final Bitmap poster = extractVideoPoster(context, url, sizePixels);
+
+				if(poster == null) {
+					if(thumbnailCallback != null) {
+						thumbnailCallback.thumbnailDownloadFailed(usageId);
+					}
+					return;
+				}
+
+				thumbnailCache = poster;
+
+				if(thumbnailCallback != null) {
+					thumbnailCallback.betterThumbnailAvailable(
+							thumbnailCache,
+							usageId);
+				}
+			}
+		});
+	}
+
+	@Nullable
+	public static Bitmap extractVideoPoster(
+			@NonNull final Context context,
+			@NonNull final UriString videoUrl,
+			final int maxDimensionPx) {
+
+		final File cacheFile = getVideoPosterCacheFile(context, videoUrl);
+
+		if(cacheFile != null) {
+
+			try {
+				final Bitmap cached = BitmapFactory.decodeFile(cacheFile.getAbsolutePath());
+
+				if(cached != null) {
+					Log.d(TAG, "MediaTrace: poster cache hit for " + videoUrl);
+					return cached;
+				}
+
+			} catch(final Throwable t) {
+				Log.e(TAG, "Failed to read cached video poster", t);
+			}
+
+			cacheFile.delete();
+		}
+
+		final UriString resolvedUrl = RedditVideosAPI.resolveVideoUrlBlocking(
+				context,
+				videoUrl,
+				10_000);
+
+		if(resolvedUrl == null) {
+			Log.e(TAG, "MediaTrace: could not resolve video URL for " + videoUrl);
+			return null;
+		}
+
+		MediaMetadataRetriever retriever = null;
+
+		try {
+			retriever = new MediaMetadataRetriever();
+			retriever.setDataSource(resolvedUrl.value);
+
+			final Bitmap frame = retriever.getFrameAtTime();
+
+			if(frame == null) {
+				return null;
+			}
+
+			final Bitmap scaled = ThumbnailScaler.scale(frame, maxDimensionPx);
+
+			if(scaled != frame) {
+				frame.recycle();
+			}
+
+			writeVideoPosterCache(cacheFile, scaled);
+
+			return scaled;
+
+		} catch(final Throwable t) {
+			Log.e(TAG, "Failed to extract video poster from " + videoUrl, t);
+			return null;
+
+		} finally {
+			if(retriever != null) {
+				try {
+					retriever.release();
+				} catch(final Exception ignore) {
+					// Nothing useful can be done here
+				}
+			}
+		}
+	}
+
+	@Nullable
+	private static File getVideoPosterCacheFile(
+			@NonNull final Context context,
+			@NonNull final UriString videoUrl) {
+
+		try {
+			final File dir = new File(context.getCacheDir(), "video_posters");
+
+			if(!dir.exists() && !dir.mkdirs()) {
+				return null;
+			}
+
+			final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			final String name = HexUtils.toHex(
+					digest.digest(videoUrl.value.getBytes(StandardCharsets.UTF_8)));
+
+			return new File(dir, name + ".jpg");
+
+		} catch(final Throwable t) {
+			Log.e(TAG, "Failed to create video poster cache path", t);
+			return null;
+		}
+	}
+
+	private static void writeVideoPosterCache(
+			@NonNull final File cacheFile,
+			@NonNull final Bitmap bitmap) {
+
+		try {
+			try(FileOutputStream fos = new FileOutputStream(cacheFile)) {
+				if(!bitmap.compress(Bitmap.CompressFormat.JPEG, 85, fos)) {
+					Log.e(TAG, "Failed to encode video poster cache file");
+				}
+			}
+
+		} catch(final Throwable t) {
+			Log.e(TAG, "Failed to write video poster cache file", t);
+		}
+	}
+
+	public void ensureThumbnail(final Context context, final int sizePixels) {
+
+		if(thumbnailCache != null || !isUsableThumbnailUrl(src.getThumbnailUrl())) {
+			return;
+		}
+
+		if(!mThumbnailRequested.compareAndSet(false, true)) {
+			return;
+		}
+
+		Log.d(TAG, "MediaTrace: loading thumbnail " + src.getThumbnailUrl());
+
+		downloadThumbnail(context, false, sizePixels, CacheManager.getInstance(context), 0);
 	}
 
 	/**
@@ -818,14 +1008,55 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 	// lol, reddit api
 	private static boolean hasThumbnail(final RedditParsedPost post) {
+		return isUsableThumbnailUrl(post.getThumbnailUrl())
+				|| LinkHandler.isDirectImageUrl(post.getUrl());
+	}
 
-		final UriString url = post.getThumbnailUrl();
-
+	public static boolean isUsableThumbnailUrl(@Nullable final UriString url) {
 		return url != null
 				&& !url.value.isEmpty()
 				&& !url.value.equalsIgnoreCase("nsfw")
 				&& !url.value.equalsIgnoreCase("self")
-				&& !url.value.equalsIgnoreCase("default");
+				&& !url.value.equalsIgnoreCase("default")
+				&& !url.value.equalsIgnoreCase("spoiler");
+	}
+
+	// The order differs between the two consumers: the thumbnail strip prefers the
+	// small native thumbnail, while the inline preview prefers the full-size image.
+	@Nullable
+	public static UriString resolveThumbnailSource(
+			@Nullable final UriString previewUrl,
+			@Nullable final UriString thumbnailUrl,
+			@Nullable final UriString postUrl,
+			final boolean postUrlIsImage) {
+
+		if(previewUrl != null && !previewUrl.value.isEmpty()) {
+			return previewUrl;
+		}
+
+		if(isUsableThumbnailUrl(thumbnailUrl)) {
+			return thumbnailUrl;
+		}
+
+		return postUrlIsImage ? postUrl : null;
+	}
+
+	@Nullable
+	public static UriString resolveInlinePreviewSource(
+			@Nullable final UriString previewUrl,
+			@Nullable final UriString thumbnailUrl,
+			@Nullable final UriString postUrl,
+			final boolean postUrlIsImage) {
+
+		if(previewUrl != null && !previewUrl.value.isEmpty()) {
+			return previewUrl;
+		}
+
+		if(postUrlIsImage && postUrl != null) {
+			return postUrl;
+		}
+
+		return isUsableThumbnailUrl(thumbnailUrl) ? thumbnailUrl : null;
 	}
 
 	private void downloadThumbnail(
@@ -839,16 +1070,27 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				? src.getPreview(sizePixels, sizePixels)
 				: null;
 
-		final UriString uri;
+		final UriString uri = resolveThumbnailSource(
+				preview == null ? null : preview.url,
+				src.getThumbnailUrl(),
+				src.getUrl(),
+				LinkHandler.isDirectImageUrl(src.getUrl()));
 
-		if(preview != null) {
-			uri = preview.url;
-		} else {
-			uri = src.getThumbnailUrl();
+		if(uri == null) {
+			return;
 		}
 
-		final int priority = Constants.Priority.THUMBNAIL;
+		final boolean hasPreview = preview != null && !preview.url.value.isEmpty();
+		final boolean isFallbackSource = !hasPreview
+				&& !isUsableThumbnailUrl(src.getThumbnailUrl())
+				&& LinkHandler.isDirectImageUrl(src.getUrl());
+
+		final int priority = isFallbackSource
+				? Constants.Priority.MEDIA_FALLBACK
+				: Constants.Priority.THUMBNAIL;
 		final int fileType = Constants.FileType.THUMBNAIL;
+
+		Log.d(TAG, "MediaTrace: loading thumbnail " + uri);
 
 		final RedditAccount anon = RedditAccountManager.getAnon();
 
@@ -1008,6 +1250,9 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 					scaledOptions);
 
 			if(data == null) {
+				if(thumbnailCallback != null) {
+					thumbnailCallback.thumbnailDownloadFailed(usageId);
+				}
 				return;
 			}
 			thumbnailCache = ThumbnailScaler.scale(data, desiredSizePixels);
@@ -1026,6 +1271,10 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 					TAG,
 					"Exception while downloading thumbnail",
 					t);
+
+			if(thumbnailCallback != null) {
+				thumbnailCallback.thumbnailDownloadFailed(usageId);
+			}
 		}
 	}
 }

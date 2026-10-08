@@ -198,6 +198,8 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 					return;
 				}
 
+				final long startTimeMs = SystemClock.elapsedRealtime();
+
 				final MemoryDataStream stream = new MemoryDataStream(
 					getInitialCapacity(bodyBytes));
 
@@ -249,6 +251,16 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 								false,
 								totalBytesRead,
 								bodyBytes);
+					}
+
+					if(mInitiator.fileType == Constants.FileType.IMAGE
+							|| mInitiator.fileType == Constants.FileType.THUMBNAIL
+							|| mInitiator.fileType == Constants.FileType.INLINE_IMAGE_PREVIEW) {
+						Log.d(
+								TAG,
+								"MediaTrace: " + totalBytesRead + " bytes in "
+										+ (SystemClock.elapsedRealtime() - startTimeMs)
+										+ "ms (" + mInitiator.fileType + ") " + mInitiator.url);
 					}
 
 					stream.setComplete();

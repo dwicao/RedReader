@@ -46,15 +46,13 @@ class RedditParsedPost(
 
 	val isPreviewEnabled = src.preview?.enabled == true
 
-	val isVideoPreview = src.preview?.run {
-		src.is_video
-				|| images?.get(0)?.variants?.mp4 != null
-				|| reddit_video_preview != null
-				|| when (src.domain?.decoded) {
-			"v.redd.it", "streamable.com", "gfycat.com" -> true
-			else -> false
-		}
-	} ?: false
+	val isVideoPreview = src.is_video
+			|| src.preview?.images?.get(0)?.variants?.mp4 != null
+			|| src.preview?.reddit_video_preview != null
+			|| (when (src.domain?.decoded) {
+		"v.redd.it", "streamable.com", "gfycat.com" -> true
+		else -> false
+	})
 
 	val suggestedCommentSort: PostCommentSort?
 		get() = if (src.suggested_sort == null) {

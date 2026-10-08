@@ -609,7 +609,29 @@ public final class CacheManager {
 
 				CacheRequest request;
 				while((request = requests.take()) != null) {
-					handleRequest(request);
+
+					try {
+						handleRequest(request);
+
+					} catch(final Exception e) {
+
+						Log.e(
+								TAG,
+								"Error handling cache request: " + request.url,
+								e);
+
+						try {
+							request.notifyFailure(General.getGeneralErrorForFailure(
+									context,
+									CacheRequest.RequestFailureType.REQUEST,
+									e,
+									null,
+									request.url,
+									Optional.empty()));
+						} catch(final Exception notifyError) {
+							Log.e(TAG, "Error notifying request failure", notifyError);
+						}
+					}
 				}
 
 			} catch(final InterruptedException e) {
@@ -729,40 +751,63 @@ public final class CacheManager {
 				@Override
 				public void run() {
 
-					final GenericFactory<SeekableInputStream, IOException> streamFactory = () -> {
-						final SeekableInputStream stream = getCacheFileInputStream(
-								entry.id,
-								entry.cacheCompressionType,
-								entry.lengthUncompressed);
+					try {
 
-						if(stream == null) {
-							dbManager.delete(entry.id);
-							throw new IOException("Failed to open file");
+						final GenericFactory<SeekableInputStream, IOException> streamFactory
+								= () -> {
+							final SeekableInputStream stream = getCacheFileInputStream(
+									entry.id,
+									entry.cacheCompressionType,
+									entry.lengthUncompressed);
+
+							if(stream == null) {
+								dbManager.delete(entry.id);
+								throw new IOException("Failed to open file");
+							}
+
+							return stream;
+						};
+
+						request.notifyDataStreamAvailable(
+								streamFactory,
+								entry.timestamp,
+								entry.session,
+								true,
+								entry.mimetype);
+
+						request.notifyDataStreamComplete(
+								streamFactory,
+								entry.timestamp,
+								entry.session,
+								true,
+								entry.mimetype);
+
+						request.notifyCacheFileWritten(
+								new ReadableCacheFile(entry.id, entry.cacheCompressionType),
+								entry.timestamp,
+								entry.session,
+								true,
+								entry.mimetype);
+
+					} catch(final Throwable t) {
+
+						Log.e(
+								TAG,
+								"Error serving cache entry for " + request.url,
+								t);
+
+						try {
+							request.notifyFailure(General.getGeneralErrorForFailure(
+									context,
+									CacheRequest.RequestFailureType.STORAGE,
+									t,
+									null,
+									request.url,
+									Optional.empty()));
+						} catch(final Exception notifyError) {
+							Log.e(TAG, "Error notifying cache read failure", notifyError);
 						}
-
-						return stream;
-					};
-
-					request.notifyDataStreamAvailable(
-							streamFactory,
-							entry.timestamp,
-							entry.session,
-							true,
-							entry.mimetype);
-
-					request.notifyDataStreamComplete(
-							streamFactory,
-							entry.timestamp,
-							entry.session,
-							true,
-							entry.mimetype);
-
-					request.notifyCacheFileWritten(
-							new ReadableCacheFile(entry.id, entry.cacheCompressionType),
-							entry.timestamp,
-							entry.session,
-							true,
-							entry.mimetype);
+					}
 				}
 			});
 		}
