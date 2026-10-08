@@ -791,6 +791,42 @@ object General {
 
     @JvmStatic
 	@Throws(IOException::class)
+    fun readWholeStream(inStr: InputStream, initialCapacity: Int): ByteArray {
+
+        if (initialCapacity <= 0) {
+            return readWholeStream(inStr)
+        }
+
+        val buffer = ByteArray(initialCapacity)
+        var offset = 0
+
+        while (offset < buffer.size) {
+            val bytesRead = inStr.read(buffer, offset, buffer.size - offset)
+            if (bytesRead <= 0) {
+                break
+            }
+            offset += bytesRead
+        }
+
+        if (offset < buffer.size) {
+            return buffer.copyOf(offset)
+        }
+
+        val extra = inStr.read()
+
+        if (extra == -1) {
+            return buffer
+        }
+
+        val out = ByteArrayOutputStream(buffer.size + buffer.size / 2)
+        out.write(buffer)
+        out.write(extra)
+        copyStream(inStr, out)
+        return out.toByteArray()
+    }
+
+    @JvmStatic
+	@Throws(IOException::class)
     fun readWholeStreamAsUTF8(inStr: InputStream): String {
         return String(readWholeStream(inStr), CHARSET_UTF8)
     }

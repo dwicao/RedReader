@@ -113,7 +113,7 @@ public class GifDecoderThread extends Thread {
 						&& !loaded.get()
 						&& !failed.get()) {
 					try {
-						sleep(100);
+						sleep(20);
 					} catch(final InterruptedException e) {
 						return;
 					}

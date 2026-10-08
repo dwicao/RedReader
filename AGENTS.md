@@ -38,7 +38,7 @@ just precommit
       --sdk_root=$SDK --install "platforms;android-36" "build-tools;36.0.0"
   ```
 - **AGP's Maven-downloaded aapt2 is also x86_64.** `~/.gradle/gradle.properties` (user-level, outside the repo) contains `android.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2` (Termux's native aapt2 2.20) — without it, `processDebugResources` fails with "Daemon startup failed".
-- Robolectric **native-graphics** tests (`EdgeToEdgeInsetsTest`, `ScaledBitmapDecoderTest`, `MPDParserTest`, ~24 tests) fail here with `The Robolectric native runtime is not supported on Linux (aarch64)` — environmental, pre-existing; they pass in CI (x86_64 glibc). Don't chase these as regressions; compare against a clean `git stash` run if in doubt.
+- **All Robolectric tests fail here** with `The Robolectric native runtime is not supported on Linux (aarch64)` — the loader runs unconditionally in `AndroidTestEnvironment.setUpApplicationState` (no opt-out property; `@GraphicsMode(LEGACY)` does not bypass it, and plain JUnit is no alternative because `android.database.Observable.<init>` is stripped from the mockable android.jar, which breaks `RecyclerView.Adapter` construction). Affected: `EdgeToEdgeInsetsTest`, `ScaledBitmapDecoderTest`, `MPDParserTest`, `GroupedRecyclerViewAdapterIndexTest`, `RedditChangeDataManagerTest` (33 methods as of the round-2 perf work) — environmental only; they pass in CI (x86_64 glibc). Don't chase these as regressions; compare against a clean `git stash` run if in doubt.
 - Known third-party aarch64 blockers: none remaining for `pmd checkstyle lint test`; `assembleRelease` R8 should work (pure JVM) but hasn't been verified here.
 
 ## Release build policy (CI-enforced, do not break)

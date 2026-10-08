@@ -21,6 +21,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.util.Log;
 import androidx.annotation.NonNull;
+import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.TriggerableThread;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
 
@@ -84,12 +85,14 @@ public class RedditChangeDataIO {
 
 				final File dataFileTmpLocation = getDataFileWriteTmpLocation();
 
-				Log.i(
-						TAG,
-						String.format(
-								Locale.US,
-								"Writing tmp data file at '%s'",
-								dataFileTmpLocation.getAbsolutePath()));
+				if(General.isSensitiveDebugLoggingEnabled()) {
+					Log.i(
+							TAG,
+							String.format(
+									Locale.US,
+									"Writing tmp data file at '%s'",
+									dataFileTmpLocation.getAbsolutePath()));
+				}
 
 				final ExtendedDataOutputStream dos
 						= new ExtendedDataOutputStream(
@@ -104,7 +107,9 @@ public class RedditChangeDataIO {
 				dos.flush();
 				dos.close();
 
-				Log.i(TAG, "Write successful. Atomically replacing data file...");
+				if(General.isSensitiveDebugLoggingEnabled()) {
+					Log.i(TAG, "Write successful. Atomically replacing data file...");
+				}
 
 				final File dataFileLocation = getDataFileLocation();
 
@@ -113,18 +118,20 @@ public class RedditChangeDataIO {
 					return;
 				}
 
-				Log.i(TAG, "Write complete.");
+				if(General.isSensitiveDebugLoggingEnabled()) {
+					Log.i(TAG, "Write complete.");
 
-				final long bytes = dataFileLocation.length();
-				final long duration = System.currentTimeMillis() - startTime;
+					final long bytes = dataFileLocation.length();
+					final long duration = System.currentTimeMillis() - startTime;
 
-				Log.i(
-						TAG,
-						String.format(
-								Locale.US,
-								"%d bytes written in %d ms",
-								bytes,
-								duration));
+					Log.i(
+							TAG,
+							String.format(
+									Locale.US,
+									"%d bytes written in %d ms",
+									bytes,
+									duration));
+				}
 
 			} catch(final IOException e) {
 				Log.e(TAG, "Write failed!", e);

@@ -114,6 +114,8 @@ public final class RedditPostView extends FlingableItemView
 
 	@Nullable private Target mGridFallbackTarget = null;
 
+	@Nullable private int[] mSubtitleThemeColors = null;
+
 	private final Handler thumbnailHandler;
 
 	private final BaseActivity mActivity;
@@ -520,6 +522,44 @@ public final class RedditPostView extends FlingableItemView
 		updateAppearance();
 	}
 
+	private int[] getSubtitleThemeColors() {
+
+		if(mSubtitleThemeColors == null) {
+
+			final TypedArray appearance = mActivity.obtainStyledAttributes(new int[] {
+					R.attr.rrPostSubtitleBoldCol,
+					R.attr.rrPostSubtitleUpvoteCol,
+					R.attr.rrPostSubtitleDownvoteCol,
+					R.attr.rrFlairBackCol,
+					R.attr.rrFlairTextCol,
+					R.attr.rrGoldTextCol,
+					R.attr.rrGoldBackCol,
+					R.attr.rrCrosspostTextCol,
+					R.attr.rrCrosspostBackCol,
+					R.attr.rrLockedpostTextCol,
+					R.attr.rrLockedpostBackCol
+			});
+
+			mSubtitleThemeColors = new int[] {
+					appearance.getColor(0, 255),
+					appearance.getColor(1, 255),
+					appearance.getColor(2, 255),
+					appearance.getColor(3, 255),
+					appearance.getColor(4, 255),
+					appearance.getColor(5, 255),
+					appearance.getColor(6, 255),
+					appearance.getColor(7, 255),
+					appearance.getColor(8, 255),
+					appearance.getColor(9, 255),
+					appearance.getColor(10, 255)
+			};
+
+			appearance.recycle();
+		}
+
+		return mSubtitleThemeColors;
+	}
+
 	public void updateAppearance() {
 
 		mOuterView.setBackgroundResource(
@@ -538,9 +578,11 @@ public final class RedditPostView extends FlingableItemView
 
 		title.setContentDescription(mPost.buildAccessibilityTitle(mActivity, false));
 
+		final int[] themeColors = getSubtitleThemeColors();
+
 		subtitle.setText(mGridMode
-				? mPost.buildSubtitle(mActivity, false, false)
-				: mPost.buildSubtitle(mActivity, false));
+				? mPost.buildSubtitle(mActivity, false, false, themeColors)
+				: mPost.buildSubtitle(mActivity, false, true, themeColors));
 		subtitle.setContentDescription(mPost.buildAccessibilitySubtitle(mActivity, false));
 
 		boolean overlayVisible = true;

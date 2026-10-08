@@ -77,6 +77,13 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 
 	private final HashSet<Item<?>> mPreloadWindow = new HashSet<>();
 
+	private ArrayList<Item<?>> mVisibleIndex = null;
+	private int[] mGroupVisibleStarts = null;
+
+	private boolean mPreloadRangeValid = false;
+	private int mLastPreloadFirst = -1;
+	private int mLastPreloadLast = -1;
+
 	public GroupedRecyclerViewAdapter(final int groups) {
 		//noinspection unchecked
 		mItems = (ArrayList<Item<?>>[])new ArrayList[groups];
@@ -108,22 +115,61 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 	// "positionInGroup" should include both hidden and visible items
 	private int getItemPositionInternal(final int group, final int positionInGroup) {
 
-		int result = 0;
+		ensureIndex();
 
-		for(int i = 0; i < group; i++) {
-			result += getGroupUnhiddenCount(i);
-		}
+		final int groupStart = group >= mItems.length
+				? mVisibleIndex.size()
+				: mGroupVisibleStarts[group];
 
-		for(int i = 0; i < positionInGroup; i++) {
-			if(!mItems[group].get(i).mCurrentlyHidden) {
-				result++;
+		int visibleBefore = 0;
+
+		if(positionInGroup > 0) {
+
+			final ArrayList<Item<?>> itemsInGroup = mItems[group];
+
+			for(int i = 0; i < positionInGroup; i++) {
+				if(!itemsInGroup.get(i).mCurrentlyHidden) {
+					visibleBefore++;
+				}
 			}
 		}
 
-		return result;
+		return groupStart + visibleBefore;
+	}
+
+	private void ensureIndex() {
+
+		if(mVisibleIndex != null) {
+			return;
+		}
+
+		mVisibleIndex = new ArrayList<>();
+		mGroupVisibleStarts = new int[mItems.length];
+
+		for(int groupId = 0; groupId < mItems.length; groupId++) {
+
+			mGroupVisibleStarts[groupId] = mVisibleIndex.size();
+
+			final ArrayList<Item<?>> group = mItems[groupId];
+
+			for(int positionInGroup = 0; positionInGroup < group.size(); positionInGroup++) {
+				final Item<?> item = group.get(positionInGroup);
+				if(!item.mCurrentlyHidden) {
+					mVisibleIndex.add(item);
+				}
+			}
+		}
+	}
+
+	private void invalidateIndex() {
+		mVisibleIndex = null;
+		mGroupVisibleStarts = null;
+		mPreloadRangeValid = false;
 	}
 
 	private Item<?> getItemInternal(final int desiredPosition) {
+
+		ensureIndex();
 
 		if(desiredPosition < 0) {
 			throw new RuntimeException("Item desiredPosition "
@@ -131,32 +177,13 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 					+ " is too low");
 		}
 
-		int currentPosition = 0;
-
-		for(int groupId = 0; groupId < mItems.length; groupId++) {
-
-			final ArrayList<Item<?>> group = mItems[groupId];
-
-			for(int positionInGroup = 0;
-				positionInGroup < group.size();
-				positionInGroup++) {
-
-				final Item<?> item = group.get(positionInGroup);
-
-				if(!item.mCurrentlyHidden) {
-
-					if(currentPosition == desiredPosition) {
-						return item;
-					}
-
-					currentPosition++;
-				}
-			}
+		if(desiredPosition >= mVisibleIndex.size()) {
+			throw new RuntimeException("Item desiredPosition "
+					+ desiredPosition
+					+ " is too high");
 		}
 
-		throw new RuntimeException("Item desiredPosition "
-				+ desiredPosition
-				+ " is too high");
+		return mVisibleIndex.get(desiredPosition);
 	}
 
 	private void getItemsInRange(
@@ -164,32 +191,13 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 			final int lastPosition,
 			final Collection<Item<?>> output) {
 
-		int currentPosition = 0;
+		ensureIndex();
 
-		for(int groupId = 0; groupId < mItems.length; groupId++) {
+		final int from = Math.max(0, firstPosition);
+		final int to = Math.min(lastPosition, mVisibleIndex.size() - 1);
 
-			final ArrayList<Item<?>> group = mItems[groupId];
-
-			for(int positionInGroup = 0;
-				positionInGroup < group.size();
-				positionInGroup++) {
-
-				final Item<?> item = group.get(positionInGroup);
-
-				if(item.mCurrentlyHidden) {
-					continue;
-				}
-
-				if(currentPosition > lastPosition) {
-					return;
-				}
-
-				if(currentPosition >= firstPosition) {
-					output.add(item);
-				}
-
-				currentPosition++;
-			}
+		for(int i = from; i <= to; i++) {
+			output.add(mVisibleIndex.get(i));
 		}
 	}
 
@@ -201,6 +209,16 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 	public void setPreloadWindow(
 			final int firstVisiblePosition,
 			final int lastVisiblePosition) {
+
+		if(mPreloadRangeValid
+				&& firstVisiblePosition == mLastPreloadFirst
+				&& lastVisiblePosition == mLastPreloadLast) {
+			return;
+		}
+
+		mPreloadRangeValid = true;
+		mLastPreloadFirst = firstVisiblePosition;
+		mLastPreloadLast = lastVisiblePosition;
 
 		final HashSet<Item<?>> newWindow = new HashSet<>();
 
@@ -330,21 +348,6 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 		return typeId;
 	}
 
-	private int getGroupUnhiddenCount(final int groupId) {
-
-		final ArrayList<Item<?>> group = mItems[groupId];
-
-		int result = 0;
-
-		for(int i = 0; i < group.size(); i++) {
-			if(!group.get(i).mCurrentlyHidden) {
-				result++;
-			}
-		}
-
-		return result;
-	}
-
 	@Override
 	public long getItemId(final int position) {
 		return getItemInternal(position).mUniqueId;
@@ -353,13 +356,9 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 	@Override
 	public int getItemCount() {
 
-		int count = 0;
+		ensureIndex();
 
-		for(int i = 0; i < mItems.length; i++) {
-			count += getGroupUnhiddenCount(i);
-		}
-
-		return count;
+		return mVisibleIndex.size();
 	}
 
 	public Item<?> getItemAtPosition(final int position) {
@@ -368,24 +367,17 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 
 	public int getGroupIdAtPosition(final int position) {
 
-		int currentPosition = 0;
+		ensureIndex();
 
-		for(int groupId = 0; groupId < mItems.length; groupId++) {
+		if(position < 0 || position >= mVisibleIndex.size()) {
+			throw new RuntimeException("Item position "
+					+ position
+					+ " is too high");
+		}
 
-			for(int positionInGroup = 0;
-				positionInGroup < mItems[groupId].size();
-				positionInGroup++) {
-
-				final Item<?> item = mItems[groupId].get(positionInGroup);
-
-				if(!item.mCurrentlyHidden) {
-
-					if(currentPosition == position) {
-						return groupId;
-					}
-
-					currentPosition++;
-				}
+		for(int groupId = mItems.length - 1; groupId >= 0; groupId--) {
+			if(mGroupVisibleStarts[groupId] <= position) {
+				return groupId;
 			}
 		}
 
@@ -396,18 +388,28 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 
 	public void appendToGroup(final int group, final Item<?> item) {
 
-		final int position = getItemPositionInternal(group + 1, 0);
+		ensureIndex();
+
+		final int position = group + 1 < mItems.length
+				? mGroupVisibleStarts[group + 1]
+				: mVisibleIndex.size();
 
 		mItems[group].add(item);
 
 		if(!item.mCurrentlyHidden) {
 			notifyItemInserted(position);
 		}
+
+		invalidateIndex();
 	}
 
 	public void appendToGroup(final int group, final Collection<Item<?>> items) {
 
-		final int position = getItemPositionInternal(group + 1, 0);
+		ensureIndex();
+
+		final int position = group + 1 < mItems.length
+				? mGroupVisibleStarts[group + 1]
+				: mVisibleIndex.size();
 
 		mItems[group].addAll(items);
 
@@ -416,45 +418,74 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 		}
 
 		notifyItemRangeInserted(position, items.size());
+
+		invalidateIndex();
 	}
 
 	public void removeAllFromGroup(final int groupId) {
 
 		final ArrayList<Item<?>> group = mItems[groupId];
 
+		ensureIndex();
+
+		final int[] positions = new int[group.size()];
+		int position = mGroupVisibleStarts[groupId];
+
+		for(int i = 0; i < group.size(); i++) {
+			positions[i] = position;
+			if(!group.get(i).mCurrentlyHidden) {
+				position++;
+			}
+		}
+
 		for(int i = group.size() - 1; i >= 0; i--) {
 
 			final Item<?> item = group.get(i);
-			final int position = getItemPositionInternal(groupId, i);
 
 			group.remove(i);
 
 			if(!item.mCurrentlyHidden) {
-				notifyItemRemoved(position);
+				notifyItemRemoved(positions[i]);
 			}
 		}
+
+		invalidateIndex();
 	}
 
 	public void removeFromGroup(final int groupId, final Item<?> item) {
 
 		final ArrayList<Item<?>> group = mItems[groupId];
 
+		int indexInGroup = -1;
+
 		for(int i = 0; i < group.size(); i++) {
 			if(group.get(i) == item) {
-
-				final int position = getItemPositionInternal(groupId, i);
-
-				group.remove(i);
-
-				if(!item.mCurrentlyHidden) {
-					notifyItemRemoved(position);
-				}
-
-				return;
+				indexInGroup = i;
+				break;
 			}
 		}
 
-		throw new RuntimeException("Item not found");
+		if(indexInGroup < 0) {
+			throw new RuntimeException("Item not found");
+		}
+
+		ensureIndex();
+
+		int position = mGroupVisibleStarts[groupId];
+
+		for(int i = 0; i < indexInGroup; i++) {
+			if(!group.get(i).mCurrentlyHidden) {
+				position++;
+			}
+		}
+
+		group.remove(indexInGroup);
+
+		if(!item.mCurrentlyHidden) {
+			notifyItemRemoved(position);
+		}
+
+		invalidateIndex();
 	}
 
 	public void updateHiddenStatus() {
@@ -487,6 +518,8 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 				}
 			}
 		}
+
+		invalidateIndex();
 	}
 
 	public void notifyItemChanged(final int groupId, final Item<?> item) {

@@ -47,6 +47,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -91,11 +92,15 @@ public final class RedditChangeDataManager {
 
 	public static void writeAllUsers(final ExtendedDataOutputStream dos) throws IOException {
 
-		Log.i(TAG, "Taking snapshot...");
+		if(General.isSensitiveDebugLoggingEnabled()) {
+			Log.i(TAG, "Taking snapshot...");
+		}
 
 		final HashMap<RedditAccount, HashMap<RedditIdAndType, Entry>> data = snapshotAllUsers();
 
-		Log.i(TAG, "Writing to stream...");
+		if(General.isSensitiveDebugLoggingEnabled()) {
+			Log.i(TAG, "Writing to stream...");
+		}
 
 		final Set<Map.Entry<RedditAccount, HashMap<RedditIdAndType, Entry>>> userDataSet =
 				data.entrySet();
@@ -128,7 +133,9 @@ public final class RedditChangeDataManager {
 			}
 		}
 
-		Log.i(TAG, "All entries written to stream.");
+		if(General.isSensitiveDebugLoggingEnabled()) {
+			Log.i(TAG, "All entries written to stream.");
+		}
 	}
 
 	public static void readAllUsers(
@@ -284,6 +291,14 @@ public final class RedditChangeDataManager {
 					&& !mIsRead
 					&& !mIsSaved
 					&& mIsHidden == null;
+		}
+
+		boolean stateEquals(@NonNull final Entry other) {
+			return mIsUpvoted == other.mIsUpvoted
+					&& mIsDownvoted == other.mIsDownvoted
+					&& mIsRead == other.mIsRead
+					&& mIsSaved == other.mIsSaved
+					&& Objects.equals(mIsHidden, other.mIsHidden);
 		}
 
 		public boolean isUpvoted() {
@@ -486,16 +501,32 @@ public final class RedditChangeDataManager {
 			final Entry newValue) {
 
 		if(newValue.isClear()) {
+
 			if(!existingValue.isClear()) {
 				mEntries.remove(thing);
 				RedditChangeDataIO.notifyUpdateStatic();
+				postChange(thing);
 			}
 
-		} else {
-			mEntries.put(thing, newValue);
-			RedditChangeDataIO.notifyUpdateStatic();
+			return;
 		}
 
+		if(existingValue.stateEquals(newValue)) {
+
+			if(!existingValue.mTimestamp.equals(newValue.mTimestamp)) {
+				mEntries.put(thing, newValue);
+				RedditChangeDataIO.notifyUpdateStatic();
+			}
+
+			return;
+		}
+
+		mEntries.put(thing, newValue);
+		RedditChangeDataIO.notifyUpdateStatic();
+		postChange(thing);
+	}
+
+	private void postChange(final RedditIdAndType thing) {
 		AndroidCommon.UI_THREAD_HANDLER.post(() -> mListeners.map(
 				thing,
 				ListenerNotifyOperator.INSTANCE,

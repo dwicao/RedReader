@@ -549,6 +549,14 @@ public final class CacheManager {
 	private SeekableInputStream getCacheFileInputStream(
 			final long id,
 			@NonNull final CacheCompressionType cacheCompressionType) throws IOException {
+		return getCacheFileInputStream(id, cacheCompressionType, -1);
+	}
+
+	@Nullable
+	private SeekableInputStream getCacheFileInputStream(
+			final long id,
+			@NonNull final CacheCompressionType cacheCompressionType,
+			final long uncompressedLengthHint) throws IOException {
 
 		final File cacheFile = getExistingCacheFile(id);
 
@@ -561,8 +569,14 @@ public final class CacheManager {
 
 		} else if(cacheCompressionType == CacheCompressionType.ZSTD) {
 
+			final int capacityHint = uncompressedLengthHint > 0
+					&& uncompressedLengthHint <= Integer.MAX_VALUE
+					? (int)uncompressedLengthHint
+					: -1;
+
 			try(InputStream is = new ZstdInputStream(new FileInputStream(cacheFile))) {
-				return new MemoryDataStream(General.readWholeStream(is)).getInputStream();
+				return new MemoryDataStream(
+						General.readWholeStream(is, capacityHint)).getInputStream();
 			}
 
 		} else {
@@ -716,8 +730,10 @@ public final class CacheManager {
 				public void run() {
 
 					final GenericFactory<SeekableInputStream, IOException> streamFactory = () -> {
-						final SeekableInputStream stream
-								= getCacheFileInputStream(entry.id, entry.cacheCompressionType);
+						final SeekableInputStream stream = getCacheFileInputStream(
+								entry.id,
+								entry.cacheCompressionType,
+								entry.lengthUncompressed);
 
 						if(stream == null) {
 							dbManager.delete(entry.id);

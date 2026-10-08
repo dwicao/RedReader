@@ -31,9 +31,11 @@ import java.lang.reflect.InvocationTargetException;
 
 public abstract class JsonValue {
 
+	private static final JsonFactory JSON_FACTORY = new JsonFactory();
+
 	@NonNull
 	public static JsonValue parse(final InputStream source) throws IOException {
-		return parse(new JsonFactory().createParser(source));
+		return parse(JSON_FACTORY.createParser(source));
 	}
 
 	@NonNull

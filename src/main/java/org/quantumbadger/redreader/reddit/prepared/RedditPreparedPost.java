@@ -205,6 +205,19 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			final Context context,
 			final boolean headerMode,
 			final boolean includeScore) {
+		return buildSubtitle(context, headerMode, includeScore, null);
+	}
+
+	/**
+	 * @param themeColors pre-resolved values for the 11 subtitle theme attributes (in the
+	 *                    declaration order of the obtainStyledAttributes array below), or
+	 *                    null to resolve them from the theme on every call.
+	 */
+	public SpannableStringBuilder buildSubtitle(
+			final Context context,
+			final boolean headerMode,
+			final boolean includeScore,
+			@Nullable final int[] themeColors) {
 
 		final EnumSet<PrefsUtility.AppearancePostSubtitleItem> mPostSubtitleItems;
 		final int mPostAgeUnits;
@@ -217,39 +230,67 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			mPostAgeUnits = PrefsUtility.appearance_post_age_units();
 		}
 
-		final TypedArray appearance = context.obtainStyledAttributes(new int[] {
-				R.attr.rrPostSubtitleBoldCol,
-				R.attr.rrPostSubtitleUpvoteCol,
-				R.attr.rrPostSubtitleDownvoteCol,
-				R.attr.rrFlairBackCol,
-				R.attr.rrFlairTextCol,
-				R.attr.rrGoldTextCol,
-				R.attr.rrGoldBackCol,
-				R.attr.rrCrosspostTextCol,
-				R.attr.rrCrosspostBackCol,
-				R.attr.rrLockedpostTextCol,
-				R.attr.rrLockedpostBackCol
-		});
-
 		final int boldCol;
-		if(headerMode) {
-			boldCol = Color.WHITE;
+		final int rrPostSubtitleUpvoteCol;
+		final int rrPostSubtitleDownvoteCol;
+		final int rrFlairBackCol;
+		final int rrFlairTextCol;
+		final int rrGoldTextCol;
+		final int rrGoldBackCol;
+		final int rrCrosspostTextCol;
+		final int rrCrosspostBackCol;
+		final int rrLockedpostTextCol;
+		final int rrLockedpostBackCol;
+
+		if(themeColors != null) {
+
+			boldCol = headerMode ? Color.WHITE : themeColors[0];
+			rrPostSubtitleUpvoteCol = themeColors[1];
+			rrPostSubtitleDownvoteCol = themeColors[2];
+			rrFlairBackCol = themeColors[3];
+			rrFlairTextCol = themeColors[4];
+			rrGoldTextCol = themeColors[5];
+			rrGoldBackCol = themeColors[6];
+			rrCrosspostTextCol = themeColors[7];
+			rrCrosspostBackCol = themeColors[8];
+			rrLockedpostTextCol = themeColors[9];
+			rrLockedpostBackCol = themeColors[10];
+
 		} else {
-			boldCol = appearance.getColor(0, 255);
+
+			final TypedArray appearance = context.obtainStyledAttributes(new int[] {
+					R.attr.rrPostSubtitleBoldCol,
+					R.attr.rrPostSubtitleUpvoteCol,
+					R.attr.rrPostSubtitleDownvoteCol,
+					R.attr.rrFlairBackCol,
+					R.attr.rrFlairTextCol,
+					R.attr.rrGoldTextCol,
+					R.attr.rrGoldBackCol,
+					R.attr.rrCrosspostTextCol,
+					R.attr.rrCrosspostBackCol,
+					R.attr.rrLockedpostTextCol,
+					R.attr.rrLockedpostBackCol
+			});
+
+			if(headerMode) {
+				boldCol = Color.WHITE;
+			} else {
+				boldCol = appearance.getColor(0, 255);
+			}
+
+			rrPostSubtitleUpvoteCol = appearance.getColor(1, 255);
+			rrPostSubtitleDownvoteCol = appearance.getColor(2, 255);
+			rrFlairBackCol = appearance.getColor(3, 255);
+			rrFlairTextCol = appearance.getColor(4, 255);
+			rrGoldTextCol = appearance.getColor(5, 255);
+			rrGoldBackCol = appearance.getColor(6, 255);
+			rrCrosspostTextCol = appearance.getColor(7, 255);
+			rrCrosspostBackCol = appearance.getColor(8, 255);
+			rrLockedpostTextCol = appearance.getColor(9, 255);
+			rrLockedpostBackCol = appearance.getColor(10, 255);
+
+			appearance.recycle();
 		}
-
-		final int rrPostSubtitleUpvoteCol = appearance.getColor(1, 255);
-		final int rrPostSubtitleDownvoteCol = appearance.getColor(2, 255);
-		final int rrFlairBackCol = appearance.getColor(3, 255);
-		final int rrFlairTextCol = appearance.getColor(4, 255);
-		final int rrGoldTextCol = appearance.getColor(5, 255);
-		final int rrGoldBackCol = appearance.getColor(6, 255);
-		final int rrCrosspostTextCol = appearance.getColor(7, 255);
-		final int rrCrosspostBackCol = appearance.getColor(8, 255);
-		final int rrLockedpostTextCol = appearance.getColor(9, 255);
-		final int rrLockedpostBackCol = appearance.getColor(10, 255);
-
-		appearance.recycle();
 
 		final BetterSSB postListDescSb = new BetterSSB();
 
