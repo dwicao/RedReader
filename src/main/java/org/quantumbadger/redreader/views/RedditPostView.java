@@ -112,6 +112,8 @@ public final class RedditPostView extends FlingableItemView
 
 	@Nullable private InlinePreviewLoader mPreviewLoader = null;
 
+	@Nullable private Target mGridFallbackTarget = null;
+
 	private final Handler thumbnailHandler;
 
 	private final BaseActivity mActivity;
@@ -417,6 +419,11 @@ public final class RedditPostView extends FlingableItemView
 			// request from a previous bind can't paint over the new post's
 			// content (Picasso only cancels when a new request targets the view).
 			RedReaderPicasso.INSTANCE.get(mActivity).cancelRequest(mThumbnailView);
+
+			if(mGridFallbackTarget != null) {
+				RedReaderPicasso.INSTANCE.get(mActivity).cancelRequest(mGridFallbackTarget);
+				mGridFallbackTarget = null;
+			}
 
 			resetSwipeState();
 
@@ -768,63 +775,71 @@ public final class RedditPostView extends FlingableItemView
 
 		final int targetSize = Math.max(320, windowVisibleDisplayFrame.width() / 2);
 
+		final Target target = new Target() {
+
+			@Override
+			public void onBitmapLoaded(
+					@NonNull final Bitmap bitmap,
+					@NonNull final Picasso.LoadedFrom from) {
+
+				mGridFallbackTarget = null;
+
+				if(usageId != mUsageId) {
+					return;
+				}
+
+				final int width = bitmap.getWidth();
+				final int height = bitmap.getHeight();
+
+				if(width < 10 || height < 10) {
+					showGridFallbackThumbnail(post, usageId);
+					return;
+				}
+
+				imageHolderLayoutParams.dimensionRatio
+						= String.valueOf((float)width / (float)height);
+				mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+
+				mThumbnailView.setImageBitmap(bitmap);
+				mGridLoadingSpinner.setVisibility(GONE);
+
+				if(post.isVideoPreview()) {
+					mGridPlayOverlay.setVisibility(VISIBLE);
+				}
+			}
+
+			@Override
+			public void onBitmapFailed(
+					@NonNull final Exception e,
+					@Nullable final Drawable errorDrawable) {
+
+				mGridFallbackTarget = null;
+
+				if(usageId != mUsageId) {
+					return;
+				}
+
+				Log.e(TAG, "Failed to download grid fallback image: " + e, e);
+
+				showGridFallbackThumbnail(post, usageId);
+			}
+
+			@Override
+			public void onPrepareLoad(
+					@Nullable final Drawable placeHolderDrawable) {
+
+				// The loading spinner is already shown
+			}
+		};
+
+		mGridFallbackTarget = target;
+
 		RedReaderPicasso.INSTANCE.get(mActivity)
 				.load(url.value)
 				.resize(targetSize, targetSize)
 				.centerInside()
 				.onlyScaleDown()
-				.into(new Target() {
-
-					@Override
-					public void onBitmapLoaded(
-							@NonNull final Bitmap bitmap,
-							@NonNull final Picasso.LoadedFrom from) {
-
-						if(usageId != mUsageId) {
-							return;
-						}
-
-						final int width = bitmap.getWidth();
-						final int height = bitmap.getHeight();
-
-						if(width < 10 || height < 10) {
-							showGridFallbackThumbnail(post, usageId);
-							return;
-						}
-
-						imageHolderLayoutParams.dimensionRatio
-								= String.valueOf((float)width / (float)height);
-						mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
-
-						mThumbnailView.setImageBitmap(bitmap);
-						mGridLoadingSpinner.setVisibility(GONE);
-
-						if(post.isVideoPreview()) {
-							mGridPlayOverlay.setVisibility(VISIBLE);
-						}
-					}
-
-					@Override
-					public void onBitmapFailed(
-							@NonNull final Exception e,
-							@Nullable final Drawable errorDrawable) {
-
-						if(usageId != mUsageId) {
-							return;
-						}
-
-						Log.e(TAG, "Failed to download grid fallback image: " + e, e);
-
-						showGridFallbackThumbnail(post, usageId);
-					}
-
-					@Override
-					public void onPrepareLoad(
-							@Nullable final Drawable placeHolderDrawable) {
-
-						// The loading spinner is already shown
-					}
-				});
+				.into(target);
 	}
 
 	// Formats a post score compactly, e.g. 23567 -> "23.6K", 1500 -> "1.5K",

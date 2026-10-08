@@ -86,3 +86,7 @@ reddit_auth.txt
 *.log
 *.har
 
+# Signing keystores must never be committed
+*.keystore
+*.jks
+
