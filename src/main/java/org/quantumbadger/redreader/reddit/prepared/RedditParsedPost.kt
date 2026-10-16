@@ -26,6 +26,32 @@ import org.quantumbadger.redreader.reddit.kthings.RedditPost
 import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElement
 import org.quantumbadger.redreader.reddit.prepared.html.HtmlReader
 import org.quantumbadger.redreader.reddit.things.RedditThingWithIdAndType
+import java.util.regex.Pattern
+
+private val youtubeWatchPattern = Pattern.compile("[?&]v=([A-Za-z0-9_-]{11})")
+private val youtubeShortLinkPattern = Pattern.compile("youtu\\.be/([A-Za-z0-9_-]{11})")
+private val youtubePathPattern =
+	Pattern.compile("youtube\\.[\\w.]+/(?:shorts|live|embed|v)/([A-Za-z0-9_-]{11})")
+
+private fun parseYoutubeId(url: String?): String? {
+
+	if (url == null || !url.contains("youtu")) {
+		return null
+	}
+
+	for (pattern in listOf(
+		youtubeWatchPattern,
+		youtubeShortLinkPattern,
+		youtubePathPattern
+	)) {
+		val matcher = pattern.matcher(url)
+		if (matcher.find()) {
+			return matcher.group(1)
+		}
+	}
+
+	return null
+}
 
 class RedditParsedPost(
 	activity: AppCompatActivity,
@@ -36,6 +62,8 @@ class RedditParsedPost(
 	val title: String = src.title?.decoded?.replace('\n', ' ')?.trim() ?: "[null]"
 
 	val url: UriString?
+	val youtubeId: String?
+	val crosspostParent: String?
 	val selfText: BodyElement?
 	val flairText: String?
 	val domain: String
@@ -53,6 +81,15 @@ class RedditParsedPost(
 		"v.redd.it", "streamable.com", "gfycat.com" -> true
 		else -> false
 	})
+
+	// Progressive MP4 for the post's video, when Reddit provides one
+	// (much faster to grab a frame from than resolving the HLS stream).
+	val videoFallbackUrl: UriString?
+		get() {
+			val raw = src.media?.reddit_video?.fallback_url?.decoded
+				?: src.preview?.reddit_video_preview?.fallback_url?.decoded
+			return UriString.fromNullable(raw?.takeIf { it.isNotEmpty() })
+		}
 
 	val suggestedCommentSort: PostCommentSort?
 		get() = if (src.suggested_sort == null) {
@@ -108,6 +145,10 @@ class RedditParsedPost(
     init {
 
 		url = src.findUrl()
+
+		youtubeId = parseYoutubeId(url?.value)
+
+		crosspostParent = src.crosspost_parent
 
 		selfText = if (parseSelfText && src.selftext_html != null) {
 			HtmlReader.parse(src.selftext_html.decoded, activity)
@@ -203,13 +244,15 @@ class RedditParsedPost(
 		val resolutionList = resolutions
 
 		if (resolutionList.isNullOrEmpty()) {
-			return null
+			// Some previews carry only a source image with no resolution
+			// ladder; use it directly rather than dropping the preview
+			// entirely (which would fall back to the tiny thumbnail).
+			return source?.takeIf { isUsablePreviewDetails(it, source) }?.run {
+				ImagePreviewDetails(UriString(url.decoded), width, height)
+			}
 		}
 
 		var best: RedditPost.Preview.ImageDetails? = null
-
-		val sourceWidth = source?.width
-		val sourceHeight = source?.height
 
 		for (i in -1 until resolutionList.size) {
 
@@ -219,23 +262,11 @@ class RedditParsedPost(
 				resolutionList[i]
 			}
 
-			if (resolution.width < 50 || resolution.height < 50) {
+			if (!isUsablePreviewDetails(resolution, source)) {
 				continue
 			}
 
-			if (sourceWidth != null && sourceHeight != null && sourceWidth > 0) {
-
-				val estimatedRealHeight =
-					(sourceHeight.toDouble() / sourceWidth.toDouble() * resolution.width).toInt()
-
-				if (estimatedRealHeight > 3000) {
-					continue
-				}
-			}
-
-			val use = if (resolution.height > 3000 || resolution.width > 3000) {
-				false
-			} else if (best == null) {
+			val use = if (best == null) {
 				true
 			} else if ((best.width < minWidth || best.height < minHeight)
 				&& (resolution.width > best.width || resolution.height > best.height)
@@ -258,5 +289,34 @@ class RedditParsedPost(
 		return best?.run {
 			ImagePreviewDetails(UriString(url.decoded), width, height)
 		}
+	}
+
+	private fun isUsablePreviewDetails(
+		candidate: RedditPost.Preview.ImageDetails,
+		source: RedditPost.Preview.ImageDetails?
+	): Boolean {
+
+		if (candidate.width < 50 || candidate.height < 50) {
+			return false
+		}
+
+		if (candidate.width > 3000 || candidate.height > 3000) {
+			return false
+		}
+
+		val sourceWidth = source?.width
+		val sourceHeight = source?.height
+
+		if (sourceWidth != null && sourceHeight != null && sourceWidth > 0) {
+
+			val estimatedRealHeight =
+				(sourceHeight.toDouble() / sourceWidth.toDouble() * candidate.width).toInt()
+
+			if (estimatedRealHeight > 3000) {
+				return false
+			}
+		}
+
+		return true
 	}
 }

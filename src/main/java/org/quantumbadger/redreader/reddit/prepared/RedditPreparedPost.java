@@ -68,11 +68,13 @@ import java.security.MessageDigest;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class RedditPreparedPost implements RedditChangeDataManager.Listener {
 
 	private static final String TAG = "RedditPreparedPost";
+
+	private static final int MAX_VIDEO_POSTER_ATTEMPTS = 2;
 
 	public static final PrioritisedCachedThreadPool VIDEO_POSTER_POOL
 			= new PrioritisedCachedThreadPool(6, "VideoPoster");
@@ -94,9 +96,14 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 	private ThumbnailLoadedCallback thumbnailCallback;
 	private int usageId = -1;
 
-	private final AtomicBoolean mPosterRequested = new AtomicBoolean(false);
+	private final AtomicInteger mPosterAttempts = new AtomicInteger(0);
+	private volatile boolean mPosterCached = false;
 
-	private final AtomicBoolean mThumbnailRequested = new AtomicBoolean(false);
+	// Largest thumbnail size requested so far, in pixels. A larger request
+	// re-downloads, so grid cards (shown near full card width) are not stuck
+	// with the small bitmap prepared for the list strip.
+	private final AtomicInteger mThumbnailRequestSize = new AtomicInteger(-1);
+	private volatile int mThumbnailCacheSize = -1;
 
 	public TimestampUTC lastChange;
 
@@ -138,7 +145,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				PrefsUtility.images_thumbnail_size_dp());
 
 		if(hasThumbnail && hasThumbnail(post) && !shouldShowInlinePreview()
-				&& mThumbnailRequested.compareAndSet(false, true)) {
+				&& claimThumbnailRequest(thumbnailWidth)) {
 			downloadThumbnail(context, allowHighResThumbnails, thumbnailWidth, cm, listId);
 		}
 
@@ -171,6 +178,19 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 		return mShowInlinePreviews;
 	}
 
+	// YouTube links carry no usable Reddit preview data, so grid cards use
+	// YouTube's own thumbnails instead. Gated like the other grid images, so
+	// NSFW/spoiler and download prefs apply.
+	public boolean shouldShowGridYoutube() {
+		return mShowInlinePreviews && src.getYoutubeId() != null;
+	}
+
+	// Crossposts often carry no preview of their own; grid cards fall back to
+	// the embedded parent post's preview. Gated like the other grid images.
+	public boolean shouldShowGridCrosspost() {
+		return mShowInlinePreviews && src.getCrosspostParent() != null;
+	}
+
 	public boolean isVideoPreview() {
 		return src.isVideoPreview();
 	}
@@ -183,11 +203,17 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			return;
 		}
 
-		if(!mPosterRequested.compareAndSet(false, true)) {
+		if(mPosterCached
+				|| mPosterAttempts.getAndIncrement() >= MAX_VIDEO_POSTER_ATTEMPTS) {
 			return;
 		}
 
 		Log.d(TAG, "MediaTrace: extracting video poster for " + url);
+
+		// Prefer Reddit's progressive MP4 when available: grabbing a frame
+		// from it is far faster and more reliable than resolving the post URL
+		// to an HLS stream first.
+		final UriString directMp4 = src.getVideoFallbackUrl();
 
 		VIDEO_POSTER_POOL.add(new PrioritisedCachedThreadPool.Task() {
 
@@ -200,7 +226,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			@Override
 			public void run() {
 
-				final Bitmap poster = extractVideoPoster(context, url, sizePixels);
+				final Bitmap poster = extractVideoPoster(context, url, directMp4, sizePixels);
 
 				if(poster == null) {
 					if(thumbnailCallback != null) {
@@ -210,6 +236,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				}
 
 				thumbnailCache = poster;
+				mPosterCached = true;
 
 				if(thumbnailCallback != null) {
 					thumbnailCallback.betterThumbnailAvailable(
@@ -224,6 +251,16 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 	public static Bitmap extractVideoPoster(
 			@NonNull final Context context,
 			@NonNull final UriString videoUrl,
+			final int maxDimensionPx) {
+
+		return extractVideoPoster(context, videoUrl, null, maxDimensionPx);
+	}
+
+	@Nullable
+	public static Bitmap extractVideoPoster(
+			@NonNull final Context context,
+			@NonNull final UriString videoUrl,
+			@Nullable final UriString directMp4Url,
 			final int maxDimensionPx) {
 
 		final File cacheFile = getVideoPosterCacheFile(context, videoUrl);
@@ -245,14 +282,21 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			cacheFile.delete();
 		}
 
-		final UriString resolvedUrl = RedditVideosAPI.resolveVideoUrlBlocking(
-				context,
-				videoUrl,
-				10_000);
+		final UriString resolvedUrl;
 
-		if(resolvedUrl == null) {
-			Log.e(TAG, "MediaTrace: could not resolve video URL for " + videoUrl);
-			return null;
+		if(directMp4Url != null) {
+			resolvedUrl = directMp4Url;
+
+		} else {
+			resolvedUrl = RedditVideosAPI.resolveVideoUrlBlocking(
+					context,
+					videoUrl,
+					10_000);
+
+			if(resolvedUrl == null) {
+				Log.e(TAG, "MediaTrace: could not resolve video URL for " + videoUrl);
+				return null;
+			}
 		}
 
 		MediaMetadataRetriever retriever = null;
@@ -334,17 +378,39 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 	public void ensureThumbnail(final Context context, final int sizePixels) {
 
-		if(thumbnailCache != null || !isUsableThumbnailUrl(src.getThumbnailUrl())) {
+		if(!isUsableThumbnailUrl(src.getThumbnailUrl())) {
 			return;
 		}
 
-		if(!mThumbnailRequested.compareAndSet(false, true)) {
+		if(thumbnailCache != null && sizePixels <= mThumbnailCacheSize) {
+			return;
+		}
+
+		if(!claimThumbnailRequest(sizePixels)) {
 			return;
 		}
 
 		Log.d(TAG, "MediaTrace: loading thumbnail " + src.getThumbnailUrl());
 
 		downloadThumbnail(context, false, sizePixels, CacheManager.getInstance(context), 0);
+	}
+
+	private boolean claimThumbnailRequest(final int sizePixels) {
+		int prev;
+		do {
+			prev = mThumbnailRequestSize.get();
+			if(sizePixels <= prev) {
+				return false;
+			}
+		} while(!mThumbnailRequestSize.compareAndSet(prev, sizePixels));
+		return true;
+	}
+
+	private void releaseThumbnailRequest(final int sizePixels) {
+		// A failed download must not permanently claim the size, otherwise
+		// rebinds could never retry it. Only resets when nothing bigger has
+		// been claimed since.
+		mThumbnailRequestSize.compareAndSet(sizePixels, -1);
 	}
 
 	/**
@@ -1119,6 +1185,8 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 					@Override
 					public void onFailure(@NonNull final RRError error) {
 
+						releaseThumbnailRequest(sizePixels);
+
 						if(General.isSensitiveDebugLoggingEnabled()) {
 							Log.e(
 									TAG,
@@ -1250,12 +1318,14 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 					scaledOptions);
 
 			if(data == null) {
+				releaseThumbnailRequest(desiredSizePixels);
 				if(thumbnailCallback != null) {
 					thumbnailCallback.thumbnailDownloadFailed(usageId);
 				}
 				return;
 			}
 			thumbnailCache = ThumbnailScaler.scale(data, desiredSizePixels);
+			mThumbnailCacheSize = desiredSizePixels;
 			if(thumbnailCache != data) {
 				data.recycle();
 			}
@@ -1267,6 +1337,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			}
 
 		} catch(final Throwable t) {
+			releaseThumbnailRequest(desiredSizePixels);
 			Log.e(
 					TAG,
 					"Exception while downloading thumbnail",

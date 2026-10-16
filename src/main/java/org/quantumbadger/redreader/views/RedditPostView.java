@@ -46,24 +46,43 @@ import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
 import org.quantumbadger.redreader.R;
+import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.activities.BaseActivity;
+import org.quantumbadger.redreader.cache.CacheManager;
+import org.quantumbadger.redreader.cache.CacheRequest;
+import org.quantumbadger.redreader.cache.CacheRequestCallbacks;
+import org.quantumbadger.redreader.cache.downloadstrategy.DownloadStrategyIfNotCached;
 import org.quantumbadger.redreader.common.AndroidCommon;
+import org.quantumbadger.redreader.common.Constants;
 import org.quantumbadger.redreader.common.DisplayUtils;
 import org.quantumbadger.redreader.common.General;
+import org.quantumbadger.redreader.common.GenericFactory;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
+import org.quantumbadger.redreader.common.Priority;
 import org.quantumbadger.redreader.common.RedReaderPicasso;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.UriString;
+import org.quantumbadger.redreader.common.datastream.SeekableInputStream;
+import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.fragments.PostListingFragment;
+import org.quantumbadger.redreader.image.GetImageInfoListener;
+import org.quantumbadger.redreader.image.ImageInfo;
 import org.quantumbadger.redreader.reddit.api.RedditPostActions;
+import org.quantumbadger.redreader.reddit.kthings.JsonUtils;
+import org.quantumbadger.redreader.reddit.kthings.MaybeParseError;
+import org.quantumbadger.redreader.reddit.kthings.RedditPost;
+import org.quantumbadger.redreader.reddit.kthings.RedditThing;
 import org.quantumbadger.redreader.reddit.prepared.InlinePreviewLoader;
 import org.quantumbadger.redreader.reddit.prepared.RedditParsedPost;
 import org.quantumbadger.redreader.reddit.prepared.RedditPreparedPost;
 import org.quantumbadger.redreader.views.liststatus.ErrorView;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public final class RedditPostView extends FlingableItemView
 		implements RedditPreparedPost.ThumbnailLoadedCallback,
@@ -232,11 +251,14 @@ public final class RedditPostView extends FlingableItemView
 
 				if(!mGridMode || !mGridOriginalShown) {
 					mThumbnailView.setImageBitmap(bitmap);
+					if(mGridMode) {
+						applyGridThumbnailPolicy(bitmap);
+					}
 				}
 				if(mGridMode) {
 					mGridLoadingSpinner.setVisibility(GONE);
 
-					if(mPost != null && mPost.isVideoPreview()) {
+					if(isGridVideo(mPost)) {
 						applyGridColumnImageAspect(
 								bitmap.getWidth(),
 								bitmap.getHeight());
@@ -453,8 +475,15 @@ public final class RedditPostView extends FlingableItemView
 
 			final boolean showGridImage = mGridMode && newPost.shouldShowGridImage();
 
-			final boolean showThumbnail
-					= !showInlinePreview && !showGridImage && newPost.hasThumbnail;
+			final boolean showGridYoutube = mGridMode && newPost.shouldShowGridYoutube();
+
+			final boolean showGridCrosspost = mGridMode && newPost.shouldShowGridCrosspost();
+
+			final boolean showThumbnail = !showInlinePreview
+					&& !showGridImage
+					&& !showGridYoutube
+					&& !showGridCrosspost
+					&& newPost.hasThumbnail;
 
 			if(!showInlinePreview) {
 				mImagePreviewLoadingSpinner.setVisibility(GONE);
@@ -464,7 +493,19 @@ public final class RedditPostView extends FlingableItemView
 
 			if(mGridMode) {
 
-				if(showGridImage) {
+				if(showGridYoutube) {
+					// YouTube links carry no usable Reddit preview, so the card
+					// uses YouTube's own thumbnail with a play overlay.
+					mGridImageArea.setVisibility(VISIBLE);
+					downloadGridYoutube(newPost, mUsageId);
+
+				} else if(showGridCrosspost) {
+					// Crossposts often carry no preview of their own; fall back
+					// to the parent post's preview.
+					mGridImageArea.setVisibility(VISIBLE);
+					downloadGridCrosspost(newPost, mUsageId);
+
+				} else if(showGridImage) {
 					// Full-width high-res preview with the image's real aspect ratio
 					mGridImageArea.setVisibility(VISIBLE);
 					downloadGridPreview(newPost, mUsageId);
@@ -722,6 +763,27 @@ public final class RedditPostView extends FlingableItemView
 		loader.setListener(this);
 	}
 
+	private static boolean isGridVideo(@Nullable final RedditPreparedPost post) {
+		return post != null
+				&& (post.isVideoPreview() || post.src.getYoutubeId() != null);
+	}
+
+	private int getGridCardSize() {
+		return Math.max(
+				mThumbnailSizePrefPixels,
+				DisplayUtils.getWindowVisibleDisplayFrame(mActivity).width() / 2);
+	}
+
+	// Tiny sources must not be upscaled into a blurry mess: show them at
+	// native size, centered on the card background, instead.
+	private void applyGridThumbnailPolicy(@Nullable final Bitmap bitmap) {
+		if(bitmap != null && bitmap.getWidth() < getGridCardSize()) {
+			mThumbnailView.setScaleType(ImageView.ScaleType.CENTER);
+		} else {
+			mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		}
+	}
+
 	private void downloadGridPreview(
 			@NonNull final RedditPreparedPost post,
 			final int usageId) {
@@ -729,11 +791,23 @@ public final class RedditPostView extends FlingableItemView
 		final Rect windowVisibleDisplayFrame
 				= DisplayUtils.getWindowVisibleDisplayFrame(mActivity);
 
-		// Grid cells are a fraction of the screen width (2-4 columns)
-		final int previewWidth = Math.max(320, windowVisibleDisplayFrame.width() / 2);
+		// Request a preview rung well above the card width (cards are a
+		// fraction of the screen width in 2-4 column grids). Picking a higher
+		// rung costs nothing when Reddit's ladder tops out, and Picasso's
+		// fit() downsamples to the card size anyway.
+		final int previewWidth
+				= Math.max(640, windowVisibleDisplayFrame.width());
 
 		final RedditParsedPost.ImagePreviewDetails preview
 				= post.src.getPreview(previewWidth, 0);
+
+		displayGridPreviewDetails(post, preview, usageId);
+	}
+
+	private void displayGridPreviewDetails(
+			@NonNull final RedditPreparedPost post,
+			@Nullable final RedditParsedPost.ImagePreviewDetails preview,
+			final int usageId) {
 
 		if(preview == null || preview.width < 10 || preview.height < 10) {
 			showGridFallbackThumbnail(post, usageId);
@@ -741,6 +815,7 @@ public final class RedditPostView extends FlingableItemView
 		}
 
 		mThumbnailView.setVisibility(VISIBLE);
+		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
 		// Size the card image to the image's real aspect ratio, so the whole
 		// image is visible without cropping. Reset the holder to a
@@ -780,7 +855,7 @@ public final class RedditPostView extends FlingableItemView
 
 						mGridLoadingSpinner.setVisibility(GONE);
 
-						if(post.isVideoPreview()) {
+						if(isGridVideo(post)) {
 							mGridPlayOverlay.setVisibility(VISIBLE);
 						}
 					}
@@ -799,6 +874,114 @@ public final class RedditPostView extends FlingableItemView
 				});
 	}
 
+	// YouTube links carry no usable Reddit preview data, so grid cards use
+	// YouTube's own thumbnails: maxresdefault (1280x720) when it exists,
+	// falling back to hqdefault (480x360, always available for public videos).
+	private void downloadGridYoutube(
+			@NonNull final RedditPreparedPost post,
+			final int usageId) {
+
+		final String youtubeId = post.src.getYoutubeId();
+
+		if(youtubeId == null) {
+			showGridFallbackThumbnail(post, usageId);
+			return;
+		}
+
+		mThumbnailView.setVisibility(VISIBLE);
+		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mGridLoadingSpinner.setVisibility(VISIBLE);
+		mGridPlayOverlay.setVisibility(GONE);
+
+		startGridLoadTimeout(post, usageId);
+
+		mGridOriginalShown = false;
+
+		// Provisional 16:9 aspect ratio, corrected once the image is loaded.
+		final ConstraintLayout.LayoutParams imageHolderLayoutParams
+				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
+
+		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+		imageHolderLayoutParams.height = 0;
+		imageHolderLayoutParams.dimensionRatio = "16:9";
+		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+
+		final boolean[] triedStandardThumb = {false};
+
+		final Target target = new Target() {
+
+			@Override
+			public void onBitmapLoaded(
+					@NonNull final Bitmap bitmap,
+					@NonNull final Picasso.LoadedFrom from) {
+
+				mGridFallbackTarget = null;
+
+				if(usageId != mUsageId) {
+					return;
+				}
+
+				cancelGridLoadTimeout();
+
+				mGridOriginalShown = true;
+
+				final int width = bitmap.getWidth();
+				final int height = bitmap.getHeight();
+
+				if(width < 10 || height < 10) {
+					showGridFallbackThumbnail(post, usageId);
+					return;
+				}
+
+				imageHolderLayoutParams.dimensionRatio
+						= String.valueOf((float)width / (float)height);
+				mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+
+				mThumbnailView.setImageBitmap(bitmap);
+				mGridLoadingSpinner.setVisibility(GONE);
+				mGridPlayOverlay.setVisibility(VISIBLE);
+			}
+
+			@Override
+			public void onBitmapFailed(
+					@NonNull final Exception e,
+					@Nullable final Drawable errorDrawable) {
+
+				if(usageId != mUsageId) {
+					return;
+				}
+
+				if(!triedStandardThumb[0]) {
+					triedStandardThumb[0] = true;
+					startGridLoadTimeout(post, usageId);
+					final Target retryTarget = mGridFallbackTarget;
+					if(retryTarget != null) {
+						RedReaderPicasso.INSTANCE.get(mActivity)
+								.load("https://i.ytimg.com/vi/" + youtubeId + "/hqdefault.jpg")
+								.into(retryTarget);
+					}
+				} else {
+					mGridFallbackTarget = null;
+					Log.e(TAG, "Failed to download YouTube thumbnail: " + e, e);
+					showGridFallbackThumbnail(post, usageId);
+				}
+			}
+
+			@Override
+			public void onPrepareLoad(
+					@Nullable final Drawable placeHolderDrawable) {
+
+				// The loading spinner is already shown
+			}
+		};
+
+		mGridFallbackTarget = target;
+
+		RedReaderPicasso.INSTANCE.get(mActivity)
+				.load("https://i.ytimg.com/vi/" + youtubeId + "/maxresdefault.jpg")
+				.into(target);
+	}
+
 	// For posts where reddit didn't include usable preview data but the post
 	// links directly to an image (e.g. a preview.redd.it URL): fetch the image
 	// itself and display it at the card width with its real aspect ratio,
@@ -814,12 +997,80 @@ public final class RedditPostView extends FlingableItemView
 
 		final UriString url = post.src.getUrl();
 
-		if(url == null || !LinkHandler.isDirectImageUrl(url)) {
+		if(url == null) {
 			showGridFallbackThumbnail(post, usageId);
 			return;
 		}
 
+		if(LinkHandler.isDirectImageUrl(url)) {
+			loadGridOriginal(post, url, usageId, false);
+			return;
+		}
+
+		// Image pages (imgur albums, gif hosts...) link to a page rather than
+		// the media itself: resolve to the direct media URL first.
 		mThumbnailView.setVisibility(VISIBLE);
+		mGridLoadingSpinner.setVisibility(VISIBLE);
+		mGridPlayOverlay.setVisibility(GONE);
+
+		startGridLoadTimeout(post, usageId);
+
+		LinkHandler.getGridCardImage(
+				mActivity,
+				url,
+				new Priority(Constants.Priority.MEDIA_FALLBACK),
+				new GetImageInfoListener() {
+					@Override
+					public void onFailure(@NonNull final RRError error) {
+						AndroidCommon.runOnUiThread(() -> {
+							if(usageId != mUsageId) {
+								return;
+							}
+							showGridFallbackThumbnail(post, usageId);
+						});
+					}
+
+					@Override
+					public void onSuccess(final ImageInfo info) {
+						AndroidCommon.runOnUiThread(() -> {
+							if(usageId != mUsageId) {
+								return;
+							}
+							if(info != null
+									&& info.original != null
+									&& info.original.url != null
+									&& info.mediaType != ImageInfo.MediaType.VIDEO) {
+								loadGridOriginal(
+										post,
+										info.original.url,
+										usageId,
+										LinkHandler.isEmbedVideoPage(url));
+							} else {
+								showGridFallbackThumbnail(post, usageId);
+							}
+						});
+					}
+
+					@Override
+					public void onNotAnImage() {
+						AndroidCommon.runOnUiThread(() -> {
+							if(usageId != mUsageId) {
+								return;
+							}
+							showGridFallbackThumbnail(post, usageId);
+						});
+					}
+				});
+	}
+
+	private void loadGridOriginal(
+			@NonNull final RedditPreparedPost post,
+			@NonNull final UriString url,
+			final int usageId,
+			final boolean showPlayOverlay) {
+
+		mThumbnailView.setVisibility(VISIBLE);
+		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
@@ -850,7 +1101,7 @@ public final class RedditPostView extends FlingableItemView
 		final Rect windowVisibleDisplayFrame
 				= DisplayUtils.getWindowVisibleDisplayFrame(mActivity);
 
-		final int targetSize = Math.max(320, windowVisibleDisplayFrame.width() / 2);
+		final int targetSize = Math.max(640, windowVisibleDisplayFrame.width());
 
 		final Target target = new Target() {
 
@@ -884,7 +1135,7 @@ public final class RedditPostView extends FlingableItemView
 				mThumbnailView.setImageBitmap(bitmap);
 				mGridLoadingSpinner.setVisibility(GONE);
 
-				if(post.isVideoPreview()) {
+				if(isGridVideo(post) || showPlayOverlay) {
 					mGridPlayOverlay.setVisibility(VISIBLE);
 				}
 			}
@@ -921,6 +1172,159 @@ public final class RedditPostView extends FlingableItemView
 				.centerInside()
 				.onlyScaleDown()
 				.into(target);
+	}
+
+	// Crossposts often carry no preview of their own: use the parent post's
+	// preview, from the embedded parent data when available, or fetched via
+	// api/info.json otherwise (cached on disk by the CacheManager).
+	private void downloadGridCrosspost(
+			@NonNull final RedditPreparedPost post,
+			final int usageId) {
+
+		final int previewWidth = Math.max(640, getGridCardSize() * 2);
+
+		final List<RedditPost> parents = post.src.getSrc().getCrosspost_parent_list();
+
+		if(parents != null) {
+			for(final RedditPost parent : parents) {
+				final RedditParsedPost parsedParent
+						= new RedditParsedPost(mActivity, parent, false);
+				final RedditParsedPost.ImagePreviewDetails details
+						= parsedParent.getPreview(previewWidth, 0);
+				if(details != null) {
+					displayGridPreviewDetails(post, details, usageId);
+					return;
+				}
+			}
+		}
+
+		final String parentFullname = post.src.getCrosspostParent();
+
+		if(parentFullname == null) {
+			showGridFallbackThumbnail(post, usageId);
+			return;
+		}
+
+		mThumbnailView.setVisibility(VISIBLE);
+		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mGridLoadingSpinner.setVisibility(VISIBLE);
+		mGridPlayOverlay.setVisibility(GONE);
+
+		startGridLoadTimeout(post, usageId);
+
+		mGridOriginalShown = false;
+
+		// Provisional 16:9 aspect ratio, corrected once the image is loaded.
+		final ConstraintLayout.LayoutParams imageHolderLayoutParams
+				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
+
+		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+		imageHolderLayoutParams.height = 0;
+		imageHolderLayoutParams.dimensionRatio = "16:9";
+		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+
+		fetchCrosspostParentPreview(post, parentFullname, previewWidth, usageId);
+	}
+
+	private void fetchCrosspostParentPreview(
+			@NonNull final RedditPreparedPost post,
+			@NonNull final String parentFullname,
+			final int previewWidth,
+			final int usageId) {
+
+		final UriString url
+				= Constants.Reddit.getUri("/api/info.json?id=" + parentFullname);
+
+		CacheManager.getInstance(mActivity).makeRequest(new CacheRequest(
+				url,
+				RedditAccountManager.getInstance(mActivity).getDefaultAccount(),
+				null,
+				new Priority(Constants.Priority.COMMENT_PRECACHE),
+				DownloadStrategyIfNotCached.INSTANCE,
+				Constants.FileType.POST_LIST,
+				CacheRequest.DownloadQueueType.REDDIT_API,
+				mActivity,
+				new CacheRequestCallbacks() {
+					@Override
+					public void onFailure(@NonNull final RRError error) {
+						AndroidCommon.runOnUiThread(() -> {
+							if(usageId != mUsageId) {
+								return;
+							}
+							showGridFallbackThumbnail(post, usageId);
+						});
+					}
+
+					@Override
+					public void onDataStreamAvailable(
+							final GenericFactory<SeekableInputStream, IOException> streamFactory,
+							final TimestampUTC timestamp,
+							final UUID session,
+							final boolean fromCache,
+							final String mimetype) {
+
+						new Thread(null, () -> {
+							final RedditParsedPost.ImagePreviewDetails details
+									= parseCrosspostParentPreview(
+											streamFactory,
+											previewWidth);
+							AndroidCommon.runOnUiThread(() -> {
+								if(usageId != mUsageId) {
+									return;
+								}
+								if(details != null) {
+									displayGridPreviewDetails(post, details, usageId);
+								} else {
+									showGridFallbackThumbnail(post, usageId);
+								}
+							});
+						}, "Crosspost preview fetch", 1_000_000).start();
+					}
+				}));
+	}
+
+	@Nullable
+	private RedditParsedPost.ImagePreviewDetails parseCrosspostParentPreview(
+			final GenericFactory<SeekableInputStream, IOException> streamFactory,
+			final int previewWidth) {
+
+		try {
+			final RedditThing thing = JsonUtils.INSTANCE
+					.decodeRedditThingFromStream(streamFactory.create());
+
+			if(thing instanceof RedditThing.Listing) {
+				for(final MaybeParseError<RedditThing> child
+						: ((RedditThing.Listing)thing).getData().getChildren()) {
+
+					if(!(child instanceof MaybeParseError.Ok)) {
+						continue;
+					}
+
+					final RedditThing value
+							= ((MaybeParseError.Ok<RedditThing>)child).getValue();
+
+					if(!(value instanceof RedditThing.Post)) {
+						continue;
+					}
+
+					final RedditParsedPost parsedParent = new RedditParsedPost(
+							mActivity,
+							((RedditThing.Post)value).getData(),
+							false);
+					final RedditParsedPost.ImagePreviewDetails found
+							= parsedParent.getPreview(previewWidth, 0);
+
+					if(found != null) {
+						return found;
+					}
+				}
+			}
+
+		} catch(final Exception e) {
+			return null;
+		}
+
+		return null;
 	}
 
 	// Formats a post score compactly, e.g. 23567 -> "23.6K", 1500 -> "1.5K",
@@ -1017,6 +1421,11 @@ public final class RedditPostView extends FlingableItemView
 		mGridLoadingSpinner.setVisibility(GONE);
 		mGridPlayOverlay.setVisibility(GONE);
 
+		// The strip is shown at full card width: request the thumbnail at card
+		// size rather than the small list-strip size, so it isn't upscaled
+		// from a tiny bitmap.
+		final int cardSize = getGridCardSize();
+
 		// A fixed-height strip, as used before the high-res grid previews
 		final ConstraintLayout.LayoutParams imageHolderLayoutParams
 				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
@@ -1032,9 +1441,13 @@ public final class RedditPostView extends FlingableItemView
 		final Bitmap thumbnail = post.getThumbnail(this, usageId);
 		mThumbnailView.setImageBitmap(thumbnail);
 		mThumbnailView.setVisibility(VISIBLE);
+		applyGridThumbnailPolicy(thumbnail);
+
+		if(isGridVideo(post)) {
+			mGridPlayOverlay.setVisibility(VISIBLE);
+		}
 
 		if(post.isVideoPreview()) {
-			mGridPlayOverlay.setVisibility(VISIBLE);
 
 			if(thumbnail != null) {
 				applyGridColumnImageAspect(
@@ -1048,7 +1461,7 @@ public final class RedditPostView extends FlingableItemView
 
 		} else {
 
-			post.ensureThumbnail(mActivity, mThumbnailSizePrefPixels);
+			post.ensureThumbnail(mActivity, cardSize);
 
 			if(thumbnail == null && post.hasThumbnail) {
 				mGridLoadingSpinner.setVisibility(VISIBLE);

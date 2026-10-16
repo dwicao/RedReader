@@ -30,6 +30,12 @@ import android.util.TypedValue
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Request
+import okhttp3.Response
+import org.apache.commons.text.StringEscapeUtils
+import org.json.JSONObject
 import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.activities.AlbumListingActivity
 import org.quantumbadger.redreader.activities.BaseActivity
@@ -47,6 +53,7 @@ import org.quantumbadger.redreader.common.PrefsUtility.SharingDomain
 import org.quantumbadger.redreader.fragments.ShareOrderDialog
 import org.quantumbadger.redreader.fragments.UserProfileDialog.show
 import org.quantumbadger.redreader.http.HTTPBackend
+import org.quantumbadger.redreader.http.okhttp.OKHTTPBackend
 import org.quantumbadger.redreader.image.AlbumInfo
 import org.quantumbadger.redreader.image.DeviantArtAPI
 import org.quantumbadger.redreader.image.GetAlbumInfoListener
@@ -67,6 +74,11 @@ import org.quantumbadger.redreader.reddit.url.OpaqueSharedURL
 import org.quantumbadger.redreader.reddit.url.PostCommentListingURL
 import org.quantumbadger.redreader.reddit.url.RedditURLParser
 import java.util.Locale
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.net.URL
+import java.net.URLEncoder
+import java.util.Collections
 import java.util.regex.Pattern
 import kotlin.concurrent.thread
 
@@ -549,6 +561,31 @@ object LinkHandler {
 		Pattern.compile("https://www\\.deviantart\\.com/([\\w\\-]+)/art/([\\w\\-]+)")
 	private val giphyPattern: Pattern = Pattern.compile(".*[^A-Za-z]giphy\\.com/gifs/(\\w+).*")
 
+	private val ogImagePatterns = listOf(
+		Pattern.compile(
+			"property=[\"']og:image[\"'][^>]*?content=[\"']([^\"']+)",
+			Pattern.CASE_INSENSITIVE),
+		Pattern.compile(
+			"content=[\"']([^\"']+)[\"'][^>]*?property=[\"']og:image[\"']",
+			Pattern.CASE_INSENSITIVE),
+		Pattern.compile(
+			"name=[\"']twitter:image[\"'][^>]*?content=[\"']([^\"']+)",
+			Pattern.CASE_INSENSITIVE),
+		Pattern.compile(
+			"content=[\"']([^\"']+)[\"'][^>]*?name=[\"']twitter:image[\"']",
+			Pattern.CASE_INSENSITIVE)
+	)
+
+	private const val MAX_OG_HTML_BYTES = 131072
+
+	private val linkPageImageCache: MutableMap<String, ImageInfo?> =
+		Collections.synchronizedMap(
+			object : LinkedHashMap<String, ImageInfo?>(128, 0.75f, true) {
+				override fun removeEldestEntry(
+					eldest: MutableMap.MutableEntry<String, ImageInfo?>
+				) = size > 128
+			})
+
 	@JvmStatic
 	fun getRedGifsId(url: UriString): String? {
 		val matchRedgifs = redgifsPattern.matcher(url.value)
@@ -991,6 +1028,249 @@ object LinkHandler {
 		} else {
 			listener.onNotAnImage()
 		}
+	}
+
+	// Grid card art resolution: the standard resolvers first, then embedded
+	// thumbnails (oEmbed for video hosts, og:image for anything else), so
+	// cards for video/link pages aren't stuck with Reddit's tiny thumbnail.
+	@JvmStatic
+	fun getGridCardImage(
+		context: Context,
+		url: UriString?,
+		priority: Priority,
+		listener: GetImageInfoListener
+	) {
+		getImageInfo(context, url, priority, object : GetImageInfoListener {
+			override fun onFailure(error: RRError) {
+				getLinkPageImage(url, listener)
+			}
+
+			override fun onSuccess(info: ImageInfo) {
+				listener.onSuccess(info)
+			}
+
+			override fun onNotAnImage() {
+				getLinkPageImage(url, listener)
+			}
+		})
+	}
+
+	@JvmStatic
+	fun isEmbedVideoPage(url: UriString?): Boolean {
+		if (url == null) {
+			return false
+		}
+		val lower = StringUtils.asciiLowercase(url.value)
+		return lower.contains("vimeo.com")
+				|| lower.contains("dailymotion.com")
+				|| lower.contains("dai.ly")
+	}
+
+	// Resolves a link/video page to its embed thumbnail (oEmbed for known
+	// video hosts, og:image otherwise). Results (including misses) are cached
+	// in memory; callbacks arrive on a background thread.
+	@JvmStatic
+	fun getLinkPageImage(url: UriString?, listener: GetImageInfoListener) {
+
+		if (url == null || url.value.isEmpty()) {
+			listener.onNotAnImage()
+			return
+		}
+
+		synchronized(linkPageImageCache) {
+			if (linkPageImageCache.containsKey(url.value)) {
+				val cached = linkPageImageCache[url.value]
+				if (cached != null) {
+					listener.onSuccess(cached)
+				} else {
+					listener.onNotAnImage()
+				}
+				return
+			}
+		}
+
+		val lower = StringUtils.asciiLowercase(url.value)
+
+		if (lower.contains("vimeo.com")) {
+			fetchOEmbedThumb(
+				"https://vimeo.com/api/oembed.json?url=" + URLEncoder.encode(url.value, "UTF-8"),
+				url.value,
+				listener,
+				fallbackToOgImage = true
+			)
+		} else if (lower.contains("dailymotion.com") || lower.contains("dai.ly")) {
+			fetchOEmbedThumb(
+				"https://www.dailymotion.com/services/oembed?url="
+						+ URLEncoder.encode(url.value, "UTF-8"),
+				url.value,
+				listener,
+				fallbackToOgImage = true
+			)
+		} else {
+			fetchOgImageThumb(url.value, listener)
+		}
+	}
+
+	private fun cacheLinkPageImage(pageUrl: String, info: ImageInfo?) {
+		synchronized(linkPageImageCache) {
+			linkPageImageCache[pageUrl] = info
+		}
+	}
+
+	private fun fetchOEmbedThumb(
+		endpoint: String,
+		pageUrl: String,
+		listener: GetImageInfoListener,
+		fallbackToOgImage: Boolean
+	) {
+		val request = Request.Builder().url(endpoint).get().build()
+
+		OKHTTPBackend.getClient().newCall(request).enqueue(object : Callback {
+
+			override fun onFailure(call: Call, e: IOException) {
+				if (fallbackToOgImage) {
+					fetchOgImageThumb(pageUrl, listener)
+				} else {
+					listener.onFailure(RRError(
+						title = "Failed to load preview",
+						message = e.message,
+						reportable = false,
+						t = e
+					))
+				}
+			}
+
+			override fun onResponse(call: Call, response: Response) {
+				response.use {
+					if (!it.isSuccessful) {
+						if (fallbackToOgImage) {
+							fetchOgImageThumb(pageUrl, listener)
+						} else {
+							listener.onNotAnImage()
+						}
+						return
+					}
+
+					val thumbUrl = try {
+						JSONObject(it.body!!.string()).optString("thumbnail_url")
+					} catch (e: Exception) {
+						null
+					}
+
+					if (thumbUrl.isNullOrEmpty()) {
+						if (fallbackToOgImage) {
+							fetchOgImageThumb(pageUrl, listener)
+						} else {
+							cacheLinkPageImage(pageUrl, null)
+							listener.onNotAnImage()
+						}
+						return
+					}
+
+					val info = ImageInfo(
+						original = ImageUrlInfo(UriString(thumbUrl)),
+						mediaType = ImageInfo.MediaType.IMAGE,
+						hasAudio = HasAudio.NO_AUDIO
+					)
+					cacheLinkPageImage(pageUrl, info)
+					listener.onSuccess(info)
+				}
+			}
+		})
+	}
+
+	private fun fetchOgImageThumb(pageUrl: String, listener: GetImageInfoListener) {
+
+		val request = Request.Builder()
+			.url(pageUrl)
+			.header("User-Agent", "RedReader (og:image fetcher)")
+			.get()
+			.build()
+
+		OKHTTPBackend.getClient().newCall(request).enqueue(object : Callback {
+
+			override fun onFailure(call: Call, e: IOException) {
+				listener.onFailure(RRError(
+					title = "Failed to load preview",
+					message = e.message,
+					reportable = false,
+					t = e
+				))
+			}
+
+			override fun onResponse(call: Call, response: Response) {
+				response.use {
+					if (!it.isSuccessful) {
+						listener.onNotAnImage()
+						return
+					}
+
+					val html = try {
+						readBoundedString(it, MAX_OG_HTML_BYTES)
+					} catch (e: Exception) {
+						null
+					}
+
+					val imageUrl = html?.let { body -> parseOgImage(body, pageUrl) }
+
+					if (imageUrl == null) {
+						cacheLinkPageImage(pageUrl, null)
+						listener.onNotAnImage()
+						return
+					}
+
+					val info = ImageInfo(
+						original = ImageUrlInfo(UriString(imageUrl)),
+						mediaType = ImageInfo.MediaType.IMAGE,
+						hasAudio = HasAudio.NO_AUDIO
+					)
+					cacheLinkPageImage(pageUrl, info)
+					listener.onSuccess(info)
+				}
+			}
+		})
+	}
+
+	private fun readBoundedString(response: Response, maxBytes: Int): String {
+		val body = response.body ?: throw IOException("Empty response body")
+		val out = ByteArrayOutputStream()
+		body.byteStream().use { stream ->
+			val buf = ByteArray(8192)
+			var total = 0
+			while (true) {
+				if (total >= maxBytes) {
+					break
+				}
+				val read = stream.read(buf, 0, minOf(buf.size, maxBytes - total))
+				if (read <= 0) {
+					break
+				}
+				out.write(buf, 0, read)
+				total += read
+			}
+		}
+		return out.toString("UTF-8")
+	}
+
+	private fun parseOgImage(html: String, pageUrl: String): String? {
+		for (pattern in ogImagePatterns) {
+			val matcher = pattern.matcher(html)
+			if (matcher.find()) {
+				val raw = StringEscapeUtils.unescapeHtml4(matcher.group(1) ?: continue)
+				if (raw.isEmpty()) {
+					continue
+				}
+				try {
+					val resolved = URL(URL(pageUrl), raw).toString()
+					if (resolved.startsWith("http")) {
+						return resolved
+					}
+				} catch (e: Exception) {
+					continue
+				}
+			}
+		}
+		return null
 	}
 
 	private fun getImageUrlPatternMatch(url: UriString): ImageInfo? {
