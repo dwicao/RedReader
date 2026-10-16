@@ -679,26 +679,7 @@ public class PostListingFragment extends RRFragment
 					&& layoutManager.getItemCount()
 					<= mPreviousFirstVisibleItemPosition))) {
 
-				mLastAfter = mAfter;
-				mReadyToDownloadMore = false;
-
-				final Uri newUri = mPostListingURL.after(mAfter).generateJsonUri();
-
-				// TODO customise (currently 3 hrs)
-				final DownloadStrategy strategy = mTimestamp.elapsed()
-								.isLessThan(TimeDuration.hours(3))
-						? DownloadStrategyIfNotCached.INSTANCE
-						: DownloadStrategyNever.INSTANCE;
-
-				mRequest = createPostListingRequest(
-						UriString.from(newUri),
-						RedditAccountManager.getInstance(getActivity())
-								.getDefaultAccount(),
-						mSession,
-						strategy,
-						false);
-				mPostListingManager.setLoadingVisible(true);
-				CacheManager.getInstance(getActivity()).makeRequest(mRequest);
+				requestNextPage();
 
 			} else if(mPostCountLimit > 0 && mPostRefreshCount.get() <= 0) {
 
@@ -719,19 +700,70 @@ public class PostListingFragment extends RRFragment
 		}
 	}
 
-	private void retryPostListing() {
+	private void requestNextPage() {
 
 		General.checkThisIsUIThread();
+
+		if(mAfter == null) {
+			return;
+		}
+
+		final AppCompatActivity activity = getActivity();
+
+		if(activity == null) {
+			return;
+		}
 
 		if(mRequest != null) {
 			return;
 		}
 
+		mLastAfter = mAfter;
+		mReadyToDownloadMore = false;
+
+		final Uri newUri = mPostListingURL.after(mAfter).generateJsonUri();
+
+		// TODO customise (currently 3 hrs)
+		final DownloadStrategy strategy;
+		if(mTimestamp == null
+				|| mTimestamp.elapsed().isLessThan(TimeDuration.hours(3))) {
+			strategy = DownloadStrategyIfNotCached.INSTANCE;
+		} else {
+			strategy = DownloadStrategyNever.INSTANCE;
+		}
+
+		mRequest = createPostListingRequest(
+				UriString.from(newUri),
+				RedditAccountManager.getInstance(activity).getDefaultAccount(),
+				mSession,
+				strategy,
+				false);
+
 		mPostListingManager.removeFooterErrors();
+		mPostListingManager.setLoadingVisible(true);
+		CacheManager.getInstance(activity).makeRequest(mRequest);
+	}
+
+	private void retryPostListing() {
+
+		General.checkThisIsUIThread();
+
+		if(mRequest != null) {
+			// A load is already in progress (e.g. triggered by scrolling after
+			// the failure). Don't start a second one; just clear the stale
+			// error and let the in-flight request update the footer.
+			mPostListingManager.removeFooterErrors();
+			mPostListingManager.setLoadingVisible(true);
+			return;
+		}
 
 		if(mAfter == null) {
 
 			final Context context = getContext();
+
+			if(context == null) {
+				return;
+			}
 
 			mRequest = createPostListingRequest(
 					UriString.from(mPostListingURL.generateJsonUri()),
@@ -740,13 +772,16 @@ public class PostListingFragment extends RRFragment
 					DownloadStrategyIfNotCached.INSTANCE,
 					true);
 
+			mPostListingManager.removeFooterErrors();
 			mPostListingManager.setLoadingVisible(true);
 			CacheManager.getInstance(context).makeRequest(mRequest);
 
 		} else {
-			mLastAfter = null;
-			mReadyToDownloadMore = true;
-			onLoadMoreItemsCheck();
+			// Explicit retry bypasses the scroll-position and quota guards in
+			// onLoadMoreItemsCheck: the error footer is visible, so the user
+			// is already at the bottom and wants the next page now. Routing
+			// through onLoadMoreItemsCheck here could silently do nothing.
+			requestNextPage();
 		}
 	}
 

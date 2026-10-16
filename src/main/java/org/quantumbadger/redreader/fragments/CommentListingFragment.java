@@ -114,6 +114,8 @@ public class CommentListingFragment extends RRFragment
 
 	private TimestampUTC mCachedTimestamp = null;
 
+	private boolean mRequestInFlight = false;
+
 	private Integer mPreviousFirstVisibleItemPosition;
 	private int mParentJumpCount = 0;
 
@@ -386,7 +388,10 @@ public class CommentListingFragment extends RRFragment
 	@SuppressLint("WrongConstant")
 	private void makeNextRequest(final Context context) {
 
+		General.checkThisIsUIThread();
+
 		if(!mUrlsToDownload.isEmpty()) {
+			mRequestInFlight = true;
 			new CommentListingRequest(
 					context,
 					this,
@@ -460,8 +465,36 @@ public class CommentListingFragment extends RRFragment
 
 	@Override
 	public void onCommentListingRequestFailure(final RRError error) {
+		mRequestInFlight = false;
 		mCommentListingManager.setLoadingVisible(false);
-		mCommentListingManager.addFooterError(new ErrorView(getActivity(), error));
+		mCommentListingManager.removeFooterErrors();
+		mCommentListingManager.addFooterError(new ErrorView(
+				getActivity(),
+				error,
+				this::retryCommentListing));
+	}
+
+	private void retryCommentListing() {
+
+		General.checkThisIsUIThread();
+
+		if(mRequestInFlight) {
+			// A load is already in progress. Don't start a second one; just
+			// clear the stale error and let the in-flight request finish.
+			mCommentListingManager.removeFooterErrors();
+			mCommentListingManager.setLoadingVisible(true);
+			return;
+		}
+
+		final Context context = getActivity();
+
+		if(context == null) {
+			return;
+		}
+
+		mCommentListingManager.removeFooterErrors();
+		mCommentListingManager.setLoadingVisible(true);
+		makeNextRequest(context);
 	}
 
 	@Override
@@ -609,6 +642,8 @@ public class CommentListingFragment extends RRFragment
 	public void onCommentListingRequestAllItemsDownloaded(
 			final ArrayList<RedditCommentListItem> items) {
 
+		mRequestInFlight = false;
+		mCommentListingManager.removeFooterErrors();
 		mCommentListingManager.addComments(items);
 
 		if(mFloatingToolbar != null && mFloatingToolbar.getVisibility() != View.VISIBLE) {

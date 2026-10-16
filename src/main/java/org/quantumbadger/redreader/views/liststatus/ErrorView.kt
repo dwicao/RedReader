@@ -52,6 +52,16 @@ class ErrorView @JvmOverloads constructor(
 		val resolution = error.resolution
 
 		when {
+			// An explicit retry handler (e.g. post/comment listing pagination)
+			// takes precedence over the generic RETRY resolution, which only
+			// notifies Compose observers and would otherwise leave View-based
+			// lists with a dead button.
+			onRetry != null
+					&& (resolution == null
+					|| resolution == RRError.Resolution.RETRY) -> {
+				resolveButton.setText(R.string.error_resolution_button_retry)
+				resolveButton.setOnClickListener { onRetry.run() }
+			}
 			resolution != null -> {
 				resolveButton.setText(resolution.buttonText)
 
