@@ -892,8 +892,22 @@ public class PostListingFragment extends RRFragment
 
 		final AppCompatActivity activity = getActivity();
 
+		// When filtering by media type, request more posts per page so fewer
+		// throttled API round-trips are needed to fill the screen with
+		// matching posts (Reddit defaults to 25, we ask for 100).
+		final UriString requestUrl;
+		if(mPostFilter != PostFilter.ALL) {
+			final String urlString = url.value;
+			requestUrl = new UriString(
+					urlString.contains("?")
+							? urlString + "&limit=100"
+							: urlString + "?limit=100");
+		} else {
+			requestUrl = url;
+		}
+
 		return new CacheRequest(
-				url,
+				requestUrl,
 				user,
 				requestSession,
 				new Priority(Constants.Priority.API_POST_LIST),

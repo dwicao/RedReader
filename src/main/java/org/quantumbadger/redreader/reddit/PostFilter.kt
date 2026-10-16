@@ -19,6 +19,7 @@ package org.quantumbadger.redreader.reddit
 import androidx.annotation.StringRes
 import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.common.LinkHandler
+import org.quantumbadger.redreader.common.UriString
 import org.quantumbadger.redreader.reddit.kthings.MaybeParseError
 import org.quantumbadger.redreader.reddit.kthings.RedditMediaMetadata
 import org.quantumbadger.redreader.reddit.kthings.RedditPost
@@ -50,7 +51,11 @@ enum class PostFilter(@param:StringRes val menuTitle: Int) {
 				return TEXT
 			}
 
-			if (isVideo(post)) {
+			// Parse the URL once so both the image check and video check can
+			// reuse it instead of resolving it twice per post.
+			val finalUrl = post.findUrl()?.value
+
+			if (isVideo(post, finalUrl)) {
 				return VIDEO
 			}
 
@@ -59,14 +64,14 @@ enum class PostFilter(@param:StringRes val menuTitle: Int) {
 			}
 
 			if (post.post_hint.equals("image", ignoreCase = true)
-				|| LinkHandler.isProbablyAnImage(post.findUrl())) {
+				|| LinkHandler.isProbablyAnImage(UriString.fromNullable(finalUrl))) {
 				return IMAGE
 			}
 
 			return LINK
 		}
 
-		private fun isVideo(post: RedditPost): Boolean {
+		private fun isVideo(post: RedditPost, finalUrl: String?): Boolean {
 			if (post.is_video || post.media?.reddit_video != null) {
 				return true
 			}
@@ -91,7 +96,7 @@ enum class PostFilter(@param:StringRes val menuTitle: Int) {
 			return listOfNotNull(
 				post.url?.decoded,
 				post.url_overridden_by_dest?.decoded,
-				post.findUrl()?.value)
+				finalUrl)
 				.any { isVideoDomain(it) || hasVideoExtension(it) }
 		}
 
