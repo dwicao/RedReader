@@ -47,6 +47,16 @@ public class SubredditPostListURL extends PostListingURL {
 		return new SubredditPostListURL(Type.ALL, null, null, null, null, null);
 	}
 
+	public static SubredditPostListURL getCombination(final String subreddits) {
+		return new SubredditPostListURL(
+				Type.SUBREDDIT_COMBINATION,
+				subreddits,
+				null,
+				null,
+				null,
+				null);
+	}
+
 	public static RedditURLParser.RedditURL getSubreddit(final String subreddit) throws
 			InvalidSubredditNameException {
 		return getSubreddit(new SubredditCanonicalId(subreddit));

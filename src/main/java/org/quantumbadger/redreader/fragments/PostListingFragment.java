@@ -115,6 +115,10 @@ public class PostListingFragment extends RRFragment
 
 	private static final String SAVEDSTATE_FIRST_VISIBLE_POS = "firstVisiblePosition";
 
+	// A combined listing with more subreddits than this gets no header: the
+	// raw "a+b+c+..." title and subtitle would push the content off screen.
+	private static final int MAX_HEADER_SUBREDDITS = 10;
+
 	@NonNull private PostListingURL mPostListingURL;
 
 	@Nullable private RedditSubreddit mSubreddit;
@@ -341,8 +345,6 @@ public class PostListingFragment extends RRFragment
 
 					case FRONTPAGE:
 					case ALL:
-					case SUBREDDIT_COMBINATION:
-					case ALL_SUBTRACTION:
 					case POPULAR:
 						setHeader(
 								mPostListingURL.humanReadableName(getActivity(), true),
@@ -350,6 +352,19 @@ public class PostListingFragment extends RRFragment
 								null);
 						CacheManager.getInstance(context).makeRequest(mRequest);
 						break;
+
+					case SUBREDDIT_COMBINATION:
+					case ALL_SUBTRACTION: {
+						if(countSubreddits(subredditPostListURL.subreddit)
+								<= MAX_HEADER_SUBREDDITS) {
+							setHeader(
+									mPostListingURL.humanReadableName(getActivity(), true),
+									mPostListingURL.humanReadableUrl(),
+									null);
+						}
+						CacheManager.getInstance(context).makeRequest(mRequest);
+						break;
+					}
 
 					case SUBREDDIT: {
 
@@ -491,6 +506,13 @@ public class PostListingFragment extends RRFragment
 		}
 
 		return ((LinearLayoutManager)layoutManager).findLastVisibleItemPosition();
+	}
+
+	private static int countSubreddits(@Nullable final String subreddits) {
+		if(subreddits == null || subreddits.isEmpty()) {
+			return 0;
+		}
+		return subreddits.split("\\+", -1).length;
 	}
 
 	private void onListLayout() {

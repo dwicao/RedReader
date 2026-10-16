@@ -218,6 +218,30 @@ public class MainMenuListingManager {
 								false));
 			}
 
+			{
+				final View.OnClickListener clickListener = view -> mListener.onSelected(
+						MainMenuFragment.MENU_MENU_ACTION_CUSTOM_SUBREDDITS);
+
+				final View.OnLongClickListener longClickListener = view -> {
+					mListener.onLongSelected(
+							MainMenuFragment.MENU_MENU_ACTION_CUSTOM_SUBREDDITS);
+					return true;
+				};
+
+				mAdapter.appendToGroup(
+						GROUP_MAIN_ITEMS,
+						new GroupedRecyclerViewItemListItemView(
+								null,
+								mContext.getString(R.string.mainmenu_custom),
+								null,
+								false,
+								clickListener,
+								longClickListener,
+								Optional.empty(),
+								Optional.empty(),
+								Optional.empty()));
+			}
+
 			if(mainMenuShortcutItems.contains(
 					MainMenuFragment.MainMenuShortcutItems.SUBREDDIT_SEARCH)) {
 

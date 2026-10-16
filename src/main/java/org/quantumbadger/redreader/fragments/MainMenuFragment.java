@@ -70,6 +70,7 @@ public class MainMenuFragment extends RRFragment implements
 	public static final int MENU_MENU_ACTION_POPULAR = 12;
 	public static final int MENU_MENU_ACTION_SENT_MESSAGES = 13;
 	public static final int MENU_MENU_ACTION_FIND_SUBREDDIT = 14;
+	public static final int MENU_MENU_ACTION_CUSTOM_SUBREDDITS = 15;
 
 	@IntDef({
 			MENU_MENU_ACTION_FRONTPAGE,
@@ -86,7 +87,8 @@ public class MainMenuFragment extends RRFragment implements
 			MENU_MENU_ACTION_ALL,
 			MENU_MENU_ACTION_POPULAR,
 			MENU_MENU_ACTION_SENT_MESSAGES,
-			MENU_MENU_ACTION_FIND_SUBREDDIT})
+			MENU_MENU_ACTION_FIND_SUBREDDIT,
+			MENU_MENU_ACTION_CUSTOM_SUBREDDITS})
 	@Retention(RetentionPolicy.SOURCE)
 	public @interface MainMenuAction {
 	}
@@ -242,6 +244,11 @@ public class MainMenuFragment extends RRFragment implements
 	@Override
 	public void onSelected(final @MainMenuAction int type) {
 		((MainMenuSelectionListener)getActivity()).onSelected(type);
+	}
+
+	@Override
+	public void onLongSelected(final @MainMenuAction int type) {
+		((MainMenuSelectionListener)getActivity()).onLongSelected(type);
 	}
 
 	@Override

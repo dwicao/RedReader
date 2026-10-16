@@ -43,6 +43,7 @@ import org.quantumbadger.redreader.activities.WebViewActivity
 import org.quantumbadger.redreader.cache.CacheManager
 import org.quantumbadger.redreader.common.AndroidCommon
 import org.quantumbadger.redreader.common.Constants
+import org.quantumbadger.redreader.common.CustomSubreddits
 import org.quantumbadger.redreader.common.FileUtils
 import org.quantumbadger.redreader.common.General
 import org.quantumbadger.redreader.common.LinkHandler
@@ -109,7 +110,9 @@ object RedditPostActions {
 		UNPIN(R.string.action_unpin_subreddit),
 		SUBSCRIBE(R.string.action_subscribe_subreddit),
 		UNSUBSCRIBE(R.string.action_unsubscribe_subreddit),
-		CROSSPOST_ORIGIN(R.string.action_crosspost_origin)
+		CROSSPOST_ORIGIN(R.string.action_crosspost_origin),
+		CUSTOM_SUBSCRIBE(R.string.action_subscribe_subreddit),
+		CUSTOM_UNSUBSCRIBE(R.string.action_unsubscribe_subreddit)
 
 	}
 
@@ -678,6 +681,32 @@ object RedditPostActions {
 			} catch (e: InvalidSubredditNameException) {
 				throw RuntimeException(e)
 			}
+
+			Action.CUSTOM_SUBSCRIBE -> {
+				val subredditCanonicalId = SubredditCanonicalId(post.src.subreddit)
+				if (!CustomSubreddits.isMember(activity,
+						subredditCanonicalId.toString())) {
+					CustomSubreddits.add(activity,
+						subredditCanonicalId.toString())
+					General.quickToast(activity,
+						activity.getString(
+							R.string.subscription_successful,
+							subredditCanonicalId.toString()))
+				}
+			}
+
+			Action.CUSTOM_UNSUBSCRIBE -> {
+				val subredditCanonicalId = SubredditCanonicalId(post.src.subreddit)
+				if (CustomSubreddits.isMember(activity,
+						subredditCanonicalId.toString())) {
+					CustomSubreddits.remove(activity,
+						subredditCanonicalId.toString())
+					General.quickToast(activity,
+						activity.getString(
+							R.string.unsubscription_successful,
+							subredditCanonicalId.toString()))
+				}
+			}
 		}
 	}
 
@@ -854,6 +883,24 @@ object RedditPostActions {
 							}
 						}
 					}
+				}
+				if (CustomSubreddits.isMember(activity,
+						subredditCanonicalId.toString())) {
+					menu.add(
+						RPVMenuItem(
+							activity,
+							R.string.action_unsubscribe_subreddit,
+							Action.CUSTOM_UNSUBSCRIBE
+						)
+					)
+				} else {
+					menu.add(
+						RPVMenuItem(
+							activity,
+							R.string.action_subscribe_subreddit,
+							Action.CUSTOM_SUBSCRIBE
+						)
+					)
 				}
 			} catch (ex: InvalidSubredditNameException) {
 				throw java.lang.RuntimeException(ex)

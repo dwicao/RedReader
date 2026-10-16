@@ -23,5 +23,7 @@ import org.quantumbadger.redreader.reddit.url.PostListingURL;
 public interface MainMenuSelectionListener {
 	void onSelected(@MainMenuFragment.MainMenuAction int type);
 
+	void onLongSelected(@MainMenuFragment.MainMenuAction int type);
+
 	void onSelected(PostListingURL url);
 }
