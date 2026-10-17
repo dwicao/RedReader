@@ -642,17 +642,20 @@ public class PostListingFragment extends RRFragment
 			return;
 		}
 
-		final LinearLayoutManager layoutManager
-				= (LinearLayoutManager)mRecyclerView.getLayoutManager();
+		final RecyclerView.LayoutManager layoutManager
+				= mRecyclerView.getLayoutManager();
 
-		if(layoutManager == null) {
+		if(!(layoutManager instanceof LinearLayoutManager)
+				&& !(layoutManager instanceof StaggeredGridLayoutManager)) {
 			return;
 		}
 
 		// Every item before the first visible one has been scrolled fully off
 		// the top of the screen. Checking a range, rather than just the item
 		// at the top, means a fast fling can't skip any posts.
-		final int firstVisiblePosition = layoutManager.findFirstVisibleItemPosition();
+		// Not cast to LinearLayoutManager: grid layouts use a
+		// StaggeredGridLayoutManager, and casting it here crashed in onScrolled.
+		final int firstVisiblePosition = findFirstVisibleItemPosition(layoutManager);
 
 		if(firstVisiblePosition == RecyclerView.NO_POSITION
 				|| firstVisiblePosition <= mMarkReadOnScrollNextPosition) {

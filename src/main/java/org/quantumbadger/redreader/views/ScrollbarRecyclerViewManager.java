@@ -41,6 +41,8 @@ public class ScrollbarRecyclerViewManager {
 
 	private boolean mScrollUnnecessary = false;
 
+	private int mLastScrollbarTopPadding = -1;
+
 	public ScrollbarRecyclerViewManager(
 			final Context context,
 			final ViewGroup root,
@@ -95,7 +97,15 @@ public class ScrollbarRecyclerViewManager {
 							- itemsVisible))
 							* (scrollbarFrameHeight - scrollBarHeight);
 
-					mScrollbarFrame.setPadding(0, (int)Math.round(topPadding), 0, 0);
+					final int topPaddingPx = (int)Math.round(topPadding);
+
+					// Only touched when it actually moves: setPadding() requests a
+					// layout, so writing the same value on every scroll event forced a
+					// layout pass per frame just to hold the scrollbar still.
+					if(topPaddingPx != mLastScrollbarTopPadding) {
+						mLastScrollbarTopPadding = topPaddingPx;
+						mScrollbarFrame.setPadding(0, topPaddingPx, 0, 0);
+					}
 				}
 			}
 

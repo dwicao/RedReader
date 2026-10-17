@@ -76,6 +76,11 @@ public final class PrefsUtility {
 	private static final HashMap<Integer, Set<String>> DEFAULT_STRING_SETS
 			= new HashMap<>(8);
 
+	// Cached form of the post subtitle items preference; see
+	// appearance_post_subtitle_items(). Invalidated when the preference changes.
+	private static volatile EnumSet<AppearancePostSubtitleItem> mPostSubtitleItems
+			= null;
+
 	// Application context, so cannot leak
 	@SuppressLint("StaticFieldLeak")
 	private static Context appContext;
@@ -89,6 +94,14 @@ public final class PrefsUtility {
 			setAppLocales(languagePrefToLocales(getString(
 					R.string.pref_appearance_langforce_key,
 					"auto")));
+		}
+	};
+
+	private static final SharedPrefsWrapper.OnSharedPreferenceChangeListener
+			SUBTITLE_ITEMS_CHANGE_LISTENER = (prefs, key) -> {
+
+		if(getPrefKey(R.string.pref_appearance_post_subtitle_items_key).equals(key)) {
+			mPostSubtitleItems = null;
 		}
 	};
 
@@ -227,6 +240,7 @@ public final class PrefsUtility {
 
 		if(sharedPrefs != null) {
 			sharedPrefs.unregisterOnSharedPreferenceChangeListener(LANGUAGE_CHANGE_LISTENER);
+			sharedPrefs.unregisterOnSharedPreferenceChangeListener(SUBTITLE_ITEMS_CHANGE_LISTENER);
 		}
 
 		appContext = context.getApplicationContext();
@@ -239,11 +253,17 @@ public final class PrefsUtility {
 			DEFAULT_STRING_SETS.clear();
 		}
 
+		mPostSubtitleItems = null;
+
 		General.initAppConfig(context);
 
 		// Applies the language setting whenever the preference changes, including
 		// when settings are restored from a backup.
 		sharedPrefs.registerOnSharedPreferenceChangeListener(LANGUAGE_CHANGE_LISTENER);
+
+		// The subtitle items are cached, so they have to be dropped when the user
+		// changes them.
+		sharedPrefs.registerOnSharedPreferenceChangeListener(SUBTITLE_ITEMS_CHANGE_LISTENER);
 	}
 
 	///////////////////////////////
@@ -762,6 +782,16 @@ public final class PrefsUtility {
 
 	public static EnumSet<AppearancePostSubtitleItem> appearance_post_subtitle_items() {
 
+		// Built once and shared: this is read several times for every post bound to
+		// the screen (for the subtitle and again for the accessibility strings), and
+		// rebuilding it allocates an EnumSet plus a string per configured item each
+		// time. Callers only read the set, so sharing one instance is safe.
+		final EnumSet<AppearancePostSubtitleItem> cached = mPostSubtitleItems;
+
+		if(cached != null) {
+			return cached;
+		}
+
 		final Set<String> strings = getStringSet(
 				R.string.pref_appearance_post_subtitle_items_key,
 				R.array.pref_appearance_post_subtitle_items_default);
@@ -771,6 +801,8 @@ public final class PrefsUtility {
 		for(final String s : strings) {
 			result.add(AppearancePostSubtitleItem.valueOf(StringUtils.asciiUppercase(s)));
 		}
+
+		mPostSubtitleItems = result;
 
 		return result;
 	}

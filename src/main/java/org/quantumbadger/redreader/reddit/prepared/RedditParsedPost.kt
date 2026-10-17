@@ -91,6 +91,25 @@ class RedditParsedPost(
 			return UriString.fromNullable(raw?.takeIf { it.isNotEmpty() })
 		}
 
+	// A still frame for the video, which Reddit supplies alongside the video. Using
+	// this instead of extracting a frame from the video itself avoids downloading
+	// the whole (multi-megabyte) file just to produce one image.
+	val videoPosterImage: ImagePreviewDetails?
+		get() {
+			val preview = src.preview?.reddit_video_preview ?: return null
+
+			val url = preview.scrubber_media_url?.decoded
+				?: preview.fallback_url?.decoded
+			if(url.isNullOrEmpty()) {
+				return null
+			}
+
+			return ImagePreviewDetails(
+				UriString(url),
+				preview.width ?: 0,
+				preview.height ?: 0)
+		}
+
 	val suggestedCommentSort: PostCommentSort?
 		get() = if (src.suggested_sort == null) {
 			null
@@ -188,14 +207,14 @@ class RedditParsedPost(
 
     fun getPreview(minWidth: Int, minHeight: Int): ImagePreviewDetails? {
 		val preview = src.preview?.images?.get(0)?.let {
-			getPreviewInternal(it.source, it.resolutions, minWidth, minHeight)
+			selectPreviewDetails(it.source, it.resolutions, minWidth, minHeight)
 		}
 		return preview ?: getGalleryPreview(minWidth, minHeight)
 	}
 
     fun getPreviewMP4(minWidth: Int, minHeight: Int)
 		= src.preview?.images?.get(0)?.variants?.mp4?.let {
-			getPreviewInternal(it.source, it.resolutions, minWidth, minHeight)
+			selectPreviewDetails(it.source, it.resolutions, minWidth, minHeight)
 		}
 
     // Gallery posts ("multiple images") don't include a preview field in the
@@ -206,7 +225,7 @@ class RedditParsedPost(
 		val cached = mGalleryPreview
 
 		if(cached != null) {
-			return getPreviewInternal(
+			return selectPreviewDetails(
 				cached.source,
 				cached.resolutions,
 				minWidth,
@@ -241,7 +260,7 @@ class RedditParsedPost(
 		// cached. They cannot change, as this object wraps an immutable post.
 		mGalleryPreview = GalleryPreview(sourceDetails, resolutionDetails)
 
-		return getPreviewInternal(
+		return selectPreviewDetails(
 			sourceDetails,
 			resolutionDetails,
 			minWidth,
@@ -257,7 +276,19 @@ class RedditParsedPost(
 		return src.gallery_data?.items?.size ?: 0
 	}
 
-    private fun getPreviewInternal(
+	// Picks which preview image to use for a requested display size.
+	//
+	// The candidates are Reddit's resolution ladder, plus the source (the full
+	// resolution original) as a last resort. Picking from the ladder first is what
+	// keeps a small grid card from downloading the original: when no rung is big
+	// enough for the requested size, the original would otherwise win merely by
+	// being the largest candidate.
+	//
+	// @JvmStatic so it can be unit tested without constructing a parsed post.
+	companion object {
+
+	@JvmStatic
+	fun selectPreviewDetails(
 		source: RedditPost.Preview.ImageDetails?,
 		resolutions: List<RedditPost.Preview.ImageDetails>?,
 		minWidth: Int,
@@ -275,15 +306,13 @@ class RedditParsedPost(
 			}
 		}
 
+		// Pick from the resolution ladder first. The source is the full resolution
+		// original, so it must not win just by being the largest candidate: when no
+		// rung reaches the requested size, choosing it would download the original
+		// (megabytes) for a card that is a fraction of the screen.
 		var best: RedditPost.Preview.ImageDetails? = null
 
-		for (i in -1 until resolutionList.size) {
-
-			val resolution = if (i == -1) {
-				source ?: continue
-			} else {
-				resolutionList[i]
-			}
+		for (resolution in resolutionList) {
 
 			if (!isUsablePreviewDetails(resolution, source)) {
 				continue
@@ -307,6 +336,12 @@ class RedditParsedPost(
 			if (use) {
 				best = resolution
 			}
+		}
+
+		// Only fall back to the full resolution source when the ladder offered
+		// nothing usable at all.
+		if (best == null && source != null && isUsablePreviewDetails(source, source)) {
+			best = source
 		}
 
 		return best?.run {
@@ -342,4 +377,6 @@ class RedditParsedPost(
 
 		return true
 	}
+	}
 }
+

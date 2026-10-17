@@ -22,6 +22,7 @@ import android.content.Context
 import com.squareup.picasso.OkHttp3Downloader
 import com.squareup.picasso.Picasso
 import okhttp3.Cache
+import okhttp3.Dispatcher
 import org.quantumbadger.redreader.http.okhttp.OKHTTPBackend
 import java.io.File
 import java.util.concurrent.Executors
@@ -73,6 +74,14 @@ object RedReaderPicasso {
 		val cacheDir = File(context.cacheDir, "picasso-images")
 		val client = OKHTTPBackend.getClient().newBuilder()
 			.cache(Cache(cacheDir, CACHE_SIZE_BYTES))
+			// newBuilder() shares the backend's Dispatcher instance, so images would
+			// otherwise queue behind app traffic on OkHttp's default limit of 5
+			// concurrent requests per host. A grid full of images from the same CDN
+			// then loads five at a time, which is visible as slow cards.
+			.dispatcher(Dispatcher().apply {
+				maxRequests = 24
+				maxRequestsPerHost = 12
+			})
 			.build()
 
 		return Picasso.Builder(context)

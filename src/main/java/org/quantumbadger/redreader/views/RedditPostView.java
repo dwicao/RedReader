@@ -800,12 +800,14 @@ public final class RedditPostView extends FlingableItemView
 		final Rect windowVisibleDisplayFrame
 				= DisplayUtils.getWindowVisibleDisplayFrame(mActivity);
 
-		// Request a preview rung well above the card width (cards are a
-		// fraction of the screen width in 2-4 column grids). Picking a higher
-		// rung costs nothing when Reddit's ladder tops out, and Picasso's
-		// fit() downsamples to the card size anyway.
-		final int previewWidth
-				= Math.max(640, windowVisibleDisplayFrame.width());
+		// Request a preview rung above the card width (cards are a fraction of the
+		// screen width in 2-4 column grids). This is bounded like the list preview
+		// path: asking for the full window width on a high resolution screen can
+		// exceed every rung Reddit offers for the post, which then selects the
+		// full resolution original instead of a ladder rung.
+		final int previewWidth = Math.min(
+				1080,
+				Math.max(640, windowVisibleDisplayFrame.width()));
 
 		final RedditParsedPost.ImagePreviewDetails preview
 				= post.src.getPreview(previewWidth, 0);
@@ -924,11 +926,13 @@ public final class RedditPostView extends FlingableItemView
 					@NonNull final Bitmap bitmap,
 					@NonNull final Picasso.LoadedFrom from) {
 
-				mGridFallbackTarget = null;
-
 				if(usageId != mUsageId) {
 					return;
 				}
+
+				// Cleared only after the generation check: doing it first would let a
+				// late callback from the previous post clear the target this bind owns.
+				mGridFallbackTarget = null;
 
 				cancelGridLoadTimeout();
 
@@ -968,6 +972,12 @@ public final class RedditPostView extends FlingableItemView
 						RedReaderPicasso.INSTANCE.get(mActivity)
 								.load("https://i.ytimg.com/vi/" + youtubeId + "/hqdefault.jpg")
 								.into(retryTarget);
+					} else {
+						// The retry target has gone (e.g. the view was recycled), so
+						// there is nothing to retry into; fall back rather than leaving
+						// the card spinning until the load timeout expires.
+						Log.e(TAG, "No target to retry YouTube thumbnail with: " + e, e);
+						showGridFallbackThumbnail(post, usageId);
 					}
 				} else {
 					mGridFallbackTarget = null;
@@ -1119,11 +1129,13 @@ public final class RedditPostView extends FlingableItemView
 					@NonNull final Bitmap bitmap,
 					@NonNull final Picasso.LoadedFrom from) {
 
-				mGridFallbackTarget = null;
-
 				if(usageId != mUsageId) {
 					return;
 				}
+
+				// Cleared only after the generation check: doing it first would let a
+				// late callback from the previous post clear the target this bind owns.
+				mGridFallbackTarget = null;
 
 				cancelGridLoadTimeout();
 
@@ -1154,11 +1166,13 @@ public final class RedditPostView extends FlingableItemView
 					@NonNull final Exception e,
 					@Nullable final Drawable errorDrawable) {
 
-				mGridFallbackTarget = null;
-
 				if(usageId != mUsageId) {
 					return;
 				}
+
+				// Cleared only after the generation check: doing it first would let a
+				// late callback from the previous post clear the target this bind owns.
+				mGridFallbackTarget = null;
 
 				Log.e(TAG, "Failed to download grid fallback image: " + e, e);
 
@@ -1464,9 +1478,19 @@ public final class RedditPostView extends FlingableItemView
 						thumbnail.getHeight());
 			}
 
-			post.ensureVideoPoster(
-					mActivity,
-					Math.max(mThumbnailSizePrefPixels, 720));
+			// Reddit supplies a still frame for hosted videos; use it when present.
+			// Extracting a frame from the video instead means downloading the whole
+			// multi-megabyte file to produce a single card image.
+			final RedditParsedPost.ImagePreviewDetails videoPoster
+					= post.src.getVideoPosterImage();
+
+			if(videoPoster != null) {
+				displayGridPreviewDetails(post, videoPoster, usageId);
+			} else {
+				post.ensureVideoPoster(
+						mActivity,
+						Math.max(mThumbnailSizePrefPixels, 720));
+			}
 
 		} else {
 

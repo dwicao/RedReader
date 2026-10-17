@@ -77,6 +77,13 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 
 	private final HashSet<Item<?>> mPreloadWindow = new HashSet<>();
 
+	// Scratch set for building the next preload window, reused rather than
+	// allocated afresh on every scroll event.
+	private final HashSet<Item<?>> mNewPreloadWindow = new HashSet<>();
+
+	// Scratch list of items which have left the window, used for the same reason.
+	private final ArrayList<Item<?>> mLeftPreloadWindow = new ArrayList<>();
+
 	private ArrayList<Item<?>> mVisibleIndex = null;
 	private int[] mGroupVisibleStarts = null;
 
@@ -220,7 +227,10 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 		mLastPreloadFirst = firstVisiblePosition;
 		mLastPreloadLast = lastVisiblePosition;
 
-		final HashSet<Item<?>> newWindow = new HashSet<>();
+		// Reused across calls: this runs on every scroll event, and allocating a new
+		// set each time grows and rehashes it from scratch every frame.
+		final HashSet<Item<?>> newWindow = mNewPreloadWindow;
+		newWindow.clear();
 
 		if(firstVisiblePosition >= 0 && lastVisiblePosition >= firstVisiblePosition) {
 			getItemsInRange(
@@ -229,19 +239,29 @@ public class GroupedRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerVie
 					newWindow);
 		}
 
+		// Collect first, notify after: a callback may end up back here, so the set
+		// must not be left mid-iteration while it is being notified.
+		final ArrayList<Item<?>> left = mLeftPreloadWindow;
+		left.clear();
+
 		for(final Item<?> item : mPreloadWindow) {
 			if(!newWindow.contains(item)) {
-				item.onPreloadWindowChanged(false);
+				left.add(item);
 			}
 		}
 
+		for(final Item<?> item : left) {
+			mPreloadWindow.remove(item);
+			item.onPreloadWindowChanged(false);
+		}
+
+		// Only items which were not already in the window remain to be added.
 		for(final Item<?> item : newWindow) {
 			if(!mPreloadWindow.contains(item)) {
 				item.onPreloadWindowChanged(true);
 			}
 		}
 
-		mPreloadWindow.clear();
 		mPreloadWindow.addAll(newWindow);
 	}
 

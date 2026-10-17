@@ -84,6 +84,14 @@ public class RedditPostListItem
 	@Override
 	public void onPreloadWindowChanged(final boolean inWindow) {
 
+		if(mGridMode) {
+			// Grid cards load their own image through RedditPostView, so the inline
+			// preview loader would only issue a second request for a preview nothing
+			// displays (and at a different width, so the two rarely share a cache
+			// entry).
+			return;
+		}
+
 		final InlinePreviewLoader previewLoader = mPost.getInlinePreviewLoader(mActivity);
 
 		if(previewLoader != null) {

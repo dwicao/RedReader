@@ -162,7 +162,13 @@ data class RedditPost(
 		@Serializable
 		@Parcelize
 		data class RedditVideoPreview(
-			val fallback_url: UrlEncodedString? = null
+			val fallback_url: UrlEncodedString? = null,
+			// A still frame Reddit provides for the video, at a sensible size.
+			// Using this avoids downloading the whole video to extract a frame.
+			val scrubber_media_url: UrlEncodedString? = null,
+			// Dimensions of scrubber_media_url, when Reddit supplies them.
+			val width: Int? = null,
+			val height: Int? = null
 		) : Parcelable
 	}
 
