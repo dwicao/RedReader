@@ -50,22 +50,67 @@ Inherited from upstream:
 
 Added in this fork:
 
+**Features**
+
+* **Grid and column views** — switch a listing between list view and a grid of
+    **2, 3 or 4 columns** (*Settings > Appearance > Post layout*). Grid cards are
+    built for mixed content: they show the image behind a link post, a YouTube
+    thumbnail, a crosspost's parent preview, or a video's poster frame, and size
+    themselves to the real aspect ratio of whatever they display.
+* **Filter posts by content type** — show only image posts, video posts, text
+    posts or links, from any listing, including r/all and multi-subreddit
+    listings.
 * **Custom subreddit list** — keep your own list of subreddits and open it as a
-    single combined listing from the main menu. Import a multireddit such as
-    `a+b+c+askreddit`, long-press a post to subscribe or unsubscribe its
-    subreddit directly, and long-press the menu entry to edit the list.
-* **Faster grid images** — grid and column cards now pick an appropriately sized
-    image instead of falling back to the full resolution original, use the still
-    frame Reddit provides for hosted videos instead of downloading the whole
-    video, and load more images in parallel.
-* **Faster filtered listings** — filtering by image, video, text or link asks
-    Reddit for more posts per request, so far fewer round trips are needed while
-    scrolling.
-* **Scrolling and cache work** — less work per bound row and per scroll frame,
-    cache pruning no longer blocks cache lookups while it runs, and a growing
-    number of duplicate flair observers are no longer accumulated per bind.
-* Several bug fixes, including a crash when marking posts as read on scroll in
-    grid view, and a dead retry button after a network error while scrolling.
+    single combined listing straight from the main menu. Import a multireddit
+    such as `a+b+c+askreddit` (or `/r/a+b+c`, or a full URL), long-press a post
+    to subscribe or unsubscribe its subreddit directly, and long-press the menu
+    entry to edit the list.
+
+**Performance**
+
+* **Image loading** — images are fetched through Picasso over the app's HTTP
+    backend (so they honour the Tor and proxy settings) with a persistent disk
+    cache, sized requests, a dedicated connection pool, and two-phase loading
+    where the small thumbnail paints first and the full image upgrades it.
+* **Correctly sized previews** — Reddit's resolution ladder is now preferred over
+    the full resolution original, so a small grid card no longer downloads a
+    multi-megabyte image. Hosted videos use the still frame Reddit provides
+    instead of downloading the entire video to extract one frame.
+* **Faster filtered listings** — filtering by content type asks Reddit for more
+    posts per request, so far fewer throttled round trips are needed to fill the
+    screen while scrolling.
+* **Less work per bind and per scroll frame** — a smaller number of allocations
+    and re-parses when rows are bound, a preload window that no longer
+    recomputes on every scroll event, a scrollbar that no longer forces a layout
+    pass each frame, and comment flair observers that no longer accumulate with
+    every bind.
+* **A cache that stays out of the way** — cache lookups no longer materialise
+    every cached session for a URL, a hit resolves its file once instead of
+    searching the cache directories again per stream, and cache pruning no
+    longer blocks lookups and downloads while it runs.
+* **Faster startup to first post** — downloads run at foreground priority, cache
+    hits are served from more threads, and bulk precache work uses a bounded
+    pool so user-opened media is not stuck behind background feed work.
+* **Quicker video start** — reduced prebuffer, bytes reach the player and image
+    decoder as they arrive, and buffers are pre-sized from the response length.
+
+**Fixes**
+
+* **Infinite scroll recovers from failures** — a page load that failed with a
+    connection error used to leave the list unable to load anything further, and
+    the error offered only "Details". The list now re-arms so scrolling near the
+    bottom retries the same page, the error gains a Retry button, and stale
+    errors clear on the next successful load.
+* **Grid view no longer crashes** — marking posts as read on scroll in a grid
+    listing threw a `ClassCastException`, and fixed some images were displayed
+    at the wrong size.
+* **Media is reliable for signed-in accounts** — posts without preview data
+    (common in logged-in r/all and r/popular) no longer stall or render blank,
+    and video paths and web pages are never fetched as if they were bitmaps.
+* Layout and lint fixes for newer Android versions (for example the unpaired
+    `layout_marginLeft` in the grid layout), and CI now uploads the release APK
+    as an artifact and guards the release build policy so a release cannot
+    silently lose minification.
 
 
 Downloading
