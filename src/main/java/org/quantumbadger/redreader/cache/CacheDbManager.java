@@ -62,6 +62,54 @@ final class CacheDbManager extends SQLiteOpenHelper {
 
 	private static final int CACHE_DB_VERSION = 2;
 
+	// The queries are built once here, rather than formatted on every lookup: the
+	// lookups happen on the request handling thread for every request served, and
+	// the "newest" variants only ever need one row, so they are limited in the
+	// database rather than materialising every session and discarding all but the
+	// most recent one.
+	private static final String SELECT_BY_ID_QUERY
+			= String.format(Locale.US, "%s=? LIMIT 1", FIELD_ID);
+
+	private static final String SELECT_ALL_FOR_URL_QUERY
+			= String.format(
+					Locale.US,
+					"%s=%d AND %s=? AND %s=?",
+					FIELD_STATUS,
+					STATUS_DONE,
+					FIELD_URL,
+					FIELD_USER);
+
+	private static final String SELECT_ALL_FOR_SESSION_QUERY
+			= String.format(
+					Locale.US,
+					"%s=%d AND %s=? AND %s=? AND %s=?",
+					FIELD_STATUS,
+					STATUS_DONE,
+					FIELD_URL,
+					FIELD_USER,
+					FIELD_SESSION);
+
+	private static final String SELECT_NEWEST_FOR_URL_QUERY
+			= String.format(
+					Locale.US,
+					"%s=%d AND %s=? AND %s=? ORDER BY %s DESC LIMIT 1",
+					FIELD_STATUS,
+					STATUS_DONE,
+					FIELD_URL,
+					FIELD_USER,
+					FIELD_TIMESTAMP);
+
+	private static final String SELECT_NEWEST_FOR_SESSION_QUERY
+			= String.format(
+					Locale.US,
+					"%s=%d AND %s=? AND %s=? AND %s=? ORDER BY %s DESC LIMIT 1",
+					FIELD_STATUS,
+					STATUS_DONE,
+					FIELD_URL,
+					FIELD_USER,
+					FIELD_SESSION,
+					FIELD_TIMESTAMP);
+
 	CacheDbManager(final Context context) {
 		super(context, CACHE_DB_FILENAME, null, CACHE_DB_VERSION);
 	}
@@ -137,7 +185,7 @@ final class CacheDbManager extends SQLiteOpenHelper {
 		try(Cursor cursor = db.query(
 				TABLE,
 				CacheEntry.DB_FIELDS,
-				String.format(Locale.US, "%s=?", FIELD_ID),
+				SELECT_BY_ID_QUERY,
 				new String[] {String.valueOf(id)},
 				null,
 				null,
@@ -164,24 +212,11 @@ final class CacheDbManager extends SQLiteOpenHelper {
 		final String[] queryParams;
 
 		if(session == null) {
-			queryString = String.format(
-					Locale.US,
-					"%s=%d AND %s=? AND %s=?",
-					FIELD_STATUS,
-					STATUS_DONE,
-					FIELD_URL,
-					FIELD_USER);
+			queryString = SELECT_ALL_FOR_URL_QUERY;
 			queryParams = new String[] {url.value, user};
 
 		} else {
-			queryString = String.format(
-					Locale.US,
-					"%s=%d AND %s=? AND %s=? AND %s=?",
-					FIELD_STATUS,
-					STATUS_DONE,
-					FIELD_URL,
-					FIELD_USER,
-					FIELD_SESSION);
+			queryString = SELECT_ALL_FOR_SESSION_QUERY;
 			queryParams = new String[] {url.value, user, session.toString()};
 		}
 
@@ -195,6 +230,46 @@ final class CacheDbManager extends SQLiteOpenHelper {
 				FIELD_TIMESTAMP + " DESC")) {
 
 			return readEntriesFromCursor(cursor);
+		}
+	}
+
+	// As select, but only the most recent entry for the URL, which is all a cache
+	// lookup needs.
+	synchronized Optional<CacheEntry> selectMostRecent(
+			final UriString url,
+			final String user,
+			final UUID session) {
+
+		final SQLiteDatabase db = getReadableDatabase();
+
+		final String queryString;
+		final String[] queryParams;
+
+		if(session == null) {
+			queryString = SELECT_NEWEST_FOR_URL_QUERY;
+			queryParams = new String[] {url.value, user};
+
+		} else {
+			queryString = SELECT_NEWEST_FOR_SESSION_QUERY;
+			queryParams = new String[] {url.value, user, session.toString()};
+		}
+
+		try(Cursor cursor = db.query(
+				TABLE,
+				CacheEntry.DB_FIELDS,
+				queryString,
+				queryParams,
+				null,
+				null,
+				null)) {
+
+			final List<CacheEntry> entries = readEntriesFromCursor(cursor);
+
+			if(entries.isEmpty()) {
+				return Optional.empty();
+			} else {
+				return Optional.of(entries.get(0));
+			}
 		}
 	}
 
@@ -262,7 +337,13 @@ final class CacheDbManager extends SQLiteOpenHelper {
 		return db.delete(TABLE, FIELD_ID + "=?", new String[] {String.valueOf(id)});
 	}
 
-	public synchronized ArrayList<Long> getFilesToPrune(
+	// Deliberately not synchronized: the other methods in this class hold this
+	// monitor for their whole operation, and a prune is a full table scan plus a
+	// delete, so holding it here blocks every cache lookup and every download
+	// write while it runs. SQLiteDatabase is itself thread safe, and pruning is
+	// best effort -- an entry written while a prune is running is either kept until
+	// the next prune, or dropped and downloaded again.
+	public ArrayList<Long> getFilesToPrune(
 			final HashSet<Long> currentFiles,
 			final HashMap<Integer, TimeDuration> maxAge,
 			final TimeDuration defaultMaxAge) {

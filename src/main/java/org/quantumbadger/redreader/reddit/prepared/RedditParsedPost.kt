@@ -165,6 +165,9 @@ class RedditParsedPost(
 		domain = src.domain?.decoded ?: activity.getString(R.string.post_domain_deleted)
     }
 
+	// Lazily built inputs of getGalleryPreview; see there for why they are cached.
+	private var mGalleryPreview: GalleryPreview? = null
+
     override fun getIdAlone(): String {
         return src.idAlone
     }
@@ -200,6 +203,16 @@ class RedditParsedPost(
     // they can be shown like any other image post (e.g. in grid/column view).
     private fun getGalleryPreview(minWidth: Int, minHeight: Int): ImagePreviewDetails? {
 
+		val cached = mGalleryPreview
+
+		if(cached != null) {
+			return getPreviewInternal(
+				cached.source,
+				cached.resolutions,
+				minWidth,
+				minHeight)
+		}
+
 		val galleryData = src.gallery_data ?: return null
 
 		val firstItem = (galleryData.items.firstOrNull() as? MaybeParseError.Ok)?.value
@@ -222,12 +235,22 @@ class RedditParsedPost(
 			RedditPost.Preview.ImageDetails(url, meta.x.toInt(), meta.y.toInt())
 		}
 
+		// Building the resolution ladder costs one object per resolution of the first
+		// gallery image, and the preview is looked up again for every bind of this
+		// post (grid image, inline preview, accessibility text), so the inputs are
+		// cached. They cannot change, as this object wraps an immutable post.
+		mGalleryPreview = GalleryPreview(sourceDetails, resolutionDetails)
+
 		return getPreviewInternal(
 			sourceDetails,
 			resolutionDetails,
 			minWidth,
 			minHeight)
 	}
+
+    private class GalleryPreview(
+		val source: RedditPost.Preview.ImageDetails?,
+		val resolutions: List<RedditPost.Preview.ImageDetails>?)
 
     // Number of images in a gallery ("multiple images") post, 0 otherwise.
     fun getGalleryImageCount(): Int {

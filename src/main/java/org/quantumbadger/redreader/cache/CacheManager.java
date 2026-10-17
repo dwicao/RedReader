@@ -606,6 +606,25 @@ public final class CacheManager {
 			return null;
 		}
 
+		return getCacheFileInputStream(
+				cacheFile,
+				cacheCompressionType,
+				uncompressedLengthHint);
+	}
+
+	// As above, for a caller which has already resolved the file. A cache hit opens
+	// a stream more than once per request, and searching the cache directories each
+	// time costs a getExternalCacheDirs() call plus a stat per directory.
+	@Nullable
+	private SeekableInputStream getCacheFileInputStream(
+			@NonNull final File cacheFile,
+			@NonNull final CacheCompressionType cacheCompressionType,
+			final long uncompressedLengthHint) throws IOException {
+
+		if(!cacheFile.exists()) {
+			return null;
+		}
+
 		if(cacheCompressionType == CacheCompressionType.NONE) {
 			return new SeekableFileInputStream(cacheFile);
 
@@ -698,12 +717,12 @@ public final class CacheManager {
 
 			} else {
 
-				final List<CacheEntry> result = dbManager.select(
+				final Optional<CacheEntry> result = dbManager.selectMostRecent(
 						request.url,
 						request.user.username,
 						request.requestSession);
 
-				if(result.isEmpty()) {
+				if(!result.isPresent()) {
 
 					if(request.downloadStrategy.shouldDownloadIfNotCached()) {
 						queueDownload(request);
@@ -720,7 +739,7 @@ public final class CacheManager {
 
 				} else {
 
-					final CacheEntry entry = mostRecentFromList(result);
+					final CacheEntry entry = result.get();
 
 					if(request.downloadStrategy.shouldDownloadIfCacheEntryFound(entry)) {
 						queueDownload(request);
@@ -729,19 +748,6 @@ public final class CacheManager {
 					}
 				}
 			}
-		}
-
-		private CacheEntry mostRecentFromList(final List<CacheEntry> list) {
-
-			CacheEntry entry = null;
-
-			for(final CacheEntry e : list) {
-				if(entry == null || entry.timestamp.isLessThan(e.timestamp)) {
-					entry = e;
-				}
-			}
-
-			return entry;
 		}
 
 		private void queueDownload(final CacheRequest request) {
@@ -796,8 +802,10 @@ public final class CacheManager {
 
 						final GenericFactory<SeekableInputStream, IOException> streamFactory
 								= () -> {
+							// The file was already resolved above, when the entry was
+							// checked, so the cache directories are not searched again.
 							final SeekableInputStream stream = getCacheFileInputStream(
-									entry.id,
+									cacheFile,
 									entry.cacheCompressionType,
 									entry.lengthUncompressed);
 

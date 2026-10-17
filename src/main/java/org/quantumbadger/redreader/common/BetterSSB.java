@@ -34,10 +34,14 @@ import androidx.annotation.NonNull;
 
 import java.util.HashSet;
 import java.util.Observable;
+import java.util.function.Consumer;
 
 public class BetterSSB extends Observable {
 
 	private final SpannableStringBuilder sb;
+
+	private final WeakObserverList<SpannableStringBuilder> mWeakObservers
+			= new WeakObserverList<>();
 
 	public static final int BOLD = 1;
 	public static final int ITALIC = 1 << 1;
@@ -52,6 +56,24 @@ public class BetterSSB extends Observable {
 
 	public BetterSSB() {
 		this.sb = new SpannableStringBuilder();
+	}
+
+	/**
+	 * Register an observer which is held weakly.
+	 *
+	 * <p>Use this instead of {@link #addObserver} for observers which belong to something
+	 * short-lived, such as a list row which is recycled: a strongly held observer would keep
+	 * that row's text buffer alive, and every later notification would walk the observers of
+	 * every previous bind.
+	 */
+	public void addWeakObserver(@NonNull final Consumer<SpannableStringBuilder> observer) {
+		mWeakObservers.add(observer);
+	}
+
+	private void notifyAllObservers() {
+		this.setChanged();
+		this.notifyObservers(this.sb);
+		mWeakObservers.notifyObservers(this.sb);
 	}
 
 	public void append(final String str, final int flags) {
@@ -182,14 +204,12 @@ public class BetterSSB extends Observable {
 
 	public void append(final CharSequence text) {
 		this.sb.append(text);
-		this.setChanged();
-		this.notifyObservers(this.sb);
+		notifyAllObservers();
 	}
 
 	public void replace(final int start, final int end, final CharSequence text) {
 		this.sb.replace(start, end, text);
-		this.setChanged();
-		this.notifyObservers(this.sb);
+		notifyAllObservers();
 	}
 
 	public void replace(
@@ -202,8 +222,7 @@ public class BetterSSB extends Observable {
 				textStartIndex + textToBeReplaced.length(),
 				Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
 
-		this.setChanged();
-		this.notifyObservers(this.sb);
+		notifyAllObservers();
 	}
 
 	public boolean isEmpty() {
@@ -213,8 +232,7 @@ public class BetterSSB extends Observable {
 	public void setSpan(final Object what, final int start, final int end, final int flag) {
 		this.sb.setSpan(what, start, end, flag);
 
-		this.setChanged();
-		this.notifyObservers(this.sb);
+		notifyAllObservers();
 	}
 
 	public SpannableStringBuilder get() {

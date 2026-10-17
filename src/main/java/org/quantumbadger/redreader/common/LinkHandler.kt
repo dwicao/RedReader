@@ -561,6 +561,19 @@ object LinkHandler {
 		Pattern.compile("https://www\\.deviantart\\.com/([\\w\\-]+)/art/([\\w\\-]+)")
 	private val giphyPattern: Pattern = Pattern.compile(".*[^A-Za-z]giphy\\.com/gifs/(\\w+).*")
 
+	// Checked against every link preview, so these are built once rather than per
+	// call: allocating them here used to mean two array copies per lookup.
+	private val imageExtensions = arrayOf(".jpg", ".jpeg", ".png")
+
+	private val videoExtensions = arrayOf(
+		".webm",
+		".mp4",
+		".h264",
+		".gifv",
+		".mkv",
+		".3gp"
+	)
+
 	private val ogImagePatterns = listOf(
 		Pattern.compile(
 			"property=[\"']og:image[\"'][^>]*?content=[\"']([^\"']+)",
@@ -1340,18 +1353,6 @@ object LinkHandler {
 			}
 		}
 
-		val imageExtensions = arrayOf(".jpg", ".jpeg", ".png")
-
-		val videoExtensions = arrayOf(
-			".webm",
-			".mp4",
-			".h264",
-			".gifv",
-			".mkv",
-			".3gp"
-		)
-
-
 		for (ext in imageExtensions) {
 			if (urlLower.endsWith(ext)) {
 				return ImageInfo(
@@ -1389,8 +1390,9 @@ object LinkHandler {
 
 
 		if (url.value.contains("?")) {
-			val urlBeforeQ = urlLower.split("\\?".toRegex()).dropLastWhile { it.isEmpty() }
-				.toTypedArray()[0]
+			// Everything before the query string; equivalent to splitting on "?"
+			// and taking the first part, without building a list and a Regex.
+			val urlBeforeQ = urlLower.substringBefore('?')
 
 			for (ext in imageExtensions) {
 				if (urlBeforeQ.endsWith(ext)) {

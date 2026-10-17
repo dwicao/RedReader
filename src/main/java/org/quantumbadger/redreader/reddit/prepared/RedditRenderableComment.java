@@ -19,7 +19,6 @@ package org.quantumbadger.redreader.reddit.prepared;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.text.SpannableStringBuilder;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -45,8 +44,6 @@ import org.quantumbadger.redreader.reddit.api.RedditAPICommentAction;
 import org.quantumbadger.redreader.reddit.kthings.RedditComment;
 import org.quantumbadger.redreader.reddit.kthings.RedditIdAndType;
 import org.quantumbadger.redreader.reddit.things.RedditThingWithIdAndType;
-
-import java.util.Observer;
 
 public class RedditRenderableComment
 		implements RedditRenderableInboxItem, RedditThingWithIdAndType {
@@ -200,12 +197,14 @@ public class RedditRenderableComment
 
 			final int flairEndIndex = sb.get().length();
 
-			final Observer observer = (observable, o) -> sb.replace(
+			// Held weakly: this header is rebuilt on every bind, but the flair
+			// belongs to the (cached) parsed comment, so a strongly held observer
+			// would keep every previous header's text buffer alive and be walked
+			// again on each later flair update.
+			flair.addWeakObserver(text -> sb.replace(
 					flairStartIndex,
 					flairEndIndex,
-					(SpannableStringBuilder) o);
-
-			flair.addObserver(observer);
+					text));
 		}
 
 		if(theme.shouldShow(PrefsUtility.AppearanceCommentHeaderItem.AUTHOR)

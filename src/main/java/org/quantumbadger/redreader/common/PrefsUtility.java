@@ -68,6 +68,14 @@ public final class PrefsUtility {
 	private static SharedPrefsWrapper sharedPrefs;
 	private static Resources mRes;
 
+	// Defaults for string set preferences, parsed once per array resource. These
+	// would otherwise be re-read and re-allocated on every access, several times
+	// per list item bound. The returned sets are only ever read by this app (see
+	// the callers below, which each build their own EnumSet), so sharing one
+	// instance per array is safe.
+	private static final HashMap<Integer, Set<String>> DEFAULT_STRING_SETS
+			= new HashMap<>(8);
+
 	// Application context, so cannot leak
 	@SuppressLint("StaticFieldLeak")
 	private static Context appContext;
@@ -98,9 +106,20 @@ public final class PrefsUtility {
 	public static Set<String> getStringSet(
 			final int id,
 			final int defaultArrayRes) {
-		return sharedPrefs.getStringSet(
-				getPrefKey(id),
-				General.hashsetFromArray(mRes.getStringArray(defaultArrayRes)));
+		return sharedPrefs.getStringSet(getPrefKey(id), getDefaultStringSet(defaultArrayRes));
+	}
+
+	private static Set<String> getDefaultStringSet(final int defaultArrayRes) {
+		synchronized(DEFAULT_STRING_SETS) {
+			Set<String> result = DEFAULT_STRING_SETS.get(defaultArrayRes);
+
+			if(result == null) {
+				result = General.hashsetFromArray(mRes.getStringArray(defaultArrayRes));
+				DEFAULT_STRING_SETS.put(defaultArrayRes, result);
+			}
+
+			return result;
+		}
 	}
 
 	private static boolean getBoolean(
@@ -213,6 +232,13 @@ public final class PrefsUtility {
 		appContext = context.getApplicationContext();
 		sharedPrefs = General.getSharedPrefs(context);
 		mRes = Objects.requireNonNull(context.getResources());
+
+		// The string arrays are localised, so any defaults parsed from them belong
+		// to the old resources.
+		synchronized(DEFAULT_STRING_SETS) {
+			DEFAULT_STRING_SETS.clear();
+		}
+
 		General.initAppConfig(context);
 
 		// Applies the language setting whenever the preference changes, including
