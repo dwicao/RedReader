@@ -107,6 +107,8 @@ public class PrioritisedCachedThreadPool {
 					// The worker must survive a failing task: a dead worker permanently
 					// shrinks the pool, as mRunningThreads is only decremented on clean
 					// exit. Request-level failure reporting happens in CacheManager.
+					// Note: android.util.Log throws in plain JVM tests, so logging
+					// here would kill the worker; omit it deliberately.
 				}
 			}
 		}
