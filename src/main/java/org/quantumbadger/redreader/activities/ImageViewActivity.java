@@ -974,11 +974,11 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 			cancelLoadTimeout();
 
-			final LinearLayout layout = new LinearLayout(ImageViewActivity.this);
+			final LinearLayout layout = new LinearLayout(this);
 			final ErrorView errorView = new ErrorView(
-					ImageViewActivity.this,
+					this,
 					error,
-					ImageViewActivity.this::startLoad);
+					this::startLoad);
 			layout.addView(errorView);
 			General.setLayoutMatchWidthWrapHeight(errorView);
 			setMainView(layout, false);
