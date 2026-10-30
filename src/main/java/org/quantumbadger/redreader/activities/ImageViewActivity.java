@@ -131,6 +131,22 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 	private boolean mHaveReverted = false;
 
+	// A load which makes no download progress (no metadata response, and no
+	// download progress or data) for this long is treated as failed, so that
+	// the spinner cannot spin forever on a stalled connection. This mirrors
+	// the timeouts used for inline previews and grid images.
+	private static final long LOAD_TIMEOUT_MS = 30_000;
+
+	// Incremented whenever the current load is superseded (retry, timeout) so
+	// that late callbacks from the previous attempt are discarded instead of
+	// overwriting the new load's UI.
+	private volatile int mLoadGeneration;
+
+	@Nullable private Runnable mLoadTimeoutRunnable;
+
+	@Nullable private DonutProgress mProgressBar;
+	@Nullable private View mProgressLayout;
+
 	private ImageViewDisplayListManager mImageViewDisplayerManager;
 
 	private HorizontalSwipeProgressOverlay mSwipeOverlay;
@@ -232,46 +248,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 			);
 		}
 
-		final DonutProgress progressBar = new DonutProgress(this);
-		progressBar.setIndeterminate(true);
-		progressBar.setFinishedStrokeColor(Color.rgb(200, 200, 200));
-		progressBar.setUnfinishedStrokeColor(Color.rgb(50, 50, 50));
-		progressBar.setAspectIndicatorStrokeColor(Color.rgb(200, 200, 200));
-		final int progressStrokeWidthPx = General.dpToPixels(this, 15);
-		progressBar.setUnfinishedStrokeWidth(progressStrokeWidthPx);
-		progressBar.setFinishedStrokeWidth(progressStrokeWidthPx);
-		progressBar.setAspectIndicatorStrokeWidth(General.dpToPixels(this, 1));
-		progressBar.setStartingDegree(-90);
-		progressBar.initPainters();
-
-		final LinearLayout progressTextLayout = new LinearLayout(this);
-		progressTextLayout.setOrientation(LinearLayout.VERTICAL);
-		progressTextLayout.setGravity(Gravity.CENTER_HORIZONTAL);
-
-		progressTextLayout.addView(progressBar);
-		final int progressDimensionsPx = General.dpToPixels(this, 150);
-		progressBar.getLayoutParams().width = progressDimensionsPx;
-		progressBar.getLayoutParams().height = progressDimensionsPx;
-
-		mProgressText = new TextView(this);
-		mProgressText.setText(R.string.download_loading);
-		mProgressText.setAllCaps(true);
-		mProgressText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-		mProgressText.setGravity(Gravity.CENTER_HORIZONTAL);
-		progressTextLayout.addView(mProgressText);
-		mProgressText.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
-		mProgressText.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-		((ViewGroup.MarginLayoutParams)mProgressText.getLayoutParams()).topMargin
-				= General.dpToPixels(this, 10);
-
-		final RelativeLayout progressLayout = new RelativeLayout(this);
-		progressLayout.addView(progressTextLayout);
-		((RelativeLayout.LayoutParams)progressTextLayout.getLayoutParams()).addRule(
-				RelativeLayout.CENTER_IN_PARENT);
-		General.setLayoutMatchWidthWrapHeight(progressTextLayout);
+		buildProgressLayout();
 
 		mLayout = new FrameLayout(this);
-		mLayout.addView(progressLayout);
+		mLayout.addView(mProgressLayout);
 
 		// The RedGIFs API no longer provides audio, so show the embedded web
 		// player instead (LinkHandler substitutes the embed URL for the link)
@@ -280,36 +260,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 			return;
 		}
 
-		LinkHandler.getImageInfo(
-				this,
-				mUrl,
-				new Priority(Constants.Priority.IMAGE_VIEW),
-				new GetImageInfoListener() {
-
-					@Override
-					public void onFailure(@NonNull final RRError error) {
-
-						General.quickToast(
-								ImageViewActivity.this,
-								R.string.imageview_image_info_failed);
-
-						revertToWeb();
-					}
-
-					@Override
-					public void onSuccess(final ImageInfo info) {
-						mImageInfo = info;
-						final UriString audioUri = info.urlAudioStream == null
-								? null
-								: info.urlAudioStream;
-						openImage(progressBar, info.original.url, audioUri);
-					}
-
-					@Override
-					public void onNotAnImage() {
-						revertToWeb();
-					}
-				});
+		startLoad();
 
 		final RedditPreparedPost post;
 
@@ -457,13 +408,22 @@ public class ImageViewActivity extends ViewsBaseActivity
 	}
 
 	private void onImageStreamReady(
+			final int generation,
 			final boolean isNetwork,
 			@NonNull final GenericFactory<SeekableInputStream, IOException> videoStream,
 			@Nullable final GenericFactory<SeekableInputStream, IOException> audioStream,
 			final String mimetype,
 			@NonNull final Uri videoStreamUri) {
 
+		if(generation != mLoadGeneration || mIsDestroyed) {
+			return;
+		}
+
 		General.startNewThread("ImageViewActivity", () -> {
+
+			if(generation != mLoadGeneration || mIsDestroyed) {
+				return;
+			}
 
 			Log.i(TAG, "Image stream ready");
 
@@ -522,7 +482,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 				AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
-					if(mIsDestroyed) {
+					if(generation != mLoadGeneration || mIsDestroyed) {
 						return;
 					}
 
@@ -540,7 +500,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 						launchVlc(videoStreamUri);
 
 					} else {
-						playWithExoplayer(isNetwork, videoStream, audioStream);
+						playWithExoplayer(generation, isNetwork, videoStream, audioStream);
 					}
 				});
 
@@ -559,10 +519,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 				}
 
 				if(gifViewMode == PrefsUtility.GifViewMode.INTERNAL_MOVIE) {
-					playGIFWithMovie(videoStream);
+					playGIFWithMovie(generation, videoStream);
 
 				} else {
-					playGIFWithLegacyDecoder(videoStream);
+					playGIFWithLegacyDecoder(generation, videoStream);
 				}
 
 			} else {
@@ -577,7 +537,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 					openInExternalBrowser();
 
 				} else {
-					showImageWithInternalViewer(videoStream);
+					showImageWithInternalViewer(generation, videoStream);
 				}
 			}
 		});
@@ -601,6 +561,8 @@ public class ImageViewActivity extends ViewsBaseActivity
 	private void revertToWeb() {
 
 		Log.i(TAG, "Using internal browser", new RuntimeException());
+
+		cancelLoadTimeout();
 
 		final Runnable r = new Runnable() {
 			@Override
@@ -685,6 +647,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 		super.onDestroy();
 		mIsDestroyed = true;
 
+		cancelLoadTimeout();
 		cancelCacheRequests();
 
 		if(gifThread != null) {
@@ -824,6 +787,204 @@ public class ImageViewActivity extends ViewsBaseActivity
 		}
 	}
 
+	private void buildProgressLayout() {
+
+		final DonutProgress progressBar = new DonutProgress(this);
+		progressBar.setIndeterminate(true);
+		progressBar.setFinishedStrokeColor(Color.rgb(200, 200, 200));
+		progressBar.setUnfinishedStrokeColor(Color.rgb(50, 50, 50));
+		progressBar.setAspectIndicatorStrokeColor(Color.rgb(200, 200, 200));
+		final int progressStrokeWidthPx = General.dpToPixels(this, 15);
+		progressBar.setUnfinishedStrokeWidth(progressStrokeWidthPx);
+		progressBar.setFinishedStrokeWidth(progressStrokeWidthPx);
+		progressBar.setAspectIndicatorStrokeWidth(General.dpToPixels(this, 1));
+		progressBar.setStartingDegree(-90);
+		progressBar.initPainters();
+
+		final LinearLayout progressTextLayout = new LinearLayout(this);
+		progressTextLayout.setOrientation(LinearLayout.VERTICAL);
+		progressTextLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+
+		progressTextLayout.addView(progressBar);
+		final int progressDimensionsPx = General.dpToPixels(this, 150);
+		progressBar.getLayoutParams().width = progressDimensionsPx;
+		progressBar.getLayoutParams().height = progressDimensionsPx;
+
+		mProgressText = new TextView(this);
+		mProgressText.setText(R.string.download_loading);
+		mProgressText.setAllCaps(true);
+		mProgressText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+		mProgressText.setGravity(Gravity.CENTER_HORIZONTAL);
+		progressTextLayout.addView(mProgressText);
+		mProgressText.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
+		mProgressText.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+		((ViewGroup.MarginLayoutParams)mProgressText.getLayoutParams()).topMargin
+				= General.dpToPixels(this, 10);
+
+		final RelativeLayout progressLayout = new RelativeLayout(this);
+		progressLayout.addView(progressTextLayout);
+		((RelativeLayout.LayoutParams)progressTextLayout.getLayoutParams()).addRule(
+				RelativeLayout.CENTER_IN_PARENT);
+		General.setLayoutMatchWidthWrapHeight(progressTextLayout);
+
+		mProgressBar = progressBar;
+		mProgressLayout = progressLayout;
+	}
+
+	private void showProgressView() {
+
+		if(mProgressBar != null) {
+			mProgressBar.setVisibility(View.VISIBLE);
+			mProgressBar.setIndeterminate(true);
+		}
+
+		if(mProgressText != null) {
+			mProgressText.setText(R.string.download_loading);
+		}
+
+		if(mProgressLayout != null) {
+			setMainView(mProgressLayout, false);
+		}
+	}
+
+	// (Re)starts the whole load: metadata lookup, then the media download.
+	// Called once from onCreate, and again on every manual retry.
+	private void startLoad() {
+
+		mLoadGeneration++;
+		mImageInfo = null;
+
+		showProgressView();
+		scheduleLoadTimeout();
+
+		final int generation = mLoadGeneration;
+
+		LinkHandler.getImageInfo(
+				this,
+				mUrl,
+				new Priority(Constants.Priority.IMAGE_VIEW),
+				new GetImageInfoListener() {
+
+					@Override
+					public void onFailure(@NonNull final RRError error) {
+
+						if(generation != mLoadGeneration || mIsDestroyed) {
+							return;
+						}
+
+						cancelLoadTimeout();
+
+						General.quickToast(
+								ImageViewActivity.this,
+								R.string.imageview_image_info_failed);
+
+						revertToWeb();
+					}
+
+					@Override
+					public void onSuccess(final ImageInfo info) {
+
+						if(generation != mLoadGeneration || mIsDestroyed) {
+							return;
+						}
+
+						mImageInfo = info;
+						final UriString audioUri = info.urlAudioStream == null
+								? null
+								: info.urlAudioStream;
+						openImage(mProgressBar, info.original.url, audioUri);
+					}
+
+					@Override
+					public void onNotAnImage() {
+
+						if(generation != mLoadGeneration || mIsDestroyed) {
+							return;
+						}
+
+						cancelLoadTimeout();
+						revertToWeb();
+					}
+				});
+	}
+
+	// Arms the inactivity timeout: if no metadata response, download event,
+	// or progress arrives within LOAD_TIMEOUT_MS, the load is treated as
+	// failed instead of spinning forever. Rescheduled on every sign of life.
+	private void scheduleLoadTimeout() {
+
+		cancelLoadTimeout();
+
+		final int generation = mLoadGeneration;
+
+		mLoadTimeoutRunnable = () -> {
+
+			if(generation != mLoadGeneration || mIsDestroyed || mHaveReverted) {
+				return;
+			}
+
+			// Invalidate the in-flight callbacks (including the CANCELLED
+			// failure the cancel below will generate) before showing the error.
+			mLoadGeneration++;
+
+			cancelCacheRequests();
+
+			showErrorWithRetry(
+					mLoadGeneration,
+					new RRError(
+							getString(R.string.error_connection_title),
+							getString(R.string.error_connection_message),
+							false,
+							new IOException("Timed out loading image/video")));
+		};
+
+		AndroidCommon.UI_THREAD_HANDLER.postDelayed(
+				mLoadTimeoutRunnable,
+				LOAD_TIMEOUT_MS);
+	}
+
+	private void pokeLoadTimeout() {
+
+		if(!mIsDestroyed && !mHaveReverted) {
+			scheduleLoadTimeout();
+		}
+	}
+
+	private void cancelLoadTimeout() {
+
+		if(mLoadTimeoutRunnable != null) {
+			AndroidCommon.UI_THREAD_HANDLER.removeCallbacks(mLoadTimeoutRunnable);
+			mLoadTimeoutRunnable = null;
+		}
+	}
+
+	// Shows a failure with a working retry button (unlike the plain error
+	// view, whose button is hidden when the error carries no resolution).
+	// Retrying restarts the whole load; a load which already finished writes
+	// to the cache, so the retry typically completes instantly.
+	private void showErrorWithRetry(
+			final int generation,
+			@NonNull final RRError error) {
+
+		AndroidCommon.runOnUiThread(() -> {
+
+			if(generation != mLoadGeneration || mIsDestroyed || mHaveReverted) {
+				return;
+			}
+
+			cancelLoadTimeout();
+
+			final LinearLayout layout = new LinearLayout(ImageViewActivity.this);
+			final ErrorView errorView = new ErrorView(
+					ImageViewActivity.this,
+					error,
+					ImageViewActivity.this::startLoad);
+			layout.addView(errorView);
+			General.setLayoutMatchWidthWrapHeight(errorView);
+			setMainView(layout, false);
+		});
+	}
+
 	private void openImage(
 			final DonutProgress progressBar,
 			final UriString uri,
@@ -908,6 +1069,8 @@ public class ImageViewActivity extends ViewsBaseActivity
 			final UriString uri,
 			@Nullable final UriString audioUri) {
 
+		final int generation = mLoadGeneration;
+
 		final Object resultLock = new Object();
 
 		final AtomicBoolean failed = new AtomicBoolean(false);
@@ -933,25 +1096,29 @@ public class ImageViewActivity extends ViewsBaseActivity
 					@Override
 					public void onFailure(@NonNull final RRError error) {
 
+						if(generation != mLoadGeneration) {
+							return;
+						}
+
 						synchronized(resultLock) {
 
 							if(!failed.getAndSet(true)) {
-								AndroidCommon.UI_THREAD_HANDLER.post(() -> {
-									final LinearLayout layout
-											= new LinearLayout(ImageViewActivity.this);
-									final ErrorView errorView = new ErrorView(
-											ImageViewActivity.this,
-											error);
-									layout.addView(errorView);
-									General.setLayoutMatchWidthWrapHeight(errorView);
-									setMainView(layout, false);
-								});
+								// Invalidate the sibling request's callbacks, so a
+								// late arrival can't overwrite the error, and stop
+								// its download.
+								mLoadGeneration++;
+								cancelCacheRequests();
+								showErrorWithRetry(mLoadGeneration, error);
 							}
 						}
 					}
 
 					@Override
 					public void onDownloadNecessary() {
+						if(generation != mLoadGeneration) {
+							return;
+						}
+						pokeLoadTimeout();
 						AndroidCommon.runOnUiThread(() -> {
 							progressBar.setVisibility(View.VISIBLE);
 							progressBar.setIndeterminate(true);
@@ -965,6 +1132,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 							final long bytesRead,
 							final long totalBytes) {
 
+						if(generation != mLoadGeneration) {
+							return;
+						}
+						pokeLoadTimeout();
 						AndroidCommon.runOnUiThread(() -> {
 							progressBar.setVisibility(View.VISIBLE);
 							progressBar.setIndeterminate(
@@ -991,10 +1162,17 @@ public class ImageViewActivity extends ViewsBaseActivity
 							final boolean fromCache,
 							@Nullable final String mimetype) {
 
+						if(generation != mLoadGeneration) {
+							return;
+						}
+
+						pokeLoadTimeout();
+
 						synchronized(resultLock) {
 
 							if(audio.get() != null || audioUri == null) {
 								onImageStreamReady(
+										generation,
 										!fromCache,
 										streamFactory,
 										audio.get(),
@@ -1023,20 +1201,20 @@ public class ImageViewActivity extends ViewsBaseActivity
 						@Override
 						public void onFailure(@NonNull final RRError error) {
 
+							if(generation != mLoadGeneration) {
+								return;
+							}
+
 							synchronized(resultLock) {
 
 								if(!failed.getAndSet(true)) {
 
-									AndroidCommon.runOnUiThread(() -> {
-										final LinearLayout layout
-												= new LinearLayout(ImageViewActivity.this);
-										final ErrorView errorView = new ErrorView(
-												ImageViewActivity.this,
-												error);
-										layout.addView(errorView);
-										General.setLayoutMatchWidthWrapHeight(errorView);
-										setMainView(layout, false);
-									});
+									// Invalidate the sibling request's callbacks, so
+									// a late arrival can't overwrite the error, and
+									// stop its download.
+									mLoadGeneration++;
+									cancelCacheRequests();
+									showErrorWithRetry(mLoadGeneration, error);
 								}
 							}
 						}
@@ -1050,9 +1228,16 @@ public class ImageViewActivity extends ViewsBaseActivity
 								final boolean fromCache,
 								@Nullable final String mimetype) {
 
+							if(generation != mLoadGeneration) {
+								return;
+							}
+
+							pokeLoadTimeout();
+
 							synchronized(resultLock) {
 								if(video.get() != null) {
 									onImageStreamReady(
+											generation,
 											!fromCache,
 											video.get(),
 											streamFactory,
@@ -1120,11 +1305,18 @@ public class ImageViewActivity extends ViewsBaseActivity
 	@OptIn(markerClass = UnstableApi.class)
 	@UiThread
 	private void playWithExoplayer(
+			final int generation,
 			final boolean isNetwork,
 			@NonNull final GenericFactory<SeekableInputStream, IOException> videoStream,
 			@Nullable final GenericFactory<SeekableInputStream, IOException> audioStream) {
 
 		General.checkThisIsUIThread();
+
+		if(generation != mLoadGeneration || mIsDestroyed) {
+			return;
+		}
+
+		cancelLoadTimeout();
 
 		try {
 
@@ -1225,6 +1417,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 	}
 
 	private void playGIFWithMovie(
+			final int generation,
 			@NonNull final GenericFactory<SeekableInputStream, IOException> streamFactory) {
 
 		Log.i(TAG, "Playing GIF using Movie API");
@@ -1255,9 +1448,11 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 				AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
-					if(mIsDestroyed) {
+					if(generation != mLoadGeneration || mIsDestroyed) {
 						return;
 					}
+
+					cancelLoadTimeout();
 
 					getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -1279,6 +1474,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 	}
 
 	private void playGIFWithLegacyDecoder(
+			final int generation,
 			@NonNull final GenericFactory<SeekableInputStream, IOException> streamFactory) {
 
 		Log.i(TAG, "Playing GIF using legacy decoder");
@@ -1303,9 +1499,11 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 						AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
-							if(mIsDestroyed) {
+							if(generation != mLoadGeneration || mIsDestroyed) {
 								return;
 							}
+
+							cancelLoadTimeout();
 
 							imageView = new ImageView(ImageViewActivity.this);
 							imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -1339,6 +1537,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 	}
 
 	private void showImageWithInternalViewer(
+			final int generation,
 			@NonNull final GenericFactory<SeekableInputStream, IOException> streamFactory) {
 
 		Log.i(TAG, "Showing image using internal viewer");
@@ -1365,9 +1564,12 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
-			if(mIsDestroyed) {
+			if(generation != mLoadGeneration || mIsDestroyed) {
 				return;
 			}
+
+			cancelLoadTimeout();
+
 			mImageViewDisplayerManager
 					= new ImageViewDisplayListManager(imageTileSource, this);
 			surfaceView = new RRGLSurfaceView(this, mImageViewDisplayerManager);

@@ -403,16 +403,19 @@ public final class CacheDownload extends PrioritisedCachedThreadPool.Task {
 
 				stream.writeBytes(buf, 0, bytesRead);
 
-				if(bodyBytes != null) {
+				{
 					final long now = SystemClock.elapsedRealtime();
 
+					// Notify even when the server sent no Content-Length, so that
+					// listeners can tell a slow download apart from a stalled one
+					// (callers treat a negative total as indeterminate).
 					if(now - lastProgressNotifyMs >= 100
-							|| totalBytesRead >= bodyBytes) {
+							|| (bodyBytes != null && totalBytesRead >= bodyBytes)) {
 						lastProgressNotifyMs = now;
 						mInitiator.notifyProgress(
 								false,
 								totalBytesRead,
-								bodyBytes);
+								bodyBytes != null ? bodyBytes : -1);
 					}
 				}
 
