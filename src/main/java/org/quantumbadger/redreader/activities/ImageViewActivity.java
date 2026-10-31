@@ -142,6 +142,12 @@ public class ImageViewActivity extends ViewsBaseActivity
 	// overwriting the new load's UI.
 	private volatile int mLoadGeneration;
 
+	// Set once a display has been initiated for the current load: late
+	// failures from the background streaming download (e.g. the audio track
+	// dropping, or the cache write failing after the stream completed) must
+	// not tear down content the user is already watching.
+	private volatile boolean mContentShown;
+
 	@Nullable private Runnable mLoadTimeoutRunnable;
 
 	@Nullable private DonutProgress mProgressBar;
@@ -424,6 +430,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 			if(generation != mLoadGeneration || mIsDestroyed) {
 				return;
 			}
+
+			// A display is now in progress: from here on, late download
+			// failures must not replace the UI (see the onFailure handlers).
+			mContentShown = true;
 
 			Log.i(TAG, "Image stream ready");
 
@@ -853,6 +863,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		mLoadGeneration++;
 		mImageInfo = null;
+		mContentShown = false;
 
 		showProgressView();
 		scheduleLoadTimeout();
@@ -1103,12 +1114,23 @@ public class ImageViewActivity extends ViewsBaseActivity
 						synchronized(resultLock) {
 
 							if(!failed.getAndSet(true)) {
-								// Invalidate the sibling request's callbacks, so a
-								// late arrival can't overwrite the error, and stop
-								// its download.
-								mLoadGeneration++;
-								cancelCacheRequests();
-								showErrorWithRetry(mLoadGeneration, error);
+								if(mContentShown) {
+									// Playback was already started: a late failure
+									// in the background streaming download must
+									// not tear it down. ExoPlayer surfaces its
+									// own error if it actually runs out of data.
+									Log.i(TAG, "Ignoring late failure after content shown");
+									General.quickToast(
+											ImageViewActivity.this,
+											R.string.imageview_download_failed);
+								} else {
+									// Invalidate the sibling request's callbacks, so a
+									// late arrival can't overwrite the error, and stop
+									// its download.
+									mLoadGeneration++;
+									cancelCacheRequests();
+									showErrorWithRetry(mLoadGeneration, error);
+								}
 							}
 						}
 					}
@@ -1208,13 +1230,40 @@ public class ImageViewActivity extends ViewsBaseActivity
 							synchronized(resultLock) {
 
 								if(!failed.getAndSet(true)) {
+									final GenericFactory<SeekableInputStream, IOException>
+											videoFactory = video.get();
+									final String videoType = videoMimetype.get();
 
-									// Invalidate the sibling request's callbacks, so
-									// a late arrival can't overwrite the error, and
-									// stop its download.
-									mLoadGeneration++;
-									cancelCacheRequests();
-									showErrorWithRetry(mLoadGeneration, error);
+									if(!mContentShown
+											&& videoFactory != null
+											&& videoType != null) {
+										// The video track arrived but its audio
+										// failed: play the video without audio
+										// rather than failing the whole load.
+										onImageStreamReady(
+												generation,
+												true,
+												videoFactory,
+												null,
+												videoType,
+												Uri.parse(uri.toString()));
+
+									} else if(mContentShown) {
+										// Playback was already started: see the
+										// video leg's onFailure above.
+										Log.i(TAG, "Ignoring late failure after content shown");
+										General.quickToast(
+												ImageViewActivity.this,
+												R.string.imageview_download_failed);
+
+									} else {
+										// Invalidate the sibling request's callbacks, so
+										// a late arrival can't overwrite the error, and
+										// stop its download.
+										mLoadGeneration++;
+										cancelCacheRequests();
+										showErrorWithRetry(mLoadGeneration, error);
+									}
 								}
 							}
 						}
