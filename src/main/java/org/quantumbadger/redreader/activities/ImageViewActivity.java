@@ -930,7 +930,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		mLoadTimeoutRunnable = () -> {
 
-			if(generation != mLoadGeneration || mIsDestroyed || mHaveReverted) {
+			if(generation != mLoadGeneration
+					|| mIsDestroyed
+					|| mHaveReverted
+					|| mContentShown) {
 				return;
 			}
 
@@ -956,7 +959,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 	private void pokeLoadTimeout() {
 
-		if(!mIsDestroyed && !mHaveReverted) {
+		// Once a display has been initiated the timeout is retired: late
+		// progress reports (e.g. the final flush after a streaming download
+		// completes) must not re-arm it and interrupt playback.
+		if(!mIsDestroyed && !mHaveReverted && !mContentShown) {
 			scheduleLoadTimeout();
 		}
 	}
@@ -979,7 +985,10 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		AndroidCommon.runOnUiThread(() -> {
 
-			if(generation != mLoadGeneration || mIsDestroyed || mHaveReverted) {
+			if(generation != mLoadGeneration
+					|| mIsDestroyed
+					|| mHaveReverted
+					|| mContentShown) {
 				return;
 			}
 
