@@ -1206,6 +1206,17 @@ public final class RedditPostView extends FlingableItemView
 
 		final int previewWidth = Math.max(640, getGridCardSize() * 2);
 
+		// The crosspost itself may carry a usable preview: use it directly
+		// instead of fetching the parent's, which may not exist at all (e.g.
+		// text/self parents), leaving an empty card behind.
+		final RedditParsedPost.ImagePreviewDetails ownPreview
+				= post.src.getPreview(previewWidth, 0);
+
+		if(ownPreview != null && ownPreview.width >= 10 && ownPreview.height >= 10) {
+			displayGridPreviewDetails(post, ownPreview, usageId);
+			return;
+		}
+
 		final List<RedditPost> parents = post.src.getSrc().getCrosspost_parent_list();
 
 		if(parents != null) {
@@ -1462,6 +1473,21 @@ public final class RedditPostView extends FlingableItemView
 				General.dpToPixels(mActivity, GRID_THUMBNAIL_HEIGHT_DP));
 
 		final Bitmap thumbnail = post.getThumbnail(this, usageId);
+
+		if(thumbnail == null
+				&& !post.hasThumbnail
+				&& !post.isVideoPreview()
+				&& !RedditPreparedPost.isUsableThumbnailUrl(post.src.getThumbnailUrl())
+				&& !LinkHandler.isDirectImageUrl(post.src.getUrl())) {
+			// Nothing will ever arrive for this card: no cached thumbnail, no
+			// thumbnail download in flight, no video poster to extract, and
+			// nothing for the fallback download to fetch. Collapse the image
+			// area instead of leaving a visibly empty strip behind.
+			mGridImageArea.setVisibility(GONE);
+			mInnerView.setMinimumHeight(General.dpToPixels(mActivity, 64));
+			return;
+		}
+
 		mThumbnailView.setImageBitmap(thumbnail);
 		mThumbnailView.setVisibility(VISIBLE);
 		applyGridThumbnailPolicy(thumbnail);
