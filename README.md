@@ -7,6 +7,15 @@ An unofficial, open source Android client for Reddit.
 [![Translation status](https://hosted.weblate.org/widgets/redreader/-/svg-badge.svg)](https://hosted.weblate.org/engage/redreader/?utm_source=widget)
 
 
+A new option under Settings -> Appearance -> Post Layout -> Column View (2/3/4)
+
+Screenshot on Samsung Dex (Z Fold 2)
+<img width="1920" height="1080" alt="Screenshot_20260810_134348_RedReader" src="https://github.com/user-attachments/assets/de7edc84-4750-4f11-9939-93c0bee334d8" />
+
+
+On a Phone it will be like this:
+<img width="461" height="913" alt="Screenshot_20260810_134607_RedReader" src="https://github.com/user-attachments/assets/fdd821ea-270c-42c4-8c20-d2fa1bbae6df" />
+
 This is a fork
 --------------
 
