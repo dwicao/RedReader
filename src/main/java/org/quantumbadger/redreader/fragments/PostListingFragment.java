@@ -46,6 +46,7 @@ import org.quantumbadger.redreader.activities.SessionChangeListener;
 import org.quantumbadger.redreader.adapters.GroupedRecyclerViewAdapter;
 import org.quantumbadger.redreader.adapters.MainMenuListingManager;
 import org.quantumbadger.redreader.adapters.PostListingManager;
+import org.quantumbadger.redreader.cache.CacheEntry;
 import org.quantumbadger.redreader.cache.CacheManager;
 import org.quantumbadger.redreader.cache.CacheRequest;
 import org.quantumbadger.redreader.cache.CacheRequestCallbacks;
@@ -73,6 +74,7 @@ import org.quantumbadger.redreader.image.GetImageInfoListener;
 import org.quantumbadger.redreader.image.ImageInfo;
 import org.quantumbadger.redreader.io.RequestResponseHandler;
 import org.quantumbadger.redreader.listingcontrollers.CommentListingController;
+import org.quantumbadger.redreader.listingcontrollers.PostListingPaginationPolicy;
 import org.quantumbadger.redreader.reddit.PostFilter;
 import org.quantumbadger.redreader.reddit.PostSort;
 import org.quantumbadger.redreader.reddit.RedditPostListItem;
@@ -104,6 +106,7 @@ import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -144,6 +147,7 @@ public class PostListingFragment extends RRFragment
 	private CacheRequest mRequest;
 	private boolean mReadyToDownloadMore = false;
 	private TimestampUTC mTimestamp;
+	@Nullable private UriString mFirstPageRequestUrl;
 
 	private int mPostCount = 0;
 	private boolean mPostsNotShown = false;
@@ -748,10 +752,14 @@ public class PostListingFragment extends RRFragment
 
 		final Uri newUri = mPostListingURL.after(mAfter).generateJsonUri();
 
-		// TODO customise (currently 3 hrs)
+		// A stale snapshot of an explicitly opened past session must not
+		// download: it stops at the cached edge. But a stale current session
+		// (e.g. the app was in the background for a while) may still fetch
+		// the next page, otherwise scrolling and retry dead-end forever.
 		final DownloadStrategy strategy;
-		if(mTimestamp == null
-				|| mTimestamp.elapsed().isLessThan(TimeDuration.hours(3))) {
+		if(PostListingPaginationPolicy.shouldDownloadNextPage(
+				mTimestamp,
+				isSessionSuperseded(activity))) {
 			strategy = DownloadStrategyIfNotCached.INSTANCE;
 		} else {
 			strategy = DownloadStrategyNever.INSTANCE;
@@ -767,6 +775,31 @@ public class PostListingFragment extends RRFragment
 		mPostListingManager.removeFooterErrors();
 		mPostListingManager.setLoadingVisible(true);
 		CacheManager.getInstance(activity).makeRequest(mRequest);
+	}
+
+	private boolean isSessionSuperseded(@NonNull final AppCompatActivity activity) {
+
+		if(mSession == null || mTimestamp == null || mFirstPageRequestUrl == null) {
+			return false;
+		}
+
+		final List<CacheEntry> entries = CacheManager.getInstance(activity).getSessions(
+				mFirstPageRequestUrl,
+				RedditAccountManager.getInstance(activity).getDefaultAccount());
+
+		final ArrayList<PostListingPaginationPolicy.SessionRecord> records
+				= new ArrayList<>(entries.size());
+
+		for(final CacheEntry entry : entries) {
+			records.add(new PostListingPaginationPolicy.SessionRecord(
+					entry.session,
+					entry.timestamp));
+		}
+
+		return PostListingPaginationPolicy.isSessionSuperseded(
+				mSession,
+				mTimestamp,
+				records);
 	}
 
 	private void retryPostListing() {
@@ -907,6 +940,10 @@ public class PostListingFragment extends RRFragment
 							: urlString + "?limit=100");
 		} else {
 			requestUrl = url;
+		}
+
+		if(firstDownload) {
+			mFirstPageRequestUrl = requestUrl;
 		}
 
 		return new CacheRequest(
