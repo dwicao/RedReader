@@ -63,6 +63,8 @@ import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.TorCommon;
 import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.common.time.TimeDuration;
+import org.quantumbadger.redreader.http.HTTPBackend;
+import org.quantumbadger.redreader.http.okhttp.DnsProviders;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
@@ -411,6 +413,41 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 
 				return true;
 			});
+		}
+
+		final ListPreference dnsProviderPref = findPreference(
+				getString(R.string.pref_network_dns_provider_key));
+		final Preference dnsCustomUrlPref = findPreference(
+				getString(R.string.pref_network_dns_custom_url_key));
+
+		if(dnsProviderPref != null && dnsCustomUrlPref != null) {
+
+			final Runnable updateDnsPrefs = () -> {
+				final String provider = PrefsUtility.network_dns_provider();
+				final int index = dnsProviderPref.findIndexOfValue(provider);
+				if(index >= 0) {
+					dnsProviderPref.setSummary(dnsProviderPref.getEntries()[index]);
+				}
+				dnsCustomUrlPref.setEnabled(
+						DnsProviders.PROVIDER_CUSTOM.equals(provider));
+			};
+
+			updateDnsPrefs.run();
+
+			final Preference.OnPreferenceChangeListener recreateBackend
+					= (preference, newValue) -> {
+
+				// Run this after the preference has actually changed
+				AndroidCommon.UI_THREAD_HANDLER.post(() -> {
+					updateDnsPrefs.run();
+					HTTPBackend.getBackend().recreateHttpBackend();
+				});
+
+				return true;
+			};
+
+			dnsProviderPref.setOnPreferenceChangeListener(recreateBackend);
+			dnsCustomUrlPref.setOnPreferenceChangeListener(recreateBackend);
 		}
 
 		if(backupPreferencesPref != null) {

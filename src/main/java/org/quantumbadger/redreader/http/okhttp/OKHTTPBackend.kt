@@ -99,6 +99,16 @@ class OKHTTPBackend private constructor() : HTTPBackend() {
 			builder.proxy(tor)
 		}
 
+		// A custom DNS provider must not be used while Tor is enabled: name
+		// resolution has to stay inside the Tor circuit rather than leaking
+		// every hostname to a DNS provider.
+		if (!TorCommon.isTorEnabled()) {
+			DnsProviders.currentDns(
+				PrefsUtility.network_dns_provider(),
+				PrefsUtility.network_dns_custom_url()
+			)?.let { builder.dns(it) }
+		}
+
 		builder.followRedirects(true)
 		builder.followSslRedirects(true)
 

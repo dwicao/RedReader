@@ -745,6 +745,17 @@
     <string name="open_with">Open with</string>
     <string name="pref_network_tor_title">Use Tor</string>
     <string name="pref_network_tor_key" translatable="false">pref_network_tor</string>
+    <string name="pref_network_dns_provider_title">DNS provider</string>
+    <string name="pref_network_dns_provider_key" translatable="false">pref_network_dns_provider</string>
+    <string name="pref_network_dns_provider_system">System default</string>
+    <string name="pref_network_dns_provider_cloudflare">Cloudflare (1.1.1.1)</string>
+    <string name="pref_network_dns_provider_google">Google (8.8.8.8)</string>
+    <string name="pref_network_dns_provider_quad9">Quad9 (9.9.9.9)</string>
+    <string name="pref_network_dns_provider_adguard">AdGuard</string>
+    <string name="pref_network_dns_provider_opendns">OpenDNS</string>
+    <string name="pref_network_dns_provider_custom">Custom</string>
+    <string name="pref_network_dns_custom_url_title">Custom DNS address</string>
+    <string name="pref_network_dns_custom_url_key" translatable="false">pref_network_dns_custom_url</string>
 
     <!-- 2016-04-03 -->
     <string name="error_tor_not_installed">Tor will not work unless Orbot is installed. Install now?</string>
@@ -1156,6 +1167,8 @@
 
 	<!-- 2020-02-17 -->
 	<string name="pref_network_tor_summary">Orbot must be installed. When using an external browser or Custom Tabs, links will not be opened using Tor (unless your browser is configured to use Tor).</string>
+	<string name="pref_network_dns_provider_summary">Applies to all app connections. Ignored while Tor is enabled.</string>
+	<string name="pref_network_dns_custom_url_summary">DNS-over-HTTPS endpoint, e.g. https://dns.example.com/dns-query. Only used when the provider is set to Custom.</string>
 
 	<!-- 2020-03-05 -->
 	<string name="prefs_category_fonts">Font</string>

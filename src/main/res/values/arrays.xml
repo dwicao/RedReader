@@ -1400,4 +1400,27 @@
 		<item>@string/pref_behaviour_post_tap_action_title_comments</item>
 	</string-array>
 
+	<!-- 2026-11-11 -->
+
+	<string-array name="pref_network_dns_providers">
+		<item>@string/pref_network_dns_provider_system</item>
+		<item>@string/pref_network_dns_provider_cloudflare</item>
+		<item>@string/pref_network_dns_provider_google</item>
+		<item>@string/pref_network_dns_provider_quad9</item>
+		<item>@string/pref_network_dns_provider_adguard</item>
+		<item>@string/pref_network_dns_provider_opendns</item>
+		<item>@string/pref_network_dns_provider_custom</item>
+	</string-array>
+
+	<!-- Constants. Do not change. -->
+	<string-array name="pref_network_dns_providers_return">
+		<item>system</item>
+		<item>cloudflare</item>
+		<item>google</item>
+		<item>quad9</item>
+		<item>adguard</item>
+		<item>opendns</item>
+		<item>custom</item>
+	</string-array>
+
 </resources>

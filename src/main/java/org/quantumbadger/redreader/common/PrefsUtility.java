@@ -1584,6 +1584,18 @@ public final class PrefsUtility {
 				false);
 	}
 
+	public static String network_dns_provider() {
+		return getString(
+				R.string.pref_network_dns_provider_key,
+				"system");
+	}
+
+	public static String network_dns_custom_url() {
+		return getString(
+				R.string.pref_network_dns_custom_url_key,
+				"");
+	}
+
 	///////////////////////////////
 	// pref_menus
 	///////////////////////////////

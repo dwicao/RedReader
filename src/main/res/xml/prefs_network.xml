@@ -32,6 +32,20 @@
 				android:key="@string/pref_reddit_client_id_override_key"
 				android:defaultValue=""/>
 
+		<ListPreference
+				android:title="@string/pref_network_dns_provider_title"
+				android:key="@string/pref_network_dns_provider_key"
+				android:summary="@string/pref_network_dns_provider_summary"
+				android:entries="@array/pref_network_dns_providers"
+				android:entryValues="@array/pref_network_dns_providers_return"
+				android:defaultValue="system"/>
+
+		<EditTextPreference
+				android:title="@string/pref_network_dns_custom_url_title"
+				android:key="@string/pref_network_dns_custom_url_key"
+				android:summary="@string/pref_network_dns_custom_url_summary"
+				android:defaultValue=""/>
+
 	</PreferenceCategory>
 
 </PreferenceScreen>
