@@ -35,6 +35,7 @@ import org.quantumbadger.redreader.adapters.GroupedRecyclerViewAdapter;
 import org.quantumbadger.redreader.adapters.GroupedRecyclerViewItemLoadingSpinner;
 import org.quantumbadger.redreader.adapters.GroupedRecyclerViewItemRRError;
 import org.quantumbadger.redreader.cache.CacheManager;
+import org.quantumbadger.redreader.cache.CacheRequest;
 import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.EventListenerSet;
 import org.quantumbadger.redreader.common.FunctionOneArgNoReturn;
@@ -45,7 +46,11 @@ import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.StringUtils;
 import org.quantumbadger.redreader.common.ThreadCheckedVar;
+import org.quantumbadger.redreader.common.TimestampBound;
 import org.quantumbadger.redreader.common.collections.CollectionStream;
+import org.quantumbadger.redreader.common.time.TimeDuration;
+import org.quantumbadger.redreader.common.time.TimestampUTC;
+import org.quantumbadger.redreader.io.RequestResponseHandler;
 import org.quantumbadger.redreader.reddit.APIResponseHandler;
 import org.quantumbadger.redreader.reddit.RedditAPI;
 import org.quantumbadger.redreader.reddit.SubredditDetails;
@@ -107,7 +112,24 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 	public void onSubredditSubscriptionListUpdated(
 			final RedditSubredditSubscriptionManager subredditSubscriptionManager) {
 
-		AndroidCommon.runOnUiThread(() -> mSubscriptions.set(Optional.empty()));
+		AndroidCommon.runOnUiThread(() -> {
+			final ArrayList<SubredditCanonicalId> list
+					= subredditSubscriptionManager.getSubscriptionList();
+
+			if(list != null) {
+				final ArrayList<SubredditDetails> subscriptions = new CollectionStream<>(list)
+						.map(SubredditDetails::new)
+						.collect(new ArrayList<>());
+
+				mSubscriptionListPending.set(false);
+				mSubscriptionsErrorItem.set(Optional.empty());
+				mSubscriptions.set(Optional.of(subscriptions));
+			} else {
+				mSubscriptions.set(Optional.empty());
+			}
+
+			updateList();
+		});
 	}
 
 	@Override
@@ -257,24 +279,28 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 					}
 				}
 
-				mLoadingItem.setHidden(false);
-				mRecyclerViewAdapter.updateHiddenStatus();
-
 			} else if(!currentQuery.trim().isEmpty()) {
 
 				if(mQueryErrorItem.get().isPresent()) {
 					mRecyclerViewAdapter.appendToGroup(
 							GROUP_SUBREDDITS,
 							mQueryErrorItem.get().get());
-
-					mLoadingItem.setHidden(true);
-					mRecyclerViewAdapter.updateHiddenStatus();
-
-				} else {
-					mLoadingItem.setHidden(false);
-					mRecyclerViewAdapter.updateHiddenStatus();
 				}
 			}
+
+			final boolean queryEmpty = currentQuery.trim().isEmpty();
+			final boolean queryResultsPresent = currentQueryResults != null;
+			final boolean queryError = mQueryErrorItem.get().isPresent();
+
+			final boolean loadingVisible = SubredditSearchUiState.isLoadingVisible(
+					true,
+					false,
+					queryEmpty,
+					queryResultsPresent,
+					queryError);
+
+			mLoadingItem.setHidden(!loadingVisible);
+			mRecyclerViewAdapter.updateHiddenStatus();
 
 			mRecyclerViewAdapter.notifyDataSetChanged();
 			mSubredditItemCache.nextGeneration();
@@ -447,7 +473,20 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 								SubredditSearchActivity.this,
 								t);
 
-						AndroidCommon.runOnUiThread(() -> mQueriesPending.get().remove(text));
+						AndroidCommon.runOnUiThread(() -> {
+							mQueriesPending.get().remove(text);
+							mQueryErrorItem.set(Optional.of(
+									new GroupedRecyclerViewItemRRError(
+											SubredditSearchActivity.this,
+											General.getGeneralErrorForFailure(
+													SubredditSearchActivity.this,
+													CacheRequest.RequestFailureType.PARSE,
+													t,
+													null,
+													null,
+													Optional.empty()))));
+							updateList();
+						});
 					}
 
 					@Override
@@ -480,46 +519,52 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 		final FunctionOneArgNoReturn<ArrayList<SubredditCanonicalId>> onSuccess
 				= list -> AndroidCommon.runOnUiThread(() -> {
 
-			if(mSubscriptionListPending.get() && list != null) {
-
+			if(list != null) {
 				mSubscriptionListPending.set(false);
+				mSubscriptionsErrorItem.set(Optional.empty());
 
 				final ArrayList<SubredditDetails> subscriptions = new CollectionStream<>(list)
 						.map(SubredditDetails::new)
 						.collect(new ArrayList<>());
 
 				mSubscriptions.set(Optional.of(subscriptions));
+				updateList();
 			}
 		});
 
-		mSubredditSubscriptionManager.triggerUpdateIfNotReady(
-				error -> AndroidCommon.runOnUiThread(() -> {
+		final ArrayList<SubredditCanonicalId> cachedList
+				= mSubredditSubscriptionManager.getSubscriptionList();
 
-			mQueryErrorItem.set(Optional.of(
-					new GroupedRecyclerViewItemRRError(this, error)));
-			updateList();
-		}));
+		if(cachedList != null) {
+			onSuccess.apply(cachedList);
+			return;
+		}
 
-		mSubredditSubscriptionManager.addListener(
-				new RedditSubredditSubscriptionManager.SubredditSubscriptionStateChangeListener() {
+		mSubredditSubscriptionManager.triggerUpdate(
+				new RequestResponseHandler<
+						HashSet<SubredditCanonicalId>,
+						RRError>() {
+					@Override
+					public void onRequestFailed(final RRError failureReason) {
+						AndroidCommon.runOnUiThread(() -> {
+							mSubscriptionListPending.set(false);
+							mSubscriptionsErrorItem.set(Optional.of(
+									new GroupedRecyclerViewItemRRError(
+											SubredditSearchActivity.this,
+											failureReason)));
+							updateList();
+						});
+					}
 
-			@Override
-			public void onSubredditSubscriptionListUpdated(
-					final RedditSubredditSubscriptionManager subredditSubscriptionManager) {
-
-				onSuccess.apply(subredditSubscriptionManager.getSubscriptionList());
-			}
-
-			@Override
-			public void onSubredditSubscriptionAttempted(
-					final RedditSubredditSubscriptionManager subredditSubscriptionManager) {}
-
-			@Override
-			public void onSubredditUnsubscriptionAttempted(
-					final RedditSubredditSubscriptionManager subredditSubscriptionManager) {}
-		});
-
-		onSuccess.apply(mSubredditSubscriptionManager.getSubscriptionList());
+					@Override
+					public void onRequestSuccess(
+							final HashSet<SubredditCanonicalId> result,
+							final TimestampUTC timeCached) {
+						AndroidCommon.runOnUiThread(() -> onSuccess.apply(
+								new ArrayList<>(result)));
+					}
+				},
+				TimestampBound.notOlderThan(TimeDuration.hours(1)));
 	}
 
 	@Override
