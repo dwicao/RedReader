@@ -88,6 +88,7 @@ import org.quantumbadger.redreader.reddit.url.SearchPostListURL;
 import org.quantumbadger.redreader.reddit.url.SubredditPostListURL;
 import org.quantumbadger.redreader.reddit.url.UserPostListingURL;
 import org.quantumbadger.redreader.reddit.url.UserProfileURL;
+import org.quantumbadger.redreader.update.AppUpdater;
 import org.quantumbadger.redreader.views.RedditPostView;
 
 import java.util.ArrayList;
@@ -234,6 +235,8 @@ public class MainActivity extends RefreshableActivity
 				&& PrefsUtility.pref_behaviour_skiptofrontpage()) {
 			onSelected(SubredditPostListURL.getFrontPage());
 		}
+
+		AppUpdater.checkForUpdates(this);
 	}
 
 	private void recreateSubscriptionListener() {

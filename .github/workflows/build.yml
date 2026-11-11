@@ -6,6 +6,8 @@ on:
     pull_request:
     schedule:
         -   cron: '30 5 * * *'
+    release:
+        types: [published]
 
 jobs:
     ci:
@@ -87,3 +89,78 @@ jobs:
             -   name: Unit tests
                 if: success() || steps.lint.outcome == 'failure'
                 run: ./gradlew test
+
+    update-version-json:
+        if: github.event_name == 'release'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            -   uses: actions/checkout@v4
+                with:
+                    ref: master
+
+            # The release must not be advertised before its APK exists:
+            # keep polling the release until the APK is actually
+            # downloadable, and fail without touching version.json if it
+            # never appears.
+            -   name: Wait for the release APK to be downloadable
+                run: |
+                    TAG="${{ github.event.release.tag_name }}"
+                    mkdir -p /tmp/apkcheck
+                    for i in $(seq 1 30); do
+                        if gh release download "$TAG" \
+                                --repo "${{ github.repository }}" \
+                                --pattern '*.apk' \
+                                --dir /tmp/apkcheck \
+                                --clobber; then
+                            break
+                        fi
+                        sleep 20
+                    done
+                    ls /tmp/apkcheck/*.apk
+                env:
+                    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Write version.json from the release APK
+                run: |
+                    set -e
+                    TAG="${{ github.event.release.tag_name }}"
+                    APK="$(ls /tmp/apkcheck/*.apk | head -n 1)"
+                    ASSET="$(basename "$APK")"
+                    AAPT="$(ls -d "${ANDROID_SDK_ROOT}"/build-tools/*/aapt | sort -V | tail -n 1)"
+                    BADGING="$("$AAPT" dump badging "$APK" | head -n 1)"
+                    VERSION_CODE="$(printf '%s' "$BADGING" | grep -oP "versionCode='\K[0-9]+")"
+                    VERSION_NAME="$(printf '%s' "$BADGING" | grep -oP "versionName='\K[^']+")"
+                    SHA256="$(sha256sum "$APK" | cut -d' ' -f1)"
+                    SIZE="$(stat -c%s "$APK")"
+                    APK_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${ASSET}"
+                    python3 - "$TAG" "$VERSION_NAME" "$VERSION_CODE" "$APK_URL" "$SHA256" "$SIZE" <<'EOF'
+                    import json, sys
+                    _, tag, name, code, url, sha, size = sys.argv
+                    data = {
+                        "version": name,
+                        "versionCode": int(code),
+                        "apkUrl": url,
+                        "sha256": sha,
+                        "size": int(size),
+                    }
+                    with open("version.json", "w") as f:
+                        json.dump(data, f, indent=2)
+                        f.write("\n")
+                    with open("version.json") as f:
+                        print(json.load(f))
+                    EOF
+
+            -   name: Commit and push version.json
+                run: |
+                    set -e
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git add version.json
+                    if git diff --staged --quiet; then
+                        echo "version.json already up to date"
+                    else
+                        git commit -m "Update version.json for ${{ github.event.release.tag_name }} [skip ci]"
+                        git push origin master
+                    fi
