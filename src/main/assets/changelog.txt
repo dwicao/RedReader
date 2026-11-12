@@ -1,3 +1,39 @@
+147/1.42
+Download progress now shows MB downloaded out of total MB
+"What's new" dialog updated with all recent fork changes
+Favourite posts: view modes (list, list with thumbnails, 1-4 column grid), post type filter, and delete confirmation
+
+146/1.41
+Manual update check in Settings > About
+Auto theme option that follows the system light/dark mode
+Favourite posts: long-press a post to favourite it, new Favourite posts home entry
+
+145/1.40
+Play reddit.com video player links in-app without scraping, including when logged out
+Download progress bar when installing in-app updates
+
+144/1.39
+Resolve reddit.com player links via the API with HTML fallback
+Show download progress when installing in-app updates
+
+143/1.38
+Play reddit.com video player links in the in-app player
+
+142/1.37
+Automatic update check backed by version.json with in-app download and install
+
+141/1.36
+Custom DNS provider setting (Settings > Network)
+
+140/1.35
+Fix pagination dead-end on stale listings (retry now reloads correctly)
+
+139/1.34
+Fix infinite loading in subreddit search
+
+138/1.33
+Retire the image viewer timeout once content is displayed
+
 120/1.28
 Option to set the navigation bar opacity
 Fixed issue where post titles are cut off

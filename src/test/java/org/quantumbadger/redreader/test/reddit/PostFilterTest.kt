@@ -17,6 +17,8 @@
 package org.quantumbadger.redreader.test.reddit
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.quantumbadger.redreader.common.time.TimestampUTC
 import org.quantumbadger.redreader.reddit.PostFilter
@@ -81,6 +83,21 @@ class PostFilterTest {
 		assertEquals(
 			PostFilter.LINK,
 			PostFilter.classify(post(url = "https://example.com/article")))
+	}
+
+	@Test
+	fun allFilterMatchesEverything() {
+		assertTrue(PostFilter.ALL.matches(post()))
+		assertTrue(PostFilter.ALL.matches(post(isSelf = true)))
+		assertTrue(PostFilter.ALL.matches(
+			post(url = "https://example.com/article")))
+	}
+
+	@Test
+	fun textFilterMatchesSelfPostsOnly() {
+		assertTrue(PostFilter.TEXT.matches(post(isSelf = true)))
+		assertFalse(PostFilter.TEXT.matches(
+			post(url = "https://example.com/article")))
 	}
 
 	private fun post(

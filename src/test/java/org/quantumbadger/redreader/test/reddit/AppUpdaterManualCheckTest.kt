@@ -67,4 +67,21 @@ class AppUpdaterManualCheckTest {
 			AppUpdater.ManualCheckOutcome.FAILED,
 			AppUpdater.decideManualOutcome(info, null))
 	}
+
+	@Test
+	fun progressFormatsMegabytes() {
+		assertEquals(
+			"1.5 MB / 9.5 MB",
+			AppUpdater.formatDownloadProgress(1572864L, 9961472L))
+	}
+
+	@Test
+	fun progressWithoutTotalShowsDownloadedOnly() {
+		assertEquals("2.0 MB", AppUpdater.formatDownloadProgress(2097152L, -1L))
+	}
+
+	@Test
+	fun progressStartsAtZero() {
+		assertEquals("0.0 MB / 9.5 MB", AppUpdater.formatDownloadProgress(0L, 9961472L))
+	}
 }

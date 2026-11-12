@@ -306,6 +306,14 @@ public final class PrefsUtility {
 				& Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 	}
 
+	public static String favourite_posts_view_mode() {
+		return getString(R.string.pref_favourite_view_mode_key, "list");
+	}
+
+	public static String favourite_posts_filter() {
+		return getString(R.string.pref_favourite_filter_key, "all");
+	}
+
 	public enum AppearanceNavbarColour {
 		BLACK, WHITE, PRIMARY, PRIMARYDARK
 	}

@@ -21,8 +21,10 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
-import android.widget.FrameLayout
+import android.view.Gravity
+import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -56,6 +58,17 @@ object AppUpdater {
 		UPDATE_AVAILABLE,
 		UP_TO_DATE,
 		FAILED
+	}
+
+	fun formatDownloadProgress(downloadedBytes: Long, totalBytes: Long): String {
+		val downloadedMb = downloadedBytes.toDouble() / (1024 * 1024)
+
+		if(totalBytes <= 0) {
+			return String.format(Locale.US, "%.1f MB", downloadedMb)
+		}
+
+		val totalMb = totalBytes.toDouble() / (1024 * 1024)
+		return String.format(Locale.US, "%.1f MB / %.1f MB", downloadedMb, totalMb)
 	}
 
 	fun decideManualOutcome(
@@ -179,14 +192,24 @@ object AppUpdater {
 		progressBar.isIndeterminate = totalBytes.get() <= 0
 		progressBar.max = 1000
 
+		val progressText = TextView(activity)
+		progressText.text = formatDownloadProgress(0L, totalBytes.get())
+		progressText.gravity = Gravity.CENTER_HORIZONTAL
+
 		val padding = General.dpToPixels(activity, 24f)
-		val container = FrameLayout(activity)
+		val container = LinearLayout(activity)
+		container.orientation = LinearLayout.VERTICAL
 		container.setPadding(padding, padding, padding, padding)
 		container.addView(
 			progressBar,
-			FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.MATCH_PARENT,
-				FrameLayout.LayoutParams.WRAP_CONTENT))
+			LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT))
+		container.addView(
+			progressText,
+			LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT))
 
 		val progressDialog = MaterialAlertDialogBuilder(activity)
 			.setTitle(R.string.update_downloading_title)
@@ -250,8 +273,16 @@ object AppUpdater {
 								if(total > 0) {
 									val done = downloadedBytes.addAndGet(read.toLong())
 									val permille = (done * 1000 / total).toInt().coerceIn(0, 1000)
+									val text = formatDownloadProgress(done, total)
 									AndroidCommon.runOnUiThread {
 										progressBar.progress = permille
+										progressText.text = text
+									}
+								} else {
+									val done = downloadedBytes.addAndGet(read.toLong())
+									val text = formatDownloadProgress(done, totalBytes.get())
+									AndroidCommon.runOnUiThread {
+										progressText.text = text
 									}
 								}
 							}

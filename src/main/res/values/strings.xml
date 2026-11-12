@@ -236,6 +236,18 @@
     <string name="action_unfavourite">Unfavourite</string>
     <string name="favourite_added">Added to favourites</string>
     <string name="favourite_removed">Removed from favourites</string>
+    <string name="favourite_remove_confirm_title">Remove favourite?</string>
+    <string name="favourite_remove_confirm_message">Remove "%1$s" from favourites?</string>
+    <string name="favourite_view_mode_title">View mode</string>
+    <string name="favourite_view_list">List</string>
+    <string name="favourite_view_list_thumbnails">List with thumbnails</string>
+    <plurals name="favourite_view_grid">
+        <item quantity="one">Grid (%1$d column)</item>
+        <item quantity="other">Grid (%1$d columns)</item>
+    </plurals>
+    <string name="favourite_filter_title">Filter posts</string>
+    <string name="pref_favourite_view_mode_key" translatable="false">pref_favourite_view_mode</string>
+    <string name="pref_favourite_filter_key" translatable="false">pref_favourite_filter</string>
     <string name="action_hide">Hide</string>
     <string name="action_unsave">Unsave</string>
     <string name="action_unhide">Unhide</string>
