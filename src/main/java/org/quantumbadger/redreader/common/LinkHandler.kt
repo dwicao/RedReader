@@ -65,6 +65,7 @@ import org.quantumbadger.redreader.image.ImageUrlInfo
 import org.quantumbadger.redreader.image.ImgurAPI
 import org.quantumbadger.redreader.image.ImgurAPIV3
 import org.quantumbadger.redreader.image.RedditGalleryAPI.Companion.getAlbumInfo
+import org.quantumbadger.redreader.image.RedditPlayerPageAPI
 import org.quantumbadger.redreader.image.RedditVideosAPI
 import org.quantumbadger.redreader.image.RedgifsAPI
 import org.quantumbadger.redreader.image.RedgifsAPIV2
@@ -555,6 +556,8 @@ object LinkHandler {
 	private val reddituploadsPattern: Pattern =
 		Pattern.compile(".*[^A-Za-z]i\\.reddituploads\\.com/(\\w+).*")
 	private val redditVideosPattern: Pattern = Pattern.compile(".*[^A-Za-z]v.redd.it/(\\w+).*")
+	private val redditPlayerPagePattern: Pattern =
+		Pattern.compile(".*[^A-Za-z]reddit\\.com/link/\\w+/video/\\w+/player.*")
 	private val imgflipPattern: Pattern = Pattern.compile(".*[^A-Za-z]imgflip\\.com/i/(\\w+).*")
 	private val makeamemePattern: Pattern = Pattern.compile(".*[^A-Za-z]makeameme\\.org/meme/([\\w\\-]+).*")
 	private val deviantartPattern: Pattern =
@@ -615,6 +618,10 @@ object LinkHandler {
 
 	@JvmStatic
 	fun isRedGifsImage(url: UriString): Boolean = getRedGifsId(url) != null
+
+	@JvmStatic
+	fun isRedditPlayerPage(url: UriString): Boolean =
+		redditPlayerPagePattern.matcher(url.value).find()
 
 	// The compact embedded player, intended for use inside a WebView -- unlike
 	// the full site, this doesn't show a cookie banner or other page furniture.
@@ -719,6 +726,10 @@ object LinkHandler {
 					}
 				}
 			}
+		}
+
+		if (isRedditPlayerPage(url)) {
+			return true
 		}
 
 		return getImageUrlPatternMatch(url) != null
@@ -1032,6 +1043,16 @@ object LinkHandler {
 					}
 				}
 			}
+		}
+
+		if (isRedditPlayerPage(url)) {
+			RedditPlayerPageAPI.getImageInfo(
+				context,
+				url,
+				priority,
+				listener
+			)
+			return
 		}
 
 		val imageUrlPatternMatch = getImageUrlPatternMatch(url)
