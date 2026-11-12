@@ -100,4 +100,103 @@ class RedditPlayerPageTest {
 		assertNull(RedditPlayerPageAPI.extractVRedditId(
 			"https://v.redd.it/ab/DASHPlaylist.mpd"))
 	}
+
+	@Test
+	fun playerLinkIdIsExtracted() {
+		assertEquals(
+			"abc123",
+			RedditPlayerPageAPI.playerLinkId(UriString(
+				"https://www.reddit.com/link/abc123/video/def456789/player")))
+		assertEquals(
+			"abc123",
+			RedditPlayerPageAPI.playerLinkId(UriString(
+				"http://old.reddit.com/link/abc123/video/def456789/player?x=1")))
+		assertNull(RedditPlayerPageAPI.playerLinkId(UriString(
+			"https://www.reddit.com/r/videos/comments/abc123/title_here/")))
+		assertNull(RedditPlayerPageAPI.playerLinkId(UriString("")))
+	}
+
+	@Test
+	fun apiVideoIdFromSecureMedia() {
+		assertEquals(
+			"abc123xyz00",
+			RedditPlayerPageAPI.extractApiVideoId(
+				"""
+				{
+					"kind": "Listing",
+					"data": {
+						"children": [
+							{
+								"kind": "t3",
+								"data": {
+									"secure_media": {
+										"reddit_video": {
+											"dash_url": "https://v.redd.it/abc123xyz00/DASHPlaylist.mpd",
+											"hls_url": "https://v.redd.it/abc123xyz00/HLSPlaylist.m3u8"
+										}
+									}
+								}
+							}
+						]
+					}
+				}
+				""".trimIndent()))
+	}
+
+	@Test
+	fun apiVideoIdFromLegacyMedia() {
+		assertEquals(
+			"abc123xyz00",
+			RedditPlayerPageAPI.extractApiVideoId(
+				"""
+				{
+					"kind": "Listing",
+					"data": {
+						"children": [
+							{
+								"kind": "t3",
+								"data": {
+									"media": {
+										"reddit_video": {
+											"dash_url": "https://v.redd.it/abc123xyz00/DASHPlaylist.mpd"
+										}
+									}
+								}
+							}
+						]
+					}
+				}
+				""".trimIndent()))
+	}
+
+	@Test
+	fun apiVideoIdMissingMeansNull() {
+		assertNull(RedditPlayerPageAPI.extractApiVideoId("{}"))
+		assertNull(RedditPlayerPageAPI.extractApiVideoId("not json"))
+		assertNull(RedditPlayerPageAPI.extractApiVideoId(
+			"""
+			{
+				"kind": "Listing",
+				"data": {
+					"children": [
+						{
+							"kind": "t3",
+							"data": {
+								"secure_media": null
+							}
+						}
+					]
+				}
+			}
+			""".trimIndent()))
+		assertNull(RedditPlayerPageAPI.extractApiVideoId(
+			"""
+			{
+				"kind": "Listing",
+				"data": {
+					"children": []
+				}
+			}
+			""".trimIndent()))
+	}
 }

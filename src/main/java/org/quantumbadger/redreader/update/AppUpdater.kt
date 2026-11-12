@@ -21,6 +21,8 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import android.widget.FrameLayout
+import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -37,6 +39,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 object AppUpdater {
 
@@ -112,6 +115,46 @@ object AppUpdater {
 
 	private fun downloadUpdate(activity: AppCompatActivity, info: AppUpdateInfo) {
 
+		if(activity.isFinishing || activity.isDestroyed) {
+			return
+		}
+
+		val totalBytes = AtomicLong(info.size ?: -1L)
+		val downloadedBytes = AtomicLong(0L)
+		val cancelled = AtomicBoolean(false)
+
+		val progressBar = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal)
+		progressBar.isIndeterminate = totalBytes.get() <= 0
+		progressBar.max = 1000
+
+		val padding = General.dpToPixels(activity, 24f)
+		val container = FrameLayout(activity)
+		container.setPadding(padding, padding, padding, padding)
+		container.addView(
+			progressBar,
+			FrameLayout.LayoutParams(
+				FrameLayout.LayoutParams.MATCH_PARENT,
+				FrameLayout.LayoutParams.WRAP_CONTENT))
+
+		val progressDialog = MaterialAlertDialogBuilder(activity)
+			.setTitle(R.string.update_downloading_title)
+			.setView(container)
+			.setNegativeButton(R.string.dialog_cancel) { _, _ ->
+				cancelled.set(true)
+			}
+			.setCancelable(false)
+			.show()
+
+		val dismissDialog = {
+			try {
+				if(progressDialog.isShowing) {
+					progressDialog.dismiss()
+				}
+			} catch(e: Exception) {
+				Log.i(TAG, "Could not dismiss progress dialog", e)
+			}
+		}
+
 		Thread {
 			try {
 				val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
@@ -125,6 +168,14 @@ object AppUpdater {
 					}
 
 					val body = response.body ?: throw IOException("Empty body")
+
+					if(totalBytes.get() <= 0 && body.contentLength() > 0) {
+						totalBytes.set(body.contentLength())
+						AndroidCommon.runOnUiThread {
+							progressBar.isIndeterminate = false
+						}
+					}
+
 					val digest = MessageDigest.getInstance("SHA-256")
 
 					FileOutputStream(outFile).use { out ->
@@ -132,14 +183,31 @@ object AppUpdater {
 							val buffer = ByteArray(64 * 1024)
 
 							while(true) {
+								if(cancelled.get()) {
+									return@Thread
+								}
+
 								val read = input.read(buffer)
 								if(read < 0) {
 									break
 								}
 								digest.update(buffer, 0, read)
 								out.write(buffer, 0, read)
+
+								val total = totalBytes.get()
+								if(total > 0) {
+									val done = downloadedBytes.addAndGet(read.toLong())
+									val permille = (done * 1000 / total).toInt().coerceIn(0, 1000)
+									AndroidCommon.runOnUiThread {
+										progressBar.progress = permille
+									}
+								}
 							}
 						}
+					}
+
+					if(cancelled.get()) {
+						return@Thread
 					}
 
 					if(info.size != null && info.size != outFile.length()) {
@@ -157,13 +225,21 @@ object AppUpdater {
 					}
 				}
 
-				AndroidCommon.runOnUiThread { promptInstall(activity, outFile) }
+				AndroidCommon.runOnUiThread {
+					dismissDialog()
+					promptInstall(activity, outFile)
+				}
 
 			} catch(e: Exception) {
 				Log.i(TAG, "Update download failed", e)
 				AndroidCommon.runOnUiThread {
-					General.quickToast(activity, R.string.update_download_failed)
+					dismissDialog()
+					if(!cancelled.get()) {
+						General.quickToast(activity, R.string.update_download_failed)
+					}
 				}
+			} finally {
+				AndroidCommon.runOnUiThread { dismissDialog() }
 			}
 		}.start()
 	}

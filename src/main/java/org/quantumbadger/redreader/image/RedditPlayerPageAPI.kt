@@ -19,6 +19,10 @@ package org.quantumbadger.redreader.image
 
 import android.content.Context
 import android.util.Log
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.quantumbadger.redreader.account.RedditAccountManager
 import org.quantumbadger.redreader.cache.CacheManager
 import org.quantumbadger.redreader.cache.CacheRequest
@@ -44,11 +48,19 @@ object RedditPlayerPageAPI {
 
 	private const val TAG = "RedditPlayerPageAPI"
 
+	private val JSON = Json {
+		ignoreUnknownKeys = true
+	}
+
 	private val vRedditPlaylistPattern =
 		Pattern.compile("https://v\\.redd\\.it/([A-Za-z0-9]+)/(?:DASHPlaylist\\.mpd|HLSPlaylist\\.m3u8)")
 
 	private val vRedditUrlPattern =
 		Pattern.compile("https://v\\.redd\\.it/([A-Za-z0-9]+)")
+
+	fun playerLinkId(playerPageUrl: UriString): String? {
+		return LinkHandler.getRedditPlayerPageLinkId(playerPageUrl)
+	}
 
 	fun extractVRedditId(html: String): String? {
 
@@ -74,7 +86,110 @@ object RedditPlayerPageAPI {
 		return null
 	}
 
+	fun extractApiVideoId(postListingJson: String): String? {
+
+		return try {
+			val root = JSON.parseToJsonElement(postListingJson).jsonObject
+			val children = root["data"]?.jsonObject?.get("children")?.jsonArray
+				?: return null
+			val data = children.firstOrNull()?.jsonObject?.get("data")?.jsonObject
+				?: return null
+			val video = data["secure_media"]?.jsonObject?.get("reddit_video")?.jsonObject
+				?: data["media"]?.jsonObject?.get("reddit_video")?.jsonObject
+				?: return null
+			val dashUrl = video["dash_url"]?.jsonPrimitive?.content ?: return null
+
+			val matcher = vRedditUrlPattern.matcher(dashUrl)
+			if(matcher.find()) {
+				matcher.group(1)
+			} else {
+				null
+			}
+		} catch(e: Exception) {
+			null
+		}
+	}
+
 	fun getImageInfo(
+		context: Context,
+		playerPageUrl: UriString,
+		priority: Priority,
+		listener: GetImageInfoListener
+	) {
+		val linkId = playerLinkId(playerPageUrl)
+
+		if(linkId != null) {
+			fetchApiVideoId(context, linkId, priority, playerPageUrl, listener)
+		} else {
+			fetchHtmlVideoId(context, playerPageUrl, priority, listener)
+		}
+	}
+
+	private fun fetchApiVideoId(
+		context: Context,
+		linkId: String,
+		priority: Priority,
+		playerPageUrl: UriString,
+		listener: GetImageInfoListener
+	) {
+		val apiUrl = UriString(Constants.Reddit.getUri("/by_id/t3_" + linkId).value)
+
+		CacheManager.getInstance(context).makeRequest(
+			CacheRequest(
+				apiUrl,
+				RedditAccountManager.getInstance(context).getDefaultAccount(),
+				null,
+				priority,
+				DownloadStrategyIfNotCached.INSTANCE,
+				Constants.FileType.IMAGE_INFO,
+				CacheRequest.DownloadQueueType.IMMEDIATE,
+				context,
+				object : CacheRequestCallbacks {
+
+					override fun onDataStreamComplete(
+						stream: GenericFactory<SeekableInputStream, IOException>,
+						timestamp: TimestampUTC,
+						session: UUID,
+						fromCache: Boolean,
+						mimetype: String?
+					) {
+						val json = try {
+							stream.create().use(::readWholeStreamAsUTF8)
+						} catch(e: IOException) {
+							Log.e(TAG, "Got exception", e)
+							listener.onFailure(
+								getGeneralErrorForFailure(
+									context,
+									CacheRequest.RequestFailureType.STORAGE,
+									e,
+									null,
+									apiUrl,
+									FailedRequestBody.from(stream)))
+							return
+						}
+
+						val videoId = extractApiVideoId(json)
+
+						if(videoId == null) {
+							// Not a video post (or an id format the API
+							// doesn't know): fall back to scraping the
+							// player page itself.
+							fetchHtmlVideoId(context, playerPageUrl, priority, listener)
+							return
+						}
+
+						RedditVideosAPI.getImageInfo(context, videoId, priority, listener)
+					}
+
+					override fun onFailure(error: RRError) {
+						// The API lookup failed (e.g. deleted post): fall
+						// back to scraping the player page itself.
+						fetchHtmlVideoId(context, playerPageUrl, priority, listener)
+					}
+				}))
+	}
+
+	private fun fetchHtmlVideoId(
 		context: Context,
 		playerPageUrl: UriString,
 		priority: Priority,

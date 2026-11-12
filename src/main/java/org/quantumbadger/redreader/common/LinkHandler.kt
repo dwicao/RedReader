@@ -557,7 +557,7 @@ object LinkHandler {
 		Pattern.compile(".*[^A-Za-z]i\\.reddituploads\\.com/(\\w+).*")
 	private val redditVideosPattern: Pattern = Pattern.compile(".*[^A-Za-z]v.redd.it/(\\w+).*")
 	private val redditPlayerPagePattern: Pattern =
-		Pattern.compile(".*[^A-Za-z]reddit\\.com/link/\\w+/video/\\w+/player.*")
+		Pattern.compile(".*[^A-Za-z]reddit\\.com/link/(\\w+)/video/(\\w+)/player.*")
 	private val imgflipPattern: Pattern = Pattern.compile(".*[^A-Za-z]imgflip\\.com/i/(\\w+).*")
 	private val makeamemePattern: Pattern = Pattern.compile(".*[^A-Za-z]makeameme\\.org/meme/([\\w\\-]+).*")
 	private val deviantartPattern: Pattern =
@@ -622,6 +622,15 @@ object LinkHandler {
 	@JvmStatic
 	fun isRedditPlayerPage(url: UriString): Boolean =
 		redditPlayerPagePattern.matcher(url.value).find()
+
+	@JvmStatic
+	fun getRedditPlayerPageLinkId(url: UriString): String? {
+		val matcher = redditPlayerPagePattern.matcher(url.value)
+		if(matcher.find()) {
+			return matcher.group(1)
+		}
+		return null
+	}
 
 	// The compact embedded player, intended for use inside a WebView -- unlike
 	// the full site, this doesn't show a cookie banner or other page furniture.
