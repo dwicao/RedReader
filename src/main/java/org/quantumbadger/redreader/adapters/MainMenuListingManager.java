@@ -242,6 +242,24 @@ public class MainMenuListingManager {
 								Optional.empty()));
 			}
 
+			{
+				final View.OnClickListener favouritesClickListener = view -> mListener.onSelected(
+						MainMenuFragment.MENU_MENU_ACTION_FAVOURITES);
+
+				mAdapter.appendToGroup(
+						GROUP_MAIN_ITEMS,
+						new GroupedRecyclerViewItemListItemView(
+								null,
+								mContext.getString(R.string.mainmenu_favourites),
+								null,
+								false,
+								favouritesClickListener,
+								null,
+								Optional.empty(),
+								Optional.empty(),
+								Optional.empty()));
+			}
+
 			if(mainMenuShortcutItems.contains(
 					MainMenuFragment.MainMenuShortcutItems.SUBREDDIT_SEARCH)) {
 

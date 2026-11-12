@@ -278,6 +278,7 @@
 	</string-array>
 
 	<string-array name="pref_appearance_theme">
+		<item>@string/theme_name_auto</item>
 		<item>@string/theme_name_red</item>
 		<item>@string/theme_name_night</item>
 		<item>@string/theme_name_night_lowcontrast</item>
@@ -291,6 +292,7 @@
 
 	<!-- Constants. Do not change. -->
 	<string-array name="pref_appearance_theme_return">
+		<item>auto</item>
 		<item>red</item>
 		<item>night</item>
 		<item>night_lowcontrast</item>
@@ -504,6 +506,7 @@
         <item>@string/action_downvote</item>
 		<item>@string/action_comments</item>
 		<item>@string/action_crosspost_origin</item>
+        <item>@string/action_favourite</item>
         <item>@string/action_save</item>
         <item>@string/action_hide</item>
         <item>@string/action_delete</item>
@@ -533,6 +536,7 @@
         <item>downvote</item>
 		<item>comments</item>
 		<item>crosspost_origin</item>
+        <item>favourite</item>
         <item>save</item>
         <item>hide</item>
         <item>delete</item>
@@ -1176,7 +1180,7 @@
 	<string-array name="pref_menus_post_context_items_default">
 		<item>upvote</item>
 		<item>downvote</item>
-		<item>comments</item>
+		<item>favourite</item>
 		<item>save</item>
 		<item>hide</item>
 		<item>delete</item>

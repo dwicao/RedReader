@@ -319,6 +319,10 @@ public class MainActivity extends RefreshableActivity
 				LinkHandler.onLinkClicked(this, new UserProfileURL(username).toUriString());
 				break;
 
+			case MainMenuFragment.MENU_MENU_ACTION_FAVOURITES:
+				startActivity(new Intent(this, FavouritePostsActivity.class));
+				break;
+
 			case MainMenuFragment.MENU_MENU_ACTION_CUSTOM_SUBREDDITS: {
 				final String combination = CustomSubreddits.get(this);
 

@@ -18,6 +18,7 @@
 package org.quantumbadger.redreader.compose.theme
 
 import android.app.Activity
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,11 +129,13 @@ fun RRComposeContextTheme(
 	content: @Composable () -> Unit,
 ) {
 	val prefs = LocalComposePrefs.current
-	val themePref = prefs.appearanceTheme.value
-
-	val theme = ComposeThemeImpl(prefs)
-
 	val view = LocalView.current
+	val themePref = prefs.appearanceTheme.value.resolved(
+		(view.context.resources.configuration.uiMode
+				and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
+
+	val theme = ComposeThemeImpl(prefs, themePref)
+
 	if (controlsStatusBar && !view.isInEditMode) {
 		SideEffect {
 			val window = (view.context as Activity).window
@@ -161,9 +164,7 @@ fun RRComposeContextTheme(
 	}
 }
 
-class ComposeThemeImpl(prefs: ComposePrefs) : ComposeTheme {
-
-	val theme = prefs.appearanceTheme.value
+class ComposeThemeImpl(prefs: ComposePrefs, val theme: AppearanceTheme) : ComposeTheme {
 	val light = theme.lightness == ThemeLightness.Light
 
 	val baseTextStyle = TextStyle()

@@ -295,7 +295,15 @@ public final class PrefsUtility {
 	public static AppearanceTheme appearance_theme() {
 		return AppearanceTheme.valueOf(StringUtils.asciiUppercase(getString(
 				R.string.pref_appearance_theme_key,
-				"red")));
+				"red"))).resolved(isSystemNightMode());
+	}
+
+	public static boolean isSystemNightMode() {
+		if(appContext == null) {
+			return false;
+		}
+		return (appContext.getResources().getConfiguration().uiMode
+				& Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 	}
 
 	public enum AppearanceNavbarColour {

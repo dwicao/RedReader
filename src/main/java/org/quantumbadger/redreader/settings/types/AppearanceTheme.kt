@@ -26,6 +26,12 @@ enum class AppearanceTheme(
 	val colorPrimary: Color,
 	val colorPrimaryDark: Color,
 ) : SerializableEnum<AppearanceTheme> {
+	AUTO(
+		stringValue = "auto",
+		lightness = ThemeLightness.Light,
+		colorPrimary = Color(0x4c, 0xaf, 0x50),
+		colorPrimaryDark = Color(0x38, 0x8e, 0x3c)
+	),
 	RED(
 		stringValue = "red",
 		lightness = ThemeLightness.Light,
@@ -80,6 +86,22 @@ enum class AppearanceTheme(
 		colorPrimary = Color(0xCC, 0xCC, 0xCC),
 		colorPrimaryDark = Color.Black
 	);
+
+	/**
+	 * Resolves [AUTO] to a concrete theme based on the system night mode state.
+	 * Any other theme is returned unchanged, so this is safe to call on every
+	 * theme lookup.
+	 */
+	fun resolved(systemNightMode: Boolean): AppearanceTheme =
+		if(this == AUTO) {
+			if(systemNightMode) {
+				NIGHT
+			} else {
+				RED
+			}
+		} else {
+			this
+		}
 
 	companion object {
 		val settingSerializer = EnumSettingSerializer(AppearanceTheme.entries)

@@ -58,6 +58,7 @@ import org.quantumbadger.redreader.reddit.APIResponseHandler.ActionResponseHandl
 import org.quantumbadger.redreader.reddit.RedditAPI
 import org.quantumbadger.redreader.reddit.RedditAPI.RedditAction
 import org.quantumbadger.redreader.reddit.api.RedditPostActions.ActionDescriptionPair.Companion.from
+import org.quantumbadger.redreader.reddit.prepared.FavouritePostStore
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager
 import org.quantumbadger.redreader.reddit.prepared.RedditPreparedPost
 import org.quantumbadger.redreader.reddit.things.InvalidSubredditNameException
@@ -112,7 +113,8 @@ object RedditPostActions {
 		UNSUBSCRIBE(R.string.action_unsubscribe_subreddit),
 		CROSSPOST_ORIGIN(R.string.action_crosspost_origin),
 		CUSTOM_SUBSCRIBE(R.string.action_subscribe_subreddit),
-		CUSTOM_UNSUBSCRIBE(R.string.action_unsubscribe_subreddit)
+		CUSTOM_UNSUBSCRIBE(R.string.action_unsubscribe_subreddit),
+		FAVOURITE(R.string.action_favourite)
 
 	}
 
@@ -362,6 +364,20 @@ object RedditPostActions {
 			Action.UNHIDE -> action(post, activity, RedditAPI.ACTION_UNHIDE)
 			Action.MARK_READ -> post.markAsRead(activity, true)
 			Action.MARK_UNREAD -> post.markAsRead(activity, false)
+			Action.FAVOURITE -> {
+				val nowFavourite = FavouritePostStore.toggleFavourite(
+					activity,
+					post.src.src
+				)
+				General.quickToast(
+					activity,
+					if (nowFavourite) {
+						R.string.favourite_added
+					} else {
+						R.string.favourite_removed
+					}
+				)
+			}
 			Action.EDIT -> {
 				val editIntent = Intent(activity, CommentEditActivity::class.java)
 				editIntent.putExtra("commentIdAndType", post.src.idAndType)
@@ -739,14 +755,16 @@ object RedditPostActions {
 				}
 			}
 		}
-		if (itemPref.contains(Action.COMMENTS)) {
+		if (itemPref.contains(Action.FAVOURITE)) {
 			menu.add(
 				RPVMenuItem(
-					String.format(
-						activity.getText(R.string.action_comments_with_count).toString(),
-						post.src.src.num_comments
-					),
-					Action.COMMENTS
+					activity,
+					if (FavouritePostStore.isFavourite(activity, post.src.idAlone)) {
+						R.string.action_unfavourite
+					} else {
+						R.string.action_favourite
+					},
+					Action.FAVOURITE
 				)
 			)
 		}

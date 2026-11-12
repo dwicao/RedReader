@@ -71,6 +71,7 @@ public class MainMenuFragment extends RRFragment implements
 	public static final int MENU_MENU_ACTION_SENT_MESSAGES = 13;
 	public static final int MENU_MENU_ACTION_FIND_SUBREDDIT = 14;
 	public static final int MENU_MENU_ACTION_CUSTOM_SUBREDDITS = 15;
+	public static final int MENU_MENU_ACTION_FAVOURITES = 16;
 
 	@IntDef({
 			MENU_MENU_ACTION_FRONTPAGE,
@@ -88,7 +89,8 @@ public class MainMenuFragment extends RRFragment implements
 			MENU_MENU_ACTION_POPULAR,
 			MENU_MENU_ACTION_SENT_MESSAGES,
 			MENU_MENU_ACTION_FIND_SUBREDDIT,
-			MENU_MENU_ACTION_CUSTOM_SUBREDDITS})
+			MENU_MENU_ACTION_CUSTOM_SUBREDDITS,
+			MENU_MENU_ACTION_FAVOURITES})
 	@Retention(RetentionPolicy.SOURCE)
 	public @interface MainMenuAction {
 	}

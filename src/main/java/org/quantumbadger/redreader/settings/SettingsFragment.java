@@ -68,6 +68,7 @@ import org.quantumbadger.redreader.http.okhttp.DnsProviders;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
+import org.quantumbadger.redreader.update.AppUpdater;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -338,6 +339,8 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 				findPreference(getString(R.string.pref_about_version_key));
 		final Preference changelogPref =
 				findPreference(getString(R.string.pref_about_changelog_key));
+		final Preference checkUpdatePref =
+				findPreference(getString(R.string.pref_about_check_update_key));
 		final Preference torPref =
 				findPreference(getString(R.string.pref_network_tor_key));
 		final Preference licensePref =
@@ -370,6 +373,17 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 			changelogPref.setOnPreferenceClickListener(preference -> {
 				final Intent intent = new Intent(context, ChangelogActivity.class);
 				context.startActivity(intent);
+				return true;
+			});
+		}
+
+		if(checkUpdatePref != null) {
+			checkUpdatePref.setOnPreferenceClickListener(preference -> {
+				final BaseActivity activity = (BaseActivity)getActivity();
+				if(activity == null) {
+					return true;
+				}
+				AppUpdater.checkForUpdatesManual(activity);
 				return true;
 			});
 		}

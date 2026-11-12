@@ -52,6 +52,58 @@ object AppUpdater {
 
 	private val sCheckStarted = AtomicBoolean(false)
 
+	enum class ManualCheckOutcome {
+		UPDATE_AVAILABLE,
+		UP_TO_DATE,
+		FAILED
+	}
+
+	fun decideManualOutcome(
+		info: AppUpdateInfo?,
+		installedCode: Int?
+	): ManualCheckOutcome {
+		if(info == null || installedCode == null) {
+			return ManualCheckOutcome.FAILED
+		}
+
+		return if(info.isNewerThan(installedCode)) {
+			ManualCheckOutcome.UPDATE_AVAILABLE
+		} else {
+			ManualCheckOutcome.UP_TO_DATE
+		}
+	}
+
+	@JvmStatic
+	fun checkForUpdatesManual(activity: AppCompatActivity) {
+
+		Thread {
+			val info = try {
+				fetchUpdateInfo()
+			} catch(e: Exception) {
+				Log.i(TAG, "Manual update check failed", e)
+				null
+			}
+
+			val installedCode = try {
+				RedReader.getInstance(activity).packageInfo.versionCode
+			} catch(e: Exception) {
+				Log.i(TAG, "Could not read installed version", e)
+				null
+			}
+
+			when(decideManualOutcome(info, installedCode)) {
+				ManualCheckOutcome.UPDATE_AVAILABLE ->
+					AndroidCommon.runOnUiThread { showUpdateDialog(activity, info!!) }
+				ManualCheckOutcome.UP_TO_DATE -> AndroidCommon.runOnUiThread {
+					General.quickToast(activity, R.string.update_check_up_to_date)
+				}
+				ManualCheckOutcome.FAILED -> AndroidCommon.runOnUiThread {
+					General.quickToast(activity, R.string.update_check_failed)
+				}
+			}
+		}.start()
+	}
+
 	@JvmStatic
 	fun checkForUpdates(activity: AppCompatActivity) {
 

@@ -157,6 +157,9 @@
 	<string name="mainmenu_subscribed_posts">Subscribed Posts</string>
     <string name="mainmenu_all">All Posts</string>
     <string name="mainmenu_custom">Custom Subreddit</string>
+    <string name="mainmenu_favourites">Favourite posts</string>
+    <string name="favourites_title">Favourite posts</string>
+    <string name="favourites_empty">No favourite posts yet.\nLong-press a post and choose Favourite to add it here.</string>
     <string name="mainmenu_custom_invalid_name">Invalid subreddit name.</string>
     <string name="mainmenu_saved">Saved Posts</string>
     <string name="mainmenu_hidden">Hidden Posts</string>
@@ -229,6 +232,10 @@
     <string name="action_upvote_remove">Remove Upvote</string>
     <string name="action_downvote_remove">Remove Downvote</string>
     <string name="action_save">Save</string>
+    <string name="action_favourite">Favourite</string>
+    <string name="action_unfavourite">Unfavourite</string>
+    <string name="favourite_added">Added to favourites</string>
+    <string name="favourite_removed">Removed from favourites</string>
     <string name="action_hide">Hide</string>
     <string name="action_unsave">Unsave</string>
     <string name="action_unhide">Unhide</string>
@@ -414,6 +421,7 @@
     <string name="theme_name_ltblue">Light Blue</string>
     <string name="theme_name_orange">Orange</string>
     <string name="theme_name_gray">Gray</string>
+    <string name="theme_name_auto">Auto (follow system)</string>
 
     <string name="time_1hr">1 hour</string>
     <string name="time_6hr">6 hours</string>
@@ -476,6 +484,10 @@
     <string name="pref_about_version_title">Version</string>
 
     <string name="pref_about_changelog_key" translatable="false">pref_about_changelog</string>
+    <string name="pref_about_check_update_key" translatable="false">pref_about_check_update</string>
+    <string name="pref_about_check_update_title">Check for updates</string>
+    <string name="update_check_up_to_date">RedReader is up to date</string>
+    <string name="update_check_failed">Could not check for updates</string>
     <string name="prefs_category_about">About</string>
 
     <!-- 2013-06-07 -->
