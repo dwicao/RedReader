@@ -1,3 +1,8 @@
+148/1.43
+Favourite posts show the full post subtitle (flair, age, author, subreddit, domain)
+Favourite post rows have upvote and comment count buttons
+Favourite posts are included in preferences backup and restore
+
 147/1.42
 Download progress now shows MB downloaded out of total MB
 "What's new" dialog updated with all recent fork changes

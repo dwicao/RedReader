@@ -78,4 +78,14 @@ class FavouritePostStoreTest {
 			emptyMap<String, String>(),
 			FavouritePostStore.deserializeStore("{not json"))
 	}
+
+	@Test
+	fun scoreFormatsCompactly() {
+		assertEquals("42", FavouritePostStore.formatScoreCompact(42))
+		assertEquals("1.5K", FavouritePostStore.formatScoreCompact(1500))
+		assertEquals("23.6K", FavouritePostStore.formatScoreCompact(23567))
+		assertEquals("1.2M", FavouritePostStore.formatScoreCompact(1234567))
+		assertEquals("1M", FavouritePostStore.formatScoreCompact(999999))
+		assertEquals("-2.5K", FavouritePostStore.formatScoreCompact(-2500))
+	}
 }

@@ -29,6 +29,7 @@ import org.quantumbadger.redreader.activities.BugReportActivity;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.receivers.announcements.AnnouncementDownloader;
+import org.quantumbadger.redreader.reddit.prepared.FavouritePostStore;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -57,9 +58,10 @@ public final class PrefsBackup {
 	@NonNull private static final String FIELD_IS_ALPHA = "is_alpha";
 	@NonNull private static final String FIELD_TIMESTAMP_UTC = "timestamp_utc";
 	@NonNull private static final String FIELD_PREFS = "prefs";
+	@NonNull private static final String FIELD_FAVOURITES = "favourites";
 
 	@NonNull private static final String FILE_TYPE = "redreader_prefs_backup";
-	private static final int FILE_VERSION = 1;
+	private static final int FILE_VERSION = 2;
 
 	@NonNull private static final HashSet<String> IGNORED_PREFS = new HashSet<>();
 
@@ -107,6 +109,9 @@ public final class PrefsBackup {
 			map.put(FIELD_IS_ALPHA, General.isAlpha());
 			map.put(FIELD_TIMESTAMP_UTC, TimestampUTC.now().toUtcMs());
 			map.put(FIELD_PREFS, prefMap);
+			map.put(
+					FIELD_FAVOURITES,
+					FavouritePostStore.INSTANCE.exportStore(activity));
 
 			final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
@@ -286,6 +291,15 @@ public final class PrefsBackup {
 				final long timestampUtc = root.getRequiredLong(FIELD_TIMESTAMP_UTC);
 				final Map<?, ?> restorePrefs = root.getRequiredMap(FIELD_PREFS);
 
+				Object restoreFavourites = null;
+				try {
+					restoreFavourites = root.getRequired(FIELD_FAVOURITES);
+				} catch(final IOException e) {
+					Log.i(TAG, "Backup has no favourites field, skipping");
+				}
+
+				final Object favouritesToRestore = restoreFavourites;
+
 				Log.i(TAG, "Backup loaded: type="
 						+ type
 						+ ", fileVersion="
@@ -403,6 +417,14 @@ public final class PrefsBackup {
 
 						Log.i(TAG, "Restore complete");
 					});
+
+					if(favouritesToRestore instanceof String) {
+						Log.i(TAG, "Restoring favourites");
+						FavouritePostStore.INSTANCE.importStore(
+								activity,
+								(String)favouritesToRestore);
+					}
+
 					onSuccess.run();
 				};
 

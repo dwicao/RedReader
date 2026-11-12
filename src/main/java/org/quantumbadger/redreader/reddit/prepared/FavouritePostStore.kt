@@ -88,6 +88,52 @@ object FavouritePostStore {
 	fun getFavourites(context: Context): List<RedditPost> =
 		readStore(context).values.mapNotNull { deserializePost(it) }.reversed()
 
+	@Synchronized
+	fun exportStore(context: Context): String {
+		val file = storeFile(context)
+		if(!file.exists()) {
+			return "{}"
+		}
+		return try {
+			val raw = file.readText()
+			deserializeStore(raw)
+			raw
+		} catch(e: Exception) {
+			"{}"
+		}
+	}
+
+	@Synchronized
+	fun importStore(context: Context, raw: String) {
+		writeStore(context, deserializeStore(raw))
+	}
+
+	fun formatScoreCompact(score: Int): String {
+		val negative = score < 0
+		val absolute = Math.abs(score.toLong())
+
+		val result = if(absolute >= 1_000_000L) {
+			formatCompact(absolute / 1_000_000.0, "M")
+		} else if(absolute >= 1_000L) {
+			val compact = formatCompact(absolute / 1_000.0, "K")
+			if(compact == "1000K") "1M" else compact
+		} else {
+			absolute.toString()
+		}
+
+		return if(negative) "-$result" else result
+	}
+
+	private fun formatCompact(value: Double, suffix: String): String {
+		val tenths = Math.round(value * 10.0)
+
+		return if(tenths % 10 == 0L) {
+			"${tenths / 10}$suffix"
+		} else {
+			"${tenths / 10.0}$suffix"
+		}
+	}
+
 	private fun storeFile(context: Context): File = File(context.filesDir, FILE_NAME)
 
 	private fun readStore(context: Context): Map<String, String> {
