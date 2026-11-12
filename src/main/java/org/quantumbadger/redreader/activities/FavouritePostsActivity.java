@@ -45,8 +45,6 @@ import java.util.Locale;
 
 public class FavouritePostsActivity extends ViewsBaseActivity {
 
-	private final List<RedditParsedPost> mPosts = new ArrayList<>();
-	private RecyclerView.Adapter<?> mAdapter;
 	private TextView mEmptyView;
 	private RecyclerView mRecyclerView;
 
@@ -76,10 +74,25 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 		mRecyclerView = new RecyclerView(this);
 		mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-		mAdapter = new RecyclerView.Adapter<FavouriteViewHolder>() {
-			@NonNull
-			@Override
-			public FavouriteViewHolder onCreateViewHolder(
+		mRecyclerView.setAdapter(new FavouriteAdapter(new ArrayList<>()));
+
+		root.addView(mEmptyView);
+		root.addView(mRecyclerView);
+
+		setBaseActivityListing(root);
+	}
+
+	private class FavouriteAdapter extends RecyclerView.Adapter<FavouriteViewHolder> {
+
+		private final List<RedditParsedPost> posts;
+
+		FavouriteAdapter(final List<RedditParsedPost> posts) {
+			this.posts = posts;
+		}
+
+		@NonNull
+		@Override
+		public FavouriteViewHolder onCreateViewHolder(
 					@NonNull final ViewGroup parent,
 					final int viewType) {
 
@@ -110,10 +123,7 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 					@NonNull final FavouriteViewHolder holder,
 					final int position) {
 
-				final RedditParsedPost post;
-				synchronized(mPosts) {
-					post = mPosts.get(position);
-				}
+				final RedditParsedPost post = posts.get(position);
 
 				holder.title.setText(post.getTitle());
 
@@ -148,18 +158,8 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 
 			@Override
 			public int getItemCount() {
-				synchronized(mPosts) {
-					return mPosts.size();
-				}
+				return posts.size();
 			}
-		};
-
-		mRecyclerView.setAdapter(mAdapter);
-
-		root.addView(mEmptyView);
-		root.addView(mRecyclerView);
-
-		setBaseActivityListing(root);
 	}
 
 	@Override
@@ -175,14 +175,7 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 			posts.add(new RedditParsedPost(this, raw, false));
 		}
 
-		synchronized(mPosts) {
-			mPosts.clear();
-			mPosts.addAll(posts);
-		}
-
-		if(mAdapter != null) {
-			mAdapter.notifyDataSetChanged();
-		}
+		mRecyclerView.setAdapter(new FavouriteAdapter(posts));
 
 		mEmptyView.setVisibility(posts.isEmpty() ? View.VISIBLE : View.GONE);
 		mRecyclerView.setVisibility(posts.isEmpty() ? View.GONE : View.VISIBLE);
