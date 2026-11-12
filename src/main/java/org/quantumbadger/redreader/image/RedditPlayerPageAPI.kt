@@ -62,6 +62,14 @@ object RedditPlayerPageAPI {
 		return LinkHandler.getRedditPlayerPageLinkId(playerPageUrl)
 	}
 
+	fun playerVideoId(playerPageUrl: UriString): String? {
+		return LinkHandler.getRedditPlayerPageVideoId(playerPageUrl)
+	}
+
+	fun oldRedditCommentsUrl(linkId: String): UriString {
+		return UriString("https://old.reddit.com/comments/" + linkId + "/")
+	}
+
 	fun extractVRedditId(html: String): String? {
 
 		// Video URLs are often backslash-escaped inside embedded JSON blobs.
@@ -116,21 +124,106 @@ object RedditPlayerPageAPI {
 		priority: Priority,
 		listener: GetImageInfoListener
 	) {
+		tryDirectVideoId(context, playerPageUrl, priority, listener)
+	}
+
+	private fun tryDirectVideoId(
+		context: Context,
+		playerPageUrl: UriString,
+		priority: Priority,
+		listener: GetImageInfoListener
+	) {
+		val directId = playerVideoId(playerPageUrl)
+
+		if(directId == null) {
+			tryPostApi(context, playerPageUrl, priority, listener)
+			return
+		}
+
+		// The /video/ segment is often the v.redd.it id itself: no page
+		// fetch needed at all. On failure fall through to the other methods.
+		RedditVideosAPI.getImageInfo(
+			context,
+			directId,
+			priority,
+			object : GetImageInfoListener {
+				override fun onSuccess(info: ImageInfo) {
+					listener.onSuccess(info)
+				}
+
+				override fun onFailure(error: RRError) {
+					tryPostApi(context, playerPageUrl, priority, listener)
+				}
+
+				override fun onNotAnImage() {
+					tryPostApi(context, playerPageUrl, priority, listener)
+				}
+			})
+	}
+
+	private fun tryPostApi(
+		context: Context,
+		playerPageUrl: UriString,
+		priority: Priority,
+		listener: GetImageInfoListener
+	) {
 		val linkId = playerLinkId(playerPageUrl)
 
-		if(linkId != null) {
-			fetchApiVideoId(context, linkId, priority, playerPageUrl, listener)
-		} else {
-			fetchHtmlVideoId(context, playerPageUrl, priority, listener)
+		if(linkId == null) {
+			tryOldRedditPage(context, null, playerPageUrl, priority, listener)
+			return
 		}
+
+		fetchApiVideoId(context, linkId, priority,
+			onResult = { videoId ->
+				if(videoId == null) {
+					tryOldRedditPage(context, linkId, playerPageUrl, priority, listener)
+				} else {
+					RedditVideosAPI.getImageInfo(context, videoId, priority, listener)
+				}
+			},
+			onError = {
+				tryOldRedditPage(context, linkId, playerPageUrl, priority, listener)
+			})
+	}
+
+	private fun tryOldRedditPage(
+		context: Context,
+		linkId: String?,
+		playerPageUrl: UriString,
+		priority: Priority,
+		listener: GetImageInfoListener
+	) {
+		if(linkId == null) {
+			fetchHtmlVideoId(context, playerPageUrl, priority, listener, true)
+			return
+		}
+
+		fetchHtmlVideoId(
+			context,
+			oldRedditCommentsUrl(linkId),
+			priority,
+			object : GetImageInfoListener {
+				override fun onSuccess(info: ImageInfo) {
+					listener.onSuccess(info)
+				}
+
+				override fun onFailure(error: RRError) {
+					fetchHtmlVideoId(context, playerPageUrl, priority, listener, true)
+				}
+
+				override fun onNotAnImage() {
+					fetchHtmlVideoId(context, playerPageUrl, priority, listener, true)
+				}
+			})
 	}
 
 	private fun fetchApiVideoId(
 		context: Context,
 		linkId: String,
 		priority: Priority,
-		playerPageUrl: UriString,
-		listener: GetImageInfoListener
+		onResult: (String?) -> Unit,
+		onError: () -> Unit
 	) {
 		val apiUrl = UriString(Constants.Reddit.getUri("/by_id/t3_" + linkId).value)
 
@@ -157,54 +250,39 @@ object RedditPlayerPageAPI {
 							stream.create().use(::readWholeStreamAsUTF8)
 						} catch(e: IOException) {
 							Log.e(TAG, "Got exception", e)
-							listener.onFailure(
-								getGeneralErrorForFailure(
-									context,
-									CacheRequest.RequestFailureType.STORAGE,
-									e,
-									null,
-									apiUrl,
-									FailedRequestBody.from(stream)))
+							onError()
 							return
 						}
 
-						val videoId = extractApiVideoId(json)
-
-						if(videoId == null) {
-							// Not a video post (or an id format the API
-							// doesn't know): fall back to scraping the
-							// player page itself.
-							fetchHtmlVideoId(context, playerPageUrl, priority, listener)
-							return
-						}
-
-						RedditVideosAPI.getImageInfo(context, videoId, priority, listener)
+						onResult(extractApiVideoId(json))
 					}
 
 					override fun onFailure(error: RRError) {
-						// The API lookup failed (e.g. deleted post): fall
-						// back to scraping the player page itself.
-						fetchHtmlVideoId(context, playerPageUrl, priority, listener)
+						onError()
 					}
 				}))
 	}
 
 	private fun fetchHtmlVideoId(
 		context: Context,
-		playerPageUrl: UriString,
+		pageUrl: UriString,
 		priority: Priority,
-		listener: GetImageInfoListener
+		listener: GetImageInfoListener,
+		preferWwwHost: Boolean = false
 	) {
-
 		// The player page is served from www.reddit.com regardless of which
 		// reddit mirror the link was copied from.
-		val normalized = LinkHandler.convertAndNormalizeUri(playerPageUrl)
-		val fetchUrl = UriString(
-			normalized.buildUpon().encodedAuthority("www.reddit.com").build().toString())
+		val fetchUrl = if(preferWwwHost) {
+			val normalized = LinkHandler.convertAndNormalizeUri(pageUrl)
+			UriString(
+				normalized.buildUpon().encodedAuthority("www.reddit.com").build().toString())
+		} else {
+			pageUrl
+		}
 
 		CacheManager.getInstance(context).makeRequest(
 			CacheRequest(
-				fetchUrl,
+				pageUrl,
 				RedditAccountManager.getAnon(),
 				null,
 				priority,
@@ -231,7 +309,7 @@ object RedditPlayerPageAPI {
 									CacheRequest.RequestFailureType.STORAGE,
 									e,
 									null,
-									fetchUrl,
+									pageUrl,
 									FailedRequestBody.from(stream)))
 							return
 						}
@@ -250,7 +328,7 @@ object RedditPlayerPageAPI {
 									CacheRequest.RequestFailureType.PARSE,
 									null,
 									null,
-									fetchUrl,
+									pageUrl,
 									Optional.of(FailedRequestBody(html))))
 							return
 						}

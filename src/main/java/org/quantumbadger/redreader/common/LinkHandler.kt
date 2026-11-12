@@ -632,6 +632,18 @@ object LinkHandler {
 		return null
 	}
 
+	@JvmStatic
+	fun getRedditPlayerPageVideoId(url: UriString): String? {
+		val matcher = redditPlayerPagePattern.matcher(url.value)
+		if(matcher.find()) {
+			val videoId = matcher.group(2)
+			if(videoId != null && videoId.length > 3) {
+				return videoId
+			}
+		}
+		return null
+	}
+
 	// The compact embedded player, intended for use inside a WebView -- unlike
 	// the full site, this doesn't show a cookie banner or other page furniture.
 	// The RedGifs API returns this link in the "urls.html" field, but its format

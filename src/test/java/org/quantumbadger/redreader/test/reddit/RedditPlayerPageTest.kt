@@ -102,6 +102,25 @@ class RedditPlayerPageTest {
 	}
 
 	@Test
+	fun playerVideoIdIsExtracted() {
+		assertEquals(
+			"def456789",
+			RedditPlayerPageAPI.playerVideoId(UriString(
+				"https://www.reddit.com/link/abc123/video/def456789/player")))
+		assertNull(RedditPlayerPageAPI.playerVideoId(UriString(
+			"https://www.reddit.com/link/abc123/video/ab/player")))
+		assertNull(RedditPlayerPageAPI.playerVideoId(UriString(
+			"https://www.reddit.com/r/videos/comments/abc123/title_here/")))
+	}
+
+	@Test
+	fun oldRedditCommentsUrlIsBuilt() {
+		assertEquals(
+			"https://old.reddit.com/comments/abc123/",
+			RedditPlayerPageAPI.oldRedditCommentsUrl("abc123").value)
+	}
+
+	@Test
 	fun playerLinkIdIsExtracted() {
 		assertEquals(
 			"abc123",
