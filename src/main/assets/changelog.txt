@@ -1,3 +1,6 @@
+150/1.45
+Option to show images and GIFs inline in comments, including GIFs from Giphy (Settings > Images/Video)
+
 149/1.44
 Source code link in Settings > About points to the fork repository
 Settings, changelog, and favourite screens follow the system light/dark theme

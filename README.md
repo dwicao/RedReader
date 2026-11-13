@@ -96,6 +96,12 @@ Added in this fork:
 * **Reddit player links play in-app** — `reddit.com/.../player` links in
     comments resolve via the API (with HTML fallback, and without logging in)
     and play in the built-in player instead of bouncing to an external browser.
+* **Inline images and GIFs in comments** — an opt-in setting (*Settings >
+    Images/Video > Inline images in comments*) shows images and GIFs attached to
+    a comment in its body instead of as a link, similar to the official site.
+    GIFs show their first frame with a badge, the NSFW and spoiler preview
+    settings also apply, and an optional extra setting loads Giphy GIFs
+    directly from Giphy's CDN.
 
 **Performance**
 
