@@ -18,6 +18,7 @@
 package org.quantumbadger.redreader.settings.types
 
 import androidx.compose.ui.graphics.Color
+import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.compose.theme.Colors
 
 enum class AppearanceTheme(
@@ -105,6 +106,18 @@ enum class AppearanceTheme(
 
 	companion object {
 		val settingSerializer = EnumSettingSerializer(AppearanceTheme.entries)
+
+		/**
+		 * The settings-screen theme matching the given night mode state.
+		 * Kept as a pure function so the mapping is unit-testable.
+		 */
+		@JvmStatic
+		fun settingsStyleRes(nightMode: Boolean): Int =
+			if(nightMode) {
+				R.style.RR_Settings
+			} else {
+				R.style.RR_Settings_Light
+			}
 	}
 }
 

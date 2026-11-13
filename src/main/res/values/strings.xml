@@ -2005,7 +2005,7 @@
 
 	<string name="pref_about_github_key" translatable="false">pref_about_github</string>
 	<string name="pref_about_github_title">Source code</string>
-	<string name="pref_about_github_url" translatable="false">https://github.com/QuantumBadger/RedReader</string>
+	<string name="pref_about_github_url" translatable="false">https://github.com/dwicao/RedReader</string>
 
 	<!-- 2026-08-22 -->
 	<!--

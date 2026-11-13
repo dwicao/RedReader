@@ -389,7 +389,7 @@ public final class PrefsUtility {
 	}
 
 	public static void applySettingsTheme(@NonNull final Activity activity) {
-		activity.setTheme(R.style.RR_Settings);
+		activity.setTheme(AppearanceTheme.settingsStyleRes(isNightMode()));
 	}
 
 	@NonNull

@@ -19,6 +19,7 @@ package org.quantumbadger.redreader.test.settings
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.settings.types.AppearanceTheme
 
 class AppearanceThemeTest {
@@ -31,6 +32,16 @@ class AppearanceThemeTest {
 	@Test
 	fun autoResolvesToRedWhenSystemDay() {
 		assertEquals(AppearanceTheme.RED, AppearanceTheme.AUTO.resolved(false))
+	}
+
+	@Test
+	fun settingsThemeFollowsNightMode() {
+		assertEquals(
+			R.style.RR_Settings,
+			AppearanceTheme.settingsStyleRes(true))
+		assertEquals(
+			R.style.RR_Settings_Light,
+			AppearanceTheme.settingsStyleRes(false))
 	}
 
 	@Test

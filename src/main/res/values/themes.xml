@@ -313,6 +313,25 @@
 		<item name="textAppearanceSmallPopupMenu">@style/RR.PopupMenu.ItemText</item>
 	</style>
 
+	<style name="RR.Settings.Light" parent="Theme.Material3.Light.NoActionBar">
+
+		<item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+
+		<item name="colorPrimary">#555555</item>
+		<item name="colorPrimaryDark">#555555</item>
+
+		<item name="colorOnPrimary">#FFFFFF</item>
+
+		<item name="colorAccent">#007070</item>
+		<item name="rrActionBarCol">#555555</item>
+		<item name="android:windowBackground">@color/lightWindowBackground</item>
+
+		<item name="rrActionBarPopupThemeStyle">@style/RR.PopupTheme.Light</item>
+		<item name="rrPopupBackgroundCol">#FFFFFF</item>
+		<item name="textAppearanceLargePopupMenu">@style/RR.PopupMenu.ItemText</item>
+		<item name="textAppearanceSmallPopupMenu">@style/RR.PopupMenu.ItemText</item>
+	</style>
+
     <style name="RR.Startup" parent="RR.Dark">
     </style>
 

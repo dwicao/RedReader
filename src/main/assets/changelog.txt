@@ -1,3 +1,7 @@
+149/1.44
+Source code link in Settings > About points to the fork repository
+Settings, changelog, and favourite screens follow the system light/dark theme
+
 148/1.43
 Favourite posts show the full post subtitle (flair, age, author, subreddit, domain)
 Favourite post rows have upvote and comment count buttons
