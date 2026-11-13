@@ -74,6 +74,28 @@ Added in this fork:
     such as `a+b+c+askreddit` (or `/r/a+b+c`, or a full URL), long-press a post
     to subscribe or unsubscribe its subreddit directly, and long-press the menu
     entry to edit the list.
+* **Favourite posts** — long-press any post and choose Favourite (it replaces
+    the redundant View Comments entry), then open everything favourited from the
+    Favourite posts entry below Custom Subreddit on the home screen. The list
+    offers list, list-with-thumbnails, and 1–4 column grid views, a content-type
+    filter (All, Image, Video, Link, Text), the full post subtitle (flair, age,
+    author, subreddit, domain), and upvote/comment buttons; long-press a
+    favourite to remove it (with confirmation).
+* **Auto theme** — a new Auto (follow system) option switches between the light
+    Red theme and the Night theme with the system, and the settings, changelog,
+    favourites, and terms screens follow the light/dark theme too instead of
+    always rendering dark.
+* **Manual update check** — *Settings > About > Check for updates* reuses the
+    in-app updater and reports whether the app is up to date.
+* **Custom DNS** — *Settings > Network* can route the app's traffic through one
+    of several well-known DNS providers or a custom DNS URL.
+* **In-app updates** — the app checks `version.json` on GitHub, downloads the
+    release APK with a progress bar showing MB downloaded out of total MB,
+    verifies size and SHA-256, then installs it. CI only publishes a new
+    `version.json` after the release APK is actually downloadable.
+* **Reddit player links play in-app** — `reddit.com/.../player` links in
+    comments resolve via the API (with HTML fallback, and without logging in)
+    and play in the built-in player instead of bouncing to an external browser.
 
 **Performance**
 
@@ -120,6 +142,18 @@ Added in this fork:
     `layout_marginLeft` in the grid layout), and CI now uploads the release APK
     as an artifact and guards the release build policy so a release cannot
     silently lose minification.
+* **Subreddit search returns results** — searching subreddits used to spin
+    forever without showing anything; it now loads and displays results.
+* **Stale listings recover** — returning to a listing after a long time could
+    end in an End of Cached Data error whose Retry button kept failing; retry
+    now reloads the listing correctly.
+* **Favourites survive backup/restore** — the preferences backup now includes
+    the favourites list (backup format v2; older backups still restore).
+* **Post-update dialog is current** — the changelog shipped in the app now
+    carries this fork's entries, so the "What's new" dialog after an update
+    describes the actual changes instead of old upstream notes.
+* **About points at the fork** — the source code entry in *Settings > About*
+    links to this repository.
 
 
 Downloading
