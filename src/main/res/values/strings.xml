@@ -2069,4 +2069,13 @@
 	<string name="inline_media_description_gif">GIF</string>
 	<!-- Translators: very short label shown on top of animated images in comments -->
 	<string name="inline_media_gif_badge">GIF</string>
+
+	<!-- 2026-11-14 -->
+	<string name="pref_images_inline_comment_media_max_height_key" translatable="false">pref_images_inline_comment_media_max_height</string>
+	<string name="pref_images_inline_comment_media_max_height_title">Max image height</string>
+	<string name="pref_images_inline_comment_media_max_height_none">No limit</string>
+	<string name="pref_images_inline_comment_media_max_height_custom_key" translatable="false">pref_images_inline_comment_media_max_height_custom</string>
+	<string name="pref_images_inline_comment_media_max_height_custom_title">Custom</string>
+	<!-- Translators: message shown in the dialog to set the custom max height of images shown inline in comments. The value is in dp (density-independent pixels). -->
+	<string name="pref_images_inline_comment_media_max_height_custom_dialog_message">Maximum height of images shown inline in comments, in dp</string>
 </resources>

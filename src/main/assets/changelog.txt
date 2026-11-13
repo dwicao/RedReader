@@ -1,3 +1,6 @@
+151/1.46
+Option to set the maximum height of images shown inline in comments, or to remove the limit (Settings > Images/Video)
+
 150/1.45
 Option to show images and GIFs inline in comments, including GIFs from Giphy (Settings > Images/Video)
 

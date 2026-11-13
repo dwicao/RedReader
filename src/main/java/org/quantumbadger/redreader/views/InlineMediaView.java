@@ -20,7 +20,6 @@ package org.quantumbadger.redreader.views;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
@@ -36,6 +35,7 @@ import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
+import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.reddit.prepared.InlineMedia;
 import org.quantumbadger.redreader.reddit.prepared.InlinePreviewLoader;
@@ -48,8 +48,8 @@ import org.quantumbadger.redreader.views.liststatus.ErrorView;
  * <p>The media is displayed at its natural size, treating each of its pixels as one dp, so
  * that small media such as GIFs from Giphy aren't stretched to the full width of the
  * comment. Larger media is scaled down to fit the width of the comment, and to at most
- * {@link #getMaxHeightPx(int)}, so that a single image never takes up so much of the list
- * that it's hard to scroll past.
+ * {@link #getMaxHeightPx(Context)}, so that a single image never takes up so much of the
+ * list that it's hard to scroll past.
  *
  * <p>Tapping opens the media in the same way as tapping the link to it, and long pressing
  * shows the same menu as long pressing the link.
@@ -67,8 +67,6 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 	@Nullable private ErrorView mErrorView;
 	private boolean mFailed;
 
-	private final Rect mWindowVisibleDisplayFrame = new Rect();
-
 	public static int getNaturalWidthPx(
 			@NonNull final Context context,
 			@NonNull final InlineMedia media) {
@@ -77,11 +75,18 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 	}
 
 	/**
-	 * The maximum height, in pixels, which inline media may take up, given the height of the
-	 * area it is displayed in.
+	 * The maximum height, in pixels, which inline media may take up, according to the
+	 * user's preference, or {@link Integer#MAX_VALUE} if there is no limit.
 	 */
-	public static int getMaxHeightPx(final int displayAreaHeightPx) {
-		return Math.max(1, displayAreaHeightPx / 2);
+	public static int getMaxHeightPx(@NonNull final Context context) {
+
+		final int maxHeightDp = PrefsUtility.images_inline_comment_media_max_height_dp();
+
+		if(maxHeightDp == PrefsUtility.INLINE_COMMENT_MEDIA_MAX_HEIGHT_NO_LIMIT) {
+			return Integer.MAX_VALUE;
+		}
+
+		return Math.max(1, General.dpToPixels(context, maxHeightDp));
 	}
 
 	public InlineMediaView(
@@ -284,9 +289,7 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 		int width = Math.max(1, Math.min(naturalWidth, availableWidth));
 		int height = Math.max(1, (int)(((long)width * sourceHeight) / sourceWidth));
 
-		final int maxHeight = getMaxHeightPx(InlinePreviewHolderView.getDisplayAreaHeightPx(
-				this,
-				mWindowVisibleDisplayFrame));
+		final int maxHeight = getMaxHeightPx(getContext());
 
 		if(height > maxHeight) {
 			height = maxHeight;

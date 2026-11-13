@@ -188,6 +188,10 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(
 						R.string.pref_images_inline_comment_media_giphy_key))
 				|| key.equals(context.getString(
+						R.string.pref_images_inline_comment_media_max_height_key))
+				|| key.equals(context.getString(
+						R.string.pref_images_inline_comment_media_max_height_custom_key))
+				|| key.equals(context.getString(
 						R.string.pref_images_inline_image_previews_nsfw_key))
 				|| key.equals(context.getString(
 						R.string.pref_images_inline_image_previews_spoiler_key))
@@ -965,6 +969,49 @@ public final class PrefsUtility {
 		return getBoolean(
 				R.string.pref_images_inline_comment_media_giphy_key,
 				false);
+	}
+
+	/**
+	 * Returned by {@link #images_inline_comment_media_max_height_dp()} when the user has
+	 * chosen to put no limit on the height of images shown inline in comments.
+	 */
+	public static final int INLINE_COMMENT_MEDIA_MAX_HEIGHT_NO_LIMIT = -1;
+
+	public static final int INLINE_COMMENT_MEDIA_MAX_HEIGHT_DEFAULT_DP = 350;
+
+	private static final int INLINE_COMMENT_MEDIA_MAX_HEIGHT_MIN_DP = 10;
+	private static final int INLINE_COMMENT_MEDIA_MAX_HEIGHT_MAX_DP = 10_000;
+
+	/**
+	 * Returns the maximum height of images shown inline in comments, in dp, or
+	 * {@link #INLINE_COMMENT_MEDIA_MAX_HEIGHT_NO_LIMIT} if there is no limit.
+	 */
+	public static int images_inline_comment_media_max_height_dp() {
+		final String value = getString(
+				R.string.pref_images_inline_comment_media_max_height_key,
+				Integer.toString(INLINE_COMMENT_MEDIA_MAX_HEIGHT_DEFAULT_DP));
+
+		if("none".equals(value)) {
+			return INLINE_COMMENT_MEDIA_MAX_HEIGHT_NO_LIMIT;
+		}
+
+		final String raw;
+
+		if("custom".equals(value)) {
+			raw = getString(
+					R.string.pref_images_inline_comment_media_max_height_custom_key,
+					Integer.toString(INLINE_COMMENT_MEDIA_MAX_HEIGHT_DEFAULT_DP));
+		} else {
+			raw = value;
+		}
+
+		try {
+			return Math.max(INLINE_COMMENT_MEDIA_MAX_HEIGHT_MIN_DP,
+					Math.min(INLINE_COMMENT_MEDIA_MAX_HEIGHT_MAX_DP,
+							Integer.parseInt(raw.trim())));
+		} catch(final Throwable e) {
+			return INLINE_COMMENT_MEDIA_MAX_HEIGHT_DEFAULT_DP;
+		}
 	}
 
 	public static boolean images_inline_image_previews_nsfw() {

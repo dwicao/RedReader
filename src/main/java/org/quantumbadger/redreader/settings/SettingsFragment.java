@@ -632,6 +632,53 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		}
 
 		{
+		final ListPreference inlineCommentMediaMaxHeightPref = findPreference(
+				getString(R.string.pref_images_inline_comment_media_max_height_key));
+		final EditTextPreference inlineCommentMediaMaxHeightCustomPref = findPreference(
+				getString(R.string.pref_images_inline_comment_media_max_height_custom_key));
+
+		if(inlineCommentMediaMaxHeightPref != null
+				&& inlineCommentMediaMaxHeightCustomPref != null) {
+
+			final Runnable updateEnabledState = () ->
+					inlineCommentMediaMaxHeightCustomPref.setEnabled(
+							"custom".equals(inlineCommentMediaMaxHeightPref.getValue()));
+
+			final Runnable updateCustomSummary = () ->
+					inlineCommentMediaMaxHeightCustomPref.setSummary(
+							inlineCommentMediaMaxHeightCustomPref.getText() + " dp");
+
+			inlineCommentMediaMaxHeightPref.setOnPreferenceChangeListener(
+					(preference, newValue) -> {
+						final int index =
+								inlineCommentMediaMaxHeightPref.findIndexOfValue((String)newValue);
+						inlineCommentMediaMaxHeightPref.setSummary(
+								inlineCommentMediaMaxHeightPref.getEntries()[index]);
+
+						// Delay this because the preference hasn't taken effect yet
+						AndroidCommon.UI_THREAD_HANDLER.post(updateEnabledState);
+						return true;
+					});
+
+			inlineCommentMediaMaxHeightCustomPref.setOnPreferenceChangeListener(
+					(preference, newValue) -> {
+						inlineCommentMediaMaxHeightCustomPref.setSummary(
+								newValue == null ? "(null)" : newValue + " dp");
+						return true;
+					});
+
+			final int initialIndex = inlineCommentMediaMaxHeightPref.findIndexOfValue(
+					inlineCommentMediaMaxHeightPref.getValue());
+			if(initialIndex >= 0) {
+				inlineCommentMediaMaxHeightPref.setSummary(
+						inlineCommentMediaMaxHeightPref.getEntries()[initialIndex]);
+			}
+			updateCustomSummary.run();
+			updateEnabledState.run();
+		}
+		}
+
+		{
 			final ListPreference sharingDomainPref = findPreference(
 					getString(R.string.pref_behaviour_sharing_domain_key));
 			final Preference shareAsPermalinkPref = findPreference(

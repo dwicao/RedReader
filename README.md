@@ -100,8 +100,9 @@ Added in this fork:
     Images/Video > Inline images in comments*) shows images and GIFs attached to
     a comment in its body instead of as a link, similar to the official site.
     GIFs show their first frame with a badge, the NSFW and spoiler preview
-    settings also apply, and an optional extra setting loads Giphy GIFs
-    directly from Giphy's CDN.
+    settings also apply, an optional extra setting loads Giphy GIFs
+    directly from Giphy's CDN, and the maximum height of an image can be
+    capped (or left unlimited) under *Max image height*.
 
 **Performance**
 

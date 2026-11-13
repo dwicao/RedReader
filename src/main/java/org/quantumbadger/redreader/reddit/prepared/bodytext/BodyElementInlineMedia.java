@@ -110,14 +110,16 @@ public class BodyElementInlineMedia extends BodyElement {
 
 		final int boxWidth = Math.min(MAX_DECODE_WIDTH_PX, displayWidth);
 
-		final int maxBoxHeight = Math.max(1, (int)(
-				((long)InlineMediaView.getMaxHeightPx(windowVisibleDisplayFrame.height())
-						* boxWidth)
-						/ displayWidth));
+		final int naturalBoxHeight = Math.max(1, (int)(
+				((long)mMedia.getHeight() * boxWidth) / mMedia.getWidth()));
 
-		final int boxHeight = Math.max(1, Math.min(
-				maxBoxHeight,
-				(int)(((long)mMedia.getHeight() * boxWidth) / mMedia.getWidth())));
+		final int maxHeightPx = InlineMediaView.getMaxHeightPx(activity);
+
+		final long maxBoxHeight = maxHeightPx == Integer.MAX_VALUE
+				? Integer.MAX_VALUE
+				: Math.max(1, (int)(((long)maxHeightPx * boxWidth) / displayWidth));
+
+		final int boxHeight = Math.max(1, (int)Math.min(naturalBoxHeight, maxBoxHeight));
 
 		return new InlinePreviewLoader.PreviewDetails(
 				mMedia.chooseStill(boxWidth).getUrl(),

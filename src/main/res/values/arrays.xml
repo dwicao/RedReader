@@ -1427,4 +1427,25 @@
 		<item>custom</item>
 	</string-array>
 
+	<!-- 2026-11-14 -->
+
+	<string-array name="pref_images_inline_comment_media_max_height_items">
+		<item>@string/pref_images_inline_comment_media_max_height_none</item>
+		<item>150 dp</item>
+		<item>250 dp</item>
+		<item>350 dp</item>
+		<item>500 dp</item>
+		<item>@string/pref_images_inline_comment_media_max_height_custom_title</item>
+	</string-array>
+
+	<!-- Constants. Do not change. -->
+	<string-array name="pref_images_inline_comment_media_max_height_return">
+		<item>none</item>
+		<item>150</item>
+		<item>250</item>
+		<item>350</item>
+		<item>500</item>
+		<item>custom</item>
+	</string-array>
+
 </resources>

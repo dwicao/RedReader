@@ -33,6 +33,20 @@
 						android:entryValues="@array/list_yes_no_or_wifi_return"
 						android:defaultValue="never"/>
 
+		<ListPreference android:title="@string/pref_images_inline_comment_media_max_height_title"
+						android:key="@string/pref_images_inline_comment_media_max_height_key"
+						android:entries="@array/pref_images_inline_comment_media_max_height_items"
+						android:entryValues="@array/pref_images_inline_comment_media_max_height_return"
+						android:defaultValue="350"/>
+
+		<EditTextPreference android:title="@string/pref_images_inline_comment_media_max_height_custom_title"
+							android:key="@string/pref_images_inline_comment_media_max_height_custom_key"
+							android:summary="@string/pref_images_inline_comment_media_max_height_custom_dialog_message"
+							android:dialogMessage="@string/pref_images_inline_comment_media_max_height_custom_dialog_message"
+							android:inputType="number"
+							android:enabled="false"
+							android:defaultValue="350"/>
+
 		<CheckBoxPreference android:title="@string/pref_images_inline_comment_media_giphy_title"
 							android:key="@string/pref_images_inline_comment_media_giphy_key"
 							android:summary="@string/pref_images_inline_comment_media_giphy_summary"
