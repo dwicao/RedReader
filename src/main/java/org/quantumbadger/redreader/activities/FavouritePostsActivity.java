@@ -44,6 +44,7 @@ import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RedReaderPicasso;
 import org.quantumbadger.redreader.common.StringUtils;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
+import org.quantumbadger.redreader.reddit.DomainPostFilter;
 import org.quantumbadger.redreader.reddit.KeywordPostFilter;
 import org.quantumbadger.redreader.reddit.PostFilter;
 import org.quantumbadger.redreader.reddit.api.RedditPostActions;
@@ -255,7 +256,7 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 					continue;
 				}
 
-				if(KeywordPostFilter.matches(raw)) {
+				if(KeywordPostFilter.matches(raw) || DomainPostFilter.matches(raw)) {
 					continue;
 				}
 

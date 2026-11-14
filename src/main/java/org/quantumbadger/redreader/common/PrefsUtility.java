@@ -172,6 +172,7 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(R.string.pref_behaviour_fling_post_right_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_nsfw_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_keyword_filter_key))
+				|| key.equals(context.getString(R.string.pref_behaviour_domain_filter_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_postcount_key))
 				|| key.equals(context.getString(
 						R.string.pref_behaviour_mark_posts_as_read_on_scroll_key))
@@ -1571,6 +1572,18 @@ public final class PrefsUtility {
 	public static String pref_behaviour_keyword_filter() {
 		return getString(
 				R.string.pref_behaviour_keyword_filter_key,
+				"");
+	}
+
+	/**
+	 * The domain filter, as entered by the user: domains separated by commas or new lines.
+	 * Posts whose link domain matches any term (including subdomains) are hidden. An empty
+	 * string means the filter is off.
+	 */
+	@Nullable
+	public static String pref_behaviour_domain_filter() {
+		return getString(
+				R.string.pref_behaviour_domain_filter_key,
 				"");
 	}
 

@@ -712,6 +712,33 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		}
 
 		{
+		final EditTextPreference domainFilterPref = findPreference(
+				getString(R.string.pref_behaviour_domain_filter_key));
+
+		if(domainFilterPref != null) {
+
+			final Runnable updateDomainFilterSummary = () -> {
+				final String text = domainFilterPref.getText();
+
+				if(text == null || text.trim().isEmpty()) {
+					domainFilterPref.setSummary(
+							R.string.pref_behaviour_domain_filter_summary);
+				} else {
+					domainFilterPref.setSummary(text.trim());
+				}
+			};
+
+			updateDomainFilterSummary.run();
+
+			domainFilterPref.setOnPreferenceChangeListener((preference, newValue) -> {
+				// Delay this because the preference hasn't taken effect yet
+				AndroidCommon.UI_THREAD_HANDLER.post(updateDomainFilterSummary);
+				return true;
+			});
+		}
+		}
+
+		{
 		final CheckBoxPreference hideFewCommentsPref = findPreference(
 				getString(R.string.pref_behaviour_hide_few_comments_key));
 

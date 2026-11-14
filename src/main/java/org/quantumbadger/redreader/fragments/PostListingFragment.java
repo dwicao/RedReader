@@ -75,6 +75,7 @@ import org.quantumbadger.redreader.image.ImageInfo;
 import org.quantumbadger.redreader.io.RequestResponseHandler;
 import org.quantumbadger.redreader.listingcontrollers.CommentListingController;
 import org.quantumbadger.redreader.listingcontrollers.PostListingPaginationPolicy;
+import org.quantumbadger.redreader.reddit.DomainPostFilter;
 import org.quantumbadger.redreader.reddit.KeywordPostFilter;
 import org.quantumbadger.redreader.reddit.PostFilter;
 import org.quantumbadger.redreader.reddit.PostSort;
@@ -936,7 +937,8 @@ public class PostListingFragment extends RRFragment
 		// throttled API round-trips are needed to fill the screen with
 		// matching posts (Reddit defaults to 25, we ask for 100).
 		final UriString requestUrl;
-		if(mPostFilter != PostFilter.ALL || KeywordPostFilter.isEnabled()) {
+		if(mPostFilter != PostFilter.ALL || KeywordPostFilter.isEnabled()
+				|| DomainPostFilter.isEnabled()) {
 			final String urlString = url.value;
 			requestUrl = new UriString(
 					urlString.contains("?")
@@ -1151,7 +1153,9 @@ public class PostListingFragment extends RRFragment
 
 								mAfter = post.getName();
 
-								if(!mPostFilter.matches(post) || KeywordPostFilter.matches(post)) {
+								if(!mPostFilter.matches(post)
+						|| KeywordPostFilter.matches(post)
+						|| DomainPostFilter.matches(post)) {
 									mPostsNotShown = true;
 									continue;
 								}
@@ -1302,7 +1306,8 @@ public class PostListingFragment extends RRFragment
 									@StringRes final int emptyViewText;
 
 									if(mPostFilter != PostFilter.ALL
-										|| KeywordPostFilter.isEnabled()) {
+										|| KeywordPostFilter.isEnabled()
+									|| DomainPostFilter.isEnabled()) {
 										emptyViewText = R.string.no_posts_match_filter;
 									} else if(mPostsNotShown) {
 										if(mPostListingURL.pathType()

@@ -2167,4 +2167,10 @@
 	<string name="pref_behaviour_keyword_filter_summary">Posts containing any of these words in their title, flair or text are hidden. Words are separated by commas or new lines; case-insensitive</string>
 	<!-- Translators: message shown in the dialog to edit the words which posts must not contain -->
 	<string name="pref_behaviour_keyword_filter_dialog_message">One or more words, separated by commas or new lines. Matching is case-insensitive</string>
+	<string name="pref_behaviour_domain_filter_key" translatable="false">pref_behaviour_domain_filter</string>
+	<string name="pref_behaviour_domain_filter_title">Hide posts from these domains</string>
+	<!-- Translators: summary of the setting which hides posts whose link domain matches one of the given domains. Domains are separated by commas or new lines, and the comparison is case-insensitive. -->
+	<string name="pref_behaviour_domain_filter_summary">Posts whose link domain matches one of these are hidden (e.g. twitter.com). Domains are separated by commas or new lines; matches subdomains too</string>
+	<!-- Translators: message shown in the dialog to edit the domains which posts must not link to -->
+	<string name="pref_behaviour_domain_filter_dialog_message">One or more domains, separated by commas or new lines (e.g. twitter.com or x.com). Matching is case-insensitive and matches subdomains</string>
 </resources>
