@@ -256,7 +256,7 @@ public class SubredditSearchQuickLinks extends FlexboxLayout {
 			} else {
 				final String guessed = query.replaceAll("[ \t]+", "_");
 				querySubreddit = guessed.matches("[A-Za-z0-9_]+") ? guessed : null;
-				queryUser = querySubreddit == null && guessed.matches("[A-Za-z0-9_\\-]+") ? guessed : querySubreddit;
+				queryUser = guessed.matches("[A-Za-z0-9_\\-]+") ? guessed : null;
 				queryUrl = new UriString("https://" + query);
 			}
 		}
