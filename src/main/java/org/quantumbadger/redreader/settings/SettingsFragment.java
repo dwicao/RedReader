@@ -984,7 +984,17 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 	}
 
 	private void updateStorageLocationText(final String path) {
-		findPreference(getString(R.string.pref_cache_location_key)).setSummary(path);
+		// The storage location dialog can outlive the fragment: check it's still attached
+		if(!isAdded()) {
+			return;
+		}
+
+		final Preference cacheLocationPref = findPreference(
+				getString(R.string.pref_cache_location_key));
+
+		if(cacheLocationPref != null) {
+			cacheLocationPref.setSummary(path);
+		}
 	}
 
 	private enum CacheType {
