@@ -84,6 +84,32 @@ public class RedditURLParser {
 			}
 		}
 
+		// Reddit mail click-through links wrap the target in a query parameter
+		if("click.redditmail.com".equals(uri.getHost())) {
+			for(final String paramName : new String[] {
+					"url",
+					"u",
+					"redirect",
+					"redirect_url"
+			}) {
+				final String redirect = uri.getQueryParameter(paramName);
+
+				if(redirect != null
+						&& (redirect.startsWith("https://") || redirect.startsWith("http://"))) {
+					return Optional.of(Uri.parse(redirect));
+				}
+			}
+
+			return Optional.empty();
+		}
+
+		// redditmedia.com serves the same pages as reddit.com on a different domain
+		// (e.g. search engines link there)
+		if("redditmedia.com".equals(uri.getHost())
+				|| (uri.getHost() != null && uri.getHost().endsWith(".redditmedia.com"))) {
+			return Optional.of(uri);
+		}
+
 		final String ampPrefix = "/amp/s/amp.reddit.com";
 
 		if((("google.com".equals(uri.getHost())
