@@ -56,6 +56,7 @@ import org.quantumbadger.redreader.cache.downloadstrategy.DownloadStrategyIfNotC
 import org.quantumbadger.redreader.cache.downloadstrategy.DownloadStrategyIfTimestampOutsideBounds;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.PrefsUtility;
+import org.quantumbadger.redreader.common.SavedScrollPositions;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.RRThemeAttributes;
 import org.quantumbadger.redreader.common.TimestampBound;
@@ -68,6 +69,7 @@ import org.quantumbadger.redreader.reddit.api.RedditPostActions;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
 import org.quantumbadger.redreader.reddit.prepared.RedditPreparedPost;
 import org.quantumbadger.redreader.reddit.prepared.RedditRenderableComment;
+import org.quantumbadger.redreader.reddit.url.PostCommentListingURL;
 import org.quantumbadger.redreader.reddit.url.RedditURLParser;
 import org.quantumbadger.redreader.views.AccessibilityActionManager;
 import org.quantumbadger.redreader.views.RedditCommentView;
@@ -102,6 +104,10 @@ public class CommentListingFragment extends RRFragment
 	private RedditPreparedPost mPost = null;
 
 	private boolean mSelfTextVisible = true;
+
+	// Post id for persisting scroll position; null when this isn't a post comments listing
+	private final String mScrollSavePostId;
+	private boolean mScrollAnchorRestored = false;
 
 	private final FilteredCommentListingManager mCommentListingManager;
 
@@ -145,6 +151,20 @@ public class CommentListingFragment extends RRFragment
 
 		mCommentListingManager = new FilteredCommentListingManager(parent, searchString);
 		mAllUrls = urls;
+
+		{
+			String postId = null;
+
+			if(urls != null && !urls.isEmpty()) {
+				final RedditURLParser.RedditURL first = urls.get(0);
+
+				if(first.pathType() == RedditURLParser.POST_COMMENT_LISTING_URL) {
+					postId = ((PostCommentListingURL)first).postId;
+				}
+			}
+
+			mScrollSavePostId = postId;
+		}
 
 		mUrlsToDownload = new LinkedList<>(mAllUrls);
 
@@ -190,6 +210,35 @@ public class CommentListingFragment extends RRFragment
 				(LinearLayoutManager)mRecyclerView.getLayoutManager());
 
 		mRecyclerView.setAdapter(mCommentListingManager.getAdapter());
+
+		if(mScrollSavePostId != null) {
+			final String scrollPostId = mScrollSavePostId;
+
+			mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+				@Override
+				public void onScrollStateChanged(
+						@NonNull final RecyclerView recyclerView,
+						final int newState) {
+
+					if(newState != RecyclerView.SCROLL_STATE_IDLE) {
+						return;
+					}
+
+					final LinearLayoutManager layoutManager =
+							(LinearLayoutManager)mRecyclerView.getLayoutManager();
+					final int pos = layoutManager.findFirstVisibleItemPosition();
+
+					if(pos < 0) {
+						return;
+					}
+
+					final View firstChild = recyclerView.getChildAt(0);
+					final int offset = firstChild != null ? firstChild.getTop() : 0;
+
+					SavedScrollPositions.save(context, scrollPostId, pos, offset);
+				}
+			});
+		}
 		mListingView = recyclerViewManager.getOuterView();
 
 		mRecyclerView.setItemAnimator(null);
@@ -806,6 +855,18 @@ public class CommentListingFragment extends RRFragment
 					0);
 
 			mPreviousFirstVisibleItemPosition = null;
+
+		} else if(mScrollSavePostId != null && !mScrollAnchorRestored) {
+			mScrollAnchorRestored = true;
+
+			final SavedScrollPositions.Position anchor
+					= SavedScrollPositions.load(getContext(), mScrollSavePostId);
+
+			if(anchor != null && layoutManager.getItemCount() > 0) {
+				layoutManager.scrollToPositionWithOffset(
+						Math.min(anchor.position, layoutManager.getItemCount() - 1),
+						anchor.offset);
+			}
 		}
 
 		if(mUrlsToDownload.isEmpty()) {
