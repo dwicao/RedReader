@@ -127,6 +127,13 @@ object LinkHandler {
 		val normalUrl = convertAndNormalizeUri(url)
 		val normalUrlString = UriString(normalUrl.toString())
 
+		// A removed or malformed post URL can be empty, e.g. just "http://". Don't open
+		// the browser with garbage.
+		if (normalUrl.host.isNullOrBlank()) {
+			quickToast(activity, R.string.link_does_not_exist)
+			return
+		}
+
 		if (!forceNoImage && isProbablyAnImage(normalUrlString)) {
 			val intent = Intent(activity, ImageViewActivity::class.java)
 			intent.setData(normalUrl)
