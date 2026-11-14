@@ -1982,6 +1982,23 @@
 	<string name="login_reddit_error_message">There was a problem logging into Reddit. Try again in an different browser?</string>
 
 	<!-- 2026-11-14 -->
+	<string name="error_invalid_number">Invalid number</string>
+	<string name="error_invalid_number_range">Number must be between 0 and 100000</string>
+	<string name="pref_behaviour_hide_few_comments_key" translatable="false">pref_behaviour_hide_few_comments</string>
+	<string name="pref_behaviour_hide_few_comments_title">Hide posts with few comments</string>
+	<string name="pref_behaviour_min_comments_key" translatable="false">pref_behaviour_min_comments</string>
+	<string name="pref_behaviour_min_comments_title">Minimum comments</string>
+	<string name="pref_behaviour_min_comments_dialog_title">Minimum number of comments to show post</string>
+
+	<plurals name="posts_filtered_few_comments">
+		<item quantity="one">%1$d post filtered (fewer than %2$d comments)</item>
+		<item quantity="other">%1$d posts filtered (fewer than %2$d comments)</item>
+	</plurals>
+
+	<plurals name="pref_behaviour_hide_few_comments_summary">
+		<item quantity="one">Minimum %1$d comment</item>
+		<item quantity="other">Minimum %1$d comments</item>
+	</plurals>
 	<string name="pref_behaviour_video_loop_key" translatable="false">pref_behaviour_video_loop</string>
 	<string name="pref_behaviour_video_loop_title">Loop videos</string>
 	<string name="pref_behaviour_video_autoplay_key" translatable="false">pref_behaviour_video_autoplay</string>

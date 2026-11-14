@@ -1081,6 +1081,15 @@ public class PostListingFragment extends RRFragment
 											|| mPostListingURL.asSubredditPostListURL().type
 											== SubredditPostListURL.Type.FRONTPAGE);
 
+							final boolean hideFewComments
+									= PrefsUtility.pref_behaviour_hide_few_comments();
+
+							final int minComments = hideFewComments
+									? PrefsUtility.pref_behaviour_min_comments()
+									: 0;
+
+							final AtomicInteger filteredCommentCount = new AtomicInteger(0);
+
 							// Grab this so we don't have to pull from the prefs every post
 							final HashSet<SubredditCanonicalId> blockedSubreddits
 									= new HashSet<>(PrefsUtility.pref_blocked_subreddits());
@@ -1126,6 +1135,13 @@ public class PostListingFragment extends RRFragment
 
 								if(!mPostFilter.matches(post) || KeywordPostFilter.matches(post)) {
 									mPostsNotShown = true;
+									continue;
+								}
+
+								// Skip adding this post if it has too few comments
+								if(hideFewComments && post.getNum_comments() < minComments) {
+									mPostsNotShown = true;
+									filteredCommentCount.incrementAndGet();
 									continue;
 								}
 
@@ -1283,6 +1299,19 @@ public class PostListingFragment extends RRFragment
 											.setText(emptyViewText);
 
 									mPostListingManager.addViewToItems(emptyView);
+								}
+
+								// Show toast if posts were filtered due to few comments
+								if(firstDownload && filteredCommentCount.get() > 0) {
+									final String message = getContext().getResources()
+											.getQuantityString(
+													R.plurals.posts_filtered_few_comments,
+													filteredCommentCount.get(),
+													filteredCommentCount.get(),
+													minComments);
+
+									Toast.makeText(getContext(), message, Toast.LENGTH_SHORT)
+											.show();
 								}
 
 								onPostsAdded();

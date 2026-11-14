@@ -693,6 +693,46 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		}
 
 		{
+		final CheckBoxPreference hideFewCommentsPref = findPreference(
+				getString(R.string.pref_behaviour_hide_few_comments_key));
+
+		if(hideFewCommentsPref != null) {
+
+			final Runnable updateHideFewCommentsSummary = () -> {
+				if(hideFewCommentsPref.isChecked()) {
+					final int minComments = PrefsUtility.pref_behaviour_min_comments();
+
+					if(context != null) {
+						hideFewCommentsPref.setSummary(context.getResources().getQuantityString(
+								R.plurals.pref_behaviour_hide_few_comments_summary,
+								minComments,
+								minComments));
+					}
+
+				} else {
+					hideFewCommentsPref.setSummary(null);
+				}
+			};
+
+			updateHideFewCommentsSummary.run();
+
+			hideFewCommentsPref.setOnPreferenceChangeListener((preference, newValue) -> {
+				final boolean isChecked = (Boolean) newValue;
+
+				if(isChecked) {
+					// Ask for the minimum comment count; the preference isn't
+					// enabled until the user confirms
+					showMinCommentsDialog(hideFewCommentsPref, updateHideFewCommentsSummary);
+					return false;
+				} else {
+					updateHideFewCommentsSummary.run();
+					return true;
+				}
+			});
+		}
+		}
+
+		{
 		final ListPreference inlineCommentMediaMaxHeightPref = findPreference(
 				getString(R.string.pref_images_inline_comment_media_max_height_key));
 		final EditTextPreference inlineCommentMediaMaxHeightCustomPref = findPreference(
@@ -1060,5 +1100,47 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 			}
 		}.start();
 
+	}
+
+	private void showMinCommentsDialog(
+			@NonNull final CheckBoxPreference preference,
+			@NonNull final Runnable updateSummary) {
+
+		final Context context = getActivity();
+
+		if(context == null) {
+			return;
+		}
+
+		final int currentValue = PrefsUtility.pref_behaviour_min_comments();
+
+		final android.widget.EditText editText = new android.widget.EditText(context);
+		editText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+		editText.setText(String.valueOf(currentValue));
+		editText.setSelection(editText.getText().length());
+
+		new MaterialAlertDialogBuilder(context)
+				.setTitle(R.string.pref_behaviour_min_comments_dialog_title)
+				.setView(editText)
+				.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+					try {
+						final String input = editText.getText().toString().trim();
+						final int minComments = Integer.parseInt(input);
+
+						if(minComments >= 0 && minComments <= 100_000) {
+							PrefsUtility.pref_behaviour_min_comments(minComments);
+							preference.setChecked(true);
+							updateSummary.run();
+
+						} else {
+							General.quickToast(context, R.string.error_invalid_number_range);
+						}
+
+					} catch(final NumberFormatException e) {
+						General.quickToast(context, R.string.error_invalid_number);
+					}
+				})
+				.setNegativeButton(android.R.string.cancel, null)
+				.show();
 	}
 }
