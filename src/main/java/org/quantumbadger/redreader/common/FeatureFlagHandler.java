@@ -58,6 +58,7 @@ public final class FeatureFlagHandler {
 		POST_TITLE_TAP_ACTION_FEATURE("postTitleTapActionFeature"),
 		DEFAULT_PREF_VIDEO_PLAYBACK_CONTROLS("defaultPrefVideoPlaybackControls"),
 		DEFAULT_PREF_CUSTOM_TABS("defaultPrefCustomTabs"),
+		DEFAULT_PREF_VIDEO_LOOP("defaultPrefVideoLoop"),
 		CROSSPOST_ORIGIN_MENU_ITEM("crosspostOriginMenuItem"),
 		MAIN_MENU_RANDOM_REMOVED("mainMenuRandomRemoved"),
 		POST_SUBTITLE_LOCKED_TAG("postSubtitleLockedTag");
@@ -299,6 +300,18 @@ public final class FeatureFlagHandler {
 						context.getString(R.string.pref_behaviour_video_playback_controls_key),
 						true)
 				.apply();
+			}
+
+			if(getAndSetFeatureFlag(prefs, FeatureFlag.DEFAULT_PREF_VIDEO_LOOP)
+					== FeatureFlagStatus.UPGRADE_NEEDED) {
+
+				Log.i(TAG, "Upgrading, loop videos by default.");
+
+				prefs.edit()
+						.putBoolean(
+								context.getString(R.string.pref_behaviour_video_loop_key),
+								true)
+						.apply();
 			}
 
 			if(getAndSetFeatureFlag(prefs, FeatureFlag.DEFAULT_PREF_CUSTOM_TABS)
