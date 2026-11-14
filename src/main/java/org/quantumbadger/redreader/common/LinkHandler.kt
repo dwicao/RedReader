@@ -134,6 +134,8 @@ object LinkHandler {
 			return
 		}
 
+		VisitedLinks.markVisited(activity, url.value)
+
 		if (!forceNoImage && isProbablyAnImage(normalUrlString)) {
 			val intent = Intent(activity, ImageViewActivity::class.java)
 			intent.setData(normalUrl)

@@ -173,6 +173,11 @@
 							android:key="@string/pref_appearance_link_text_clickable_key"
 							android:defaultValue="true"/>
 
+		<CheckBoxPreference android:title="@string/pref_appearance_mute_visited_links_title"
+							android:key="@string/pref_appearance_mute_visited_links_key"
+							android:summary="@string/pref_appearance_mute_visited_links_summary"
+							android:defaultValue="false"/>
+
         <CheckBoxPreference android:title="@string/pref_appearance_indentlines_title"
                             android:key="@string/pref_appearance_indentlines_key"
                             android:defaultValue="false"/>

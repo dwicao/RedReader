@@ -17,8 +17,12 @@
 
 package org.quantumbadger.redreader.reddit.prepared.bodytext;
 
+import android.graphics.Color;
 import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.View;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -26,6 +30,7 @@ import androidx.annotation.Nullable;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.PrefsUtility;
+import org.quantumbadger.redreader.common.VisitedLinks;
 import org.quantumbadger.redreader.views.LinkifiedTextView;
 
 public class BodyElementTextSpanned extends BodyElement implements DynamicSpanned {
@@ -62,6 +67,26 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 		return new int[] { s, e };
 	}
 
+	// Repaint already-visited links in a muted colour. Done at view-generation time;
+	// views are rebuilt on refresh, like any change to text styling would be.
+	private void muteVisitedLinks(@NonNull final Context context) {
+
+		final VisitableClickableSpan[] spans = mSpanned.getSpans(
+				0,
+				mSpanned.length(),
+				VisitableClickableSpan.class);
+
+		for(final VisitableClickableSpan span : spans) {
+			if(VisitedLinks.isVisited(context, span.url)) {
+				mSpanned.setSpan(
+						new ForegroundColorSpan(Color.rgb(0x9E, 0x9E, 0x9E)),
+						mSpanned.getSpanStart(span),
+						mSpanned.getSpanEnd(span),
+						Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
+			}
+		}
+	}
+
 	@Override
 	public View generateView(
 			@NonNull final BaseActivity activity,
@@ -78,6 +103,10 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 			mTextView.setTextSize(textSize);
 		}
 		AndroidCommon.applyGlobalLineSpacing(mTextView);
+
+		if(PrefsUtility.pref_appearance_mute_visited_links()) {
+			muteVisitedLinks(activity);
+		}
 
 		mTextView.setText(mSpanned, LinkifiedTextView.BufferType.SPANNABLE);
 

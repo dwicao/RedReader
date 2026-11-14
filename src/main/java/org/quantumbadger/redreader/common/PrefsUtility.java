@@ -685,6 +685,12 @@ public final class PrefsUtility {
 				true);
 	}
 
+	public static boolean pref_appearance_mute_visited_links() {
+		return getBoolean(
+				R.string.pref_appearance_mute_visited_links_key,
+				false);
+	}
+
 	public static boolean pref_appearance_inbox_collapse_long_messages() {
 		return getBoolean(
 				R.string.pref_appearance_inbox_collapse_long_messages_key,

@@ -19,21 +19,18 @@ package org.quantumbadger.redreader.reddit.prepared.html;
 
 import android.graphics.Typeface;
 import android.text.style.CharacterStyle;
-import android.text.style.ClickableSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.text.style.SuperscriptSpan;
 import android.text.style.TypefaceSpan;
 import android.text.style.UnderlineSpan;
-import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import org.quantumbadger.redreader.common.LinkHandler;
-import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElement;
+import org.quantumbadger.redreader.reddit.prepared.bodytext.VisitableClickableSpan;
 
 import java.util.ArrayList;
 
@@ -130,14 +127,7 @@ public class HtmlRawElementPlainText extends HtmlRawElement {
 				spans = new ArrayList<>();
 			}
 
-			final UriString url = attributes.href;
-
-			spans.add(new ClickableSpan() {
-				@Override
-				public void onClick(@NonNull final View widget) {
-					LinkHandler.onLinkClicked(activity, url);
-				}
-			});
+			spans.add(new VisitableClickableSpan(activity, attributes.href.value));
 		}
 
 		destination.add(new HtmlRawElementStyledText(mText, spans));

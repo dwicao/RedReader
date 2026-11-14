@@ -971,6 +971,9 @@
 
 	<string name="pref_appearance_link_text_clickable_title">Make link text clickable</string>
 	<string name="pref_appearance_link_text_clickable_key" translatable="false">pref_appearance_link_text_clickable</string>
+	<string name="pref_appearance_mute_visited_links_key" translatable="false">pref_appearance_mute_visited_links</string>
+	<string name="pref_appearance_mute_visited_links_title">Mute visited links</string>
+	<string name="pref_appearance_mute_visited_links_summary">Show links you&#8217;ve already opened in a muted colour</string>
 
 	<!-- 2016-09-07 -->
 	<string name="pref_appearance_hide_android_status_title">Hide status bar</string>
