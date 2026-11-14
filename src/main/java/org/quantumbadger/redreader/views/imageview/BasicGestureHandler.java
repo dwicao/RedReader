@@ -71,7 +71,9 @@ public class BasicGestureHandler
 	}
 
 	@Override
-	public void onFingerUp(final FingerTracker.Finger finger) {
+	public void onFingerUp(
+			final FingerTracker.Finger finger,
+			final boolean cancelled) {
 
 		mCurrentFingerCount--;
 
@@ -80,7 +82,8 @@ public class BasicGestureHandler
 			mListener.onHorizontalSwipeEnd();
 
 			// TODO
-			if(mFirstFinger.mDownDuration < 300
+			if(!cancelled
+					&& mFirstFinger.mDownDuration < 300
 					&& mFirstFinger.mPosDifference.x < 20
 					&& mFirstFinger.mPosDifference.y < 20) {
 
