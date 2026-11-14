@@ -181,6 +181,8 @@ public final class PrefsUtility {
 						R.string.pref_behaviour_collapse_reaction_gifs_key))
 				|| key.equals(context.getString(
 						R.string.pref_behaviour_reaction_gif_domains_key))
+				|| key.equals(context.getString(
+						R.string.pref_behaviour_collapse_bot_comments_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_hide_few_comments_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_min_comments_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_pinned_subredditsort_key))
@@ -1209,6 +1211,12 @@ public final class PrefsUtility {
 		return getString(
 				R.string.pref_behaviour_reaction_gif_domains_key,
 				ReactionGifFilter.DEFAULT_DOMAINS);
+	}
+
+	public static boolean pref_behaviour_hide_bot_comments() {
+		return getBoolean(
+				R.string.pref_behaviour_collapse_bot_comments_key,
+				false);
 	}
 
 	// Null if the reaction GIF filter is turned off

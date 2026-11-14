@@ -57,6 +57,7 @@ public class RedditRenderableComment
 	private final boolean mNeverAutoCollapse;
 	private boolean isBlockedUser = false;
 	private boolean isReactionGif = false;
+	private boolean isBotComment = false;
 
 	public RedditRenderableComment(
 			final RedditParsedComment comment,
@@ -82,6 +83,10 @@ public class RedditRenderableComment
 
 	public void setReactionGif(final boolean reactionGif) {
 		isReactionGif = reactionGif;
+	}
+
+	public void setBotComment(final boolean botComment) {
+		isBotComment = botComment;
 	}
 
 	private int computeScore(final RedditChangeDataManager changeDataManager) {
@@ -678,6 +683,10 @@ public class RedditRenderableComment
 		}
 
 		if(isReactionGif) {
+			return true;
+		}
+
+		if(isBotComment) {
 			return true;
 		}
 

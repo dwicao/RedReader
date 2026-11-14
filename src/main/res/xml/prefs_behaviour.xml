@@ -243,6 +243,11 @@
 						android:entryValues="@array/pref_behaviour_collapse_sticky_comments_items_return"
 						android:defaultValue="only_bots"/>
 
+		<CheckBoxPreference android:title="@string/pref_behaviour_collapse_bot_comments_title"
+							android:summary="@string/pref_behaviour_collapse_bot_comments_summary"
+							android:key="@string/pref_behaviour_collapse_bot_comments_key"
+							android:defaultValue="false"/>
+
 		<CheckBoxPreference android:title="@string/pref_behaviour_collapse_reaction_gifs_title"
 							android:summary="@string/pref_behaviour_collapse_reaction_gifs_summary"
 							android:key="@string/pref_behaviour_collapse_reaction_gifs_key"

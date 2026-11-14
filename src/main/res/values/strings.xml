@@ -806,6 +806,10 @@
 	<string name="pref_behaviour_collapse_reaction_gifs_title">Hide reaction GIFs</string>
 	<!-- Translators: summary of the setting to hide comments consisting only of a GIF link and a few words -->
 	<string name="pref_behaviour_collapse_reaction_gifs_summary">Just a GIF link with fewer than 5 other words: collapsed in threads, hidden from the inbox and notifications</string>
+	<string name="pref_behaviour_collapse_bot_comments_key" translatable="false">pref_behaviour_collapse_bot_comments</string>
+	<string name="pref_behaviour_collapse_bot_comments_title">Hide non-stickied bot and moderator comments</string>
+	<!-- Translators: summary of the setting to hide comments from AutoModerator and from accounts distinguished as moderator/admin, when they are not stickied -->
+	<string name="pref_behaviour_collapse_bot_comments_summary">AutoModerator and distinguished moderator/admin comments, which are not stickied, are collapsed in threads</string>
 	<string name="pref_behaviour_reaction_gif_domains_key" translatable="false">pref_behaviour_reaction_gif_domains</string>
 	<string name="pref_behaviour_reaction_gif_domains_title">Reaction GIF domains</string>
 	<!-- Translators: dialog title shown when editing which domains are treated as GIF hosts -->
