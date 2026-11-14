@@ -126,6 +126,12 @@ Added in this fork:
     entry (when you have pinned subreddits) that opens them as one combined
     listing, and *Settings > Behaviour > Skip to pinned subreddits* starts the
     app there.
+* **Collapse Thread** — a new comment action (long-press menu, tap/long-press
+    actions and fling, configurable in *Settings > Behaviour*) that collapses
+    the outermost ancestor of a comment thread.
+* **Hide reaction GIFs** — *Settings > Behaviour > Hide reaction GIFs*
+    (off by default) collapses comments consisting only of a GIF link with a
+    few words, and hides them from the inbox and new-message notifications.
 
 **Performance**
 

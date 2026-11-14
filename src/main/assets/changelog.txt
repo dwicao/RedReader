@@ -1,3 +1,7 @@
+154/1.49
+New Collapse Thread action for comments (long-press menu, tap/long-press actions and fling)
+Hide reaction GIF comments: just a GIF link with a few words, collapsed in threads and hidden from inbox and notifications (Settings > Behaviour)
+
 153/1.48
 New setting to loop videos, and to disable video autoplay (Settings > Images/Video)
 New setting for colourful comment indent bars (Settings > Appearance)
