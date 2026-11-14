@@ -225,22 +225,25 @@ public class SubredditSearchQuickLinks extends FlexboxLayout {
 
 			} else if(startsWithSlashRSlash || startsWithRSlash) {
 
-				if(startsWithSlashRSlash) {
-					querySubreddit = query.substring(3);
-				} else {
-					querySubreddit = query.substring(2);
-				}
+				// Reddit subreddit names only contain these characters; don't guess a
+				// destination for malformed input (e.g. a stray '&')
+				final String subGuess = startsWithSlashRSlash
+						? query.substring(3)
+						: query.substring(2);
+
+				querySubreddit = subGuess.matches("[A-Za-z0-9_]+") ? subGuess : null;
 
 				queryUser = null;
 				queryUrl = null;
 
 			} else if(startsWithSlashUSlash || startsWithUSlash) {
 
-				if(startsWithSlashUSlash) {
-					queryUser = query.substring(3);
-				} else {
-					queryUser = query.substring(2);
-				}
+				// Same alphabet as subreddit names
+				final String userGuess = startsWithSlashUSlash
+						? query.substring(3)
+						: query.substring(2);
+
+				queryUser = userGuess.matches("[A-Za-z0-9_\\-]+") ? userGuess : null;
 
 				querySubreddit = null;
 				queryUrl = null;
@@ -251,8 +254,9 @@ public class SubredditSearchQuickLinks extends FlexboxLayout {
 				queryUrl = new UriString("https://reddit.com" + query);
 
 			} else {
-				querySubreddit = query.replaceAll("[ \t]+", "_");
-				queryUser = querySubreddit;
+				final String guessed = query.replaceAll("[ \t]+", "_");
+				querySubreddit = guessed.matches("[A-Za-z0-9_]+") ? guessed : null;
+				queryUser = querySubreddit == null && guessed.matches("[A-Za-z0-9_\\-]+") ? guessed : querySubreddit;
 				queryUrl = new UriString("https://" + query);
 			}
 		}
