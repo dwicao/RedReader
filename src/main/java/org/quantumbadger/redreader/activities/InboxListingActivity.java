@@ -237,6 +237,11 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 		final ScrollbarRecyclerViewManager recyclerViewManager
 				= new ScrollbarRecyclerViewManager(this, null, false);
 
+		if(PrefsUtility.pref_behaviour_enable_swipe_refresh()) {
+			recyclerViewManager.enablePullToRefresh(
+					() -> General.recreateActivityNoAnimation(InboxListingActivity.this));
+		}
+
 		adapter = new GroupedRecyclerViewAdapter(1);
 		recyclerViewManager.getRecyclerView().setAdapter(adapter);
 
