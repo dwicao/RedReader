@@ -1,3 +1,24 @@
+156/1.51
+Add "Mute visited links" option, showing already-clicked links in a muted colour
+Add "Hide non-stickied bot and moderator comments" option
+Add "Default to suggested comment sort" option for posts with a suggested sort
+Add "Hide posts from these domains" option (e.g. to filter out Twitter)
+Add "Incognito keyboard" option to ask the keyboard not to learn what you type
+Add "Long-press delay" option (Settings > Accessibility)
+Add "Global line spacing" option (Settings > Fonts)
+New Pinned-subreddit handling: removing pinned subreddits no longer resets scroll
+Reopening a long thread (or after process death) returns to where you scrolled
+Show an orange envelope on the Inbox entry when you have unread replies
+User profile dialog can open the user's subreddit and subscribe to it
+Inbox can be pulled down to refresh
+Loading spinners show a static indicator when animations are disabled
+Video player remembers its mute state for the rest of the session
+Post header toolbar up/downvote buttons respect the hidden action menu items
+Save post media with meaningful filenames (subreddit, author, title)
+Open redditmail and redditmedia links in the app
+Page Up/Page Down keys scroll the listing
+The whole tap target area of the action bar title is clickable
+
 155/1.50
 Fix single line breaks vanishing from body text so words no longer join together without spaces
 Fix ordered lists starting at a number other than 1

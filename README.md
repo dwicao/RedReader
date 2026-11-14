@@ -132,6 +132,36 @@ Added in this fork:
 * **Hide reaction GIFs** — *Settings > Behaviour > Hide reaction GIFs*
     (off by default) collapses comments consisting only of a GIF link with a
     few words, and hides them from the inbox and new-message notifications.
+* **Hide non-stickied bot and moderator comments** — *Settings > Behaviour >
+    Hide non-stickied bot and moderator comments* collapses AutoModerator
+    comments and comments distinguished as moderator/admin in threads, keeping
+    stickied comments visible.
+* **Filter posts by domain** — *Settings > Behaviour > Hide posts from these
+    domains* hides posts whose link domain matches any of the given domains
+    (case-insensitive, including subdomains; `twitter.com` also matches
+    `mobile.twitter.com`), like the RES domain filter. Also applies to the
+    Favourites list.
+* **Suggested comment sort** — *Settings > Behaviour > Sorting > Default to
+    suggested comment sort* opens a thread using the subreddit's suggested
+    sort order when set (matching the official app), instead of the default
+    comment sort.
+* **Mute visited links** — *Settings > Appearance > Mute visited links*
+    paints links you've already opened in a muted colour.
+* **Incognito keyboard** — *Settings > Behaviour > Incognito keyboard* asks
+    the keyboard not to learn what you type (browsers' "incognito" mode for
+    your keyboard).
+* **Long-press delay** — *Settings > Accessibility > Long-press delay* sets
+    how long the finger must be held still for long-press menus to open
+    (system default, 750ms – 2s).
+* **Line spacing** — *Settings > Fonts > Global line spacing* adjusts the
+    space between lines of text, for comments, posts and titles.
+* **Scroll position memory** — reopening a long thread, including after the
+    app was backgrounded and the process killed, returns to where you
+    scrolled.
+* **Unread envelope** — the Inbox entry in the main menu shows an orange
+    envelope when you have unread replies.
+* **User subreddit** — the user profile dialog shows a *User subreddit* chip
+    (opens /r/u_username) and *Subscribe/Unsubscribe* chips for that feed.
 
 **Performance**
 
@@ -188,6 +218,24 @@ Added in this fork:
 * **Post-update dialog is current** — the changelog shipped in the app now
     carries this fork's entries, so the "What's new" dialog after an update
     describes the actual changes instead of old upstream notes.
+* **Pinned subreddits stay put** — removing one from the list no longer
+    resets the scroll to the top.
+* **Inbox pull to refresh** — swipe down on the inbox to reload.
+* **Static loading indicators** — when system animations are disabled
+    (battery saver or the *Remove animations* accessibility setting), loading
+    spinners are drawn as static indicators instead.
+* **Video mute memory** — the player remembers its mute state for the rest
+    of the session.
+* **Post header buttons** — the post header toolbar up/downvote buttons
+    respect the hidden post action menu items.
+* **Meaningful media filenames** — saving post media names files after the
+    subreddit, author and title, e.g. `RedReader-aww-user456-checkoutmycat.jpg`.
+* **redditmail and redditmedia links** — *click.redditmail.com* and
+    *redditmedia.com* links open in the app.
+* **Page keys scroll** — Page Up/Page Down scroll listings.
+* **Action bar tap target** — the whole custom title row is clickable, not
+    only the text.
+
 * **About points at the fork** — the source code entry in *Settings > About*
     links to this repository.
 * **Single line breaks in body text** are treated as whitespace instead of
