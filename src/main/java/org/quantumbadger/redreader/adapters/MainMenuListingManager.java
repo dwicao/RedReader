@@ -22,6 +22,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.TypedArray;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.view.View;
@@ -49,6 +50,7 @@ import org.quantumbadger.redreader.common.ScreenreaderPronunciation;
 import org.quantumbadger.redreader.common.SharedPrefsWrapper;
 import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.fragments.MainMenuFragment;
+import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.receivers.announcements.Announcement;
 import org.quantumbadger.redreader.receivers.announcements.AnnouncementDownloader;
 import org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager;
@@ -360,12 +362,24 @@ public class MainMenuListingManager {
 				}
 
 				if(mainMenuUserItems.contains(MainMenuFragment.MainMenuUserItems.INBOX)) {
+
+					Drawable inboxIcon = rrIconEnvOpen;
+
+					if(NewMessageChecker.isInboxUnreadPending(mActivity)) {
+						// Tint a copy of the envelope icon orange to signal unread replies
+						final Drawable envelope = rrIconEnvOpen.mutate();
+						envelope.setColorFilter(
+								0xFFEF6C00,
+								PorterDuff.Mode.SRC_IN);
+						inboxIcon = envelope;
+					}
+
 					mAdapter.appendToGroup(
 							GROUP_USER_ITEMS,
 							makeItem(
 									R.string.mainmenu_inbox,
 									MainMenuFragment.MENU_MENU_ACTION_INBOX,
-									rrIconEnvOpen,
+									inboxIcon,
 									isFirst.getAndSet(false)));
 				}
 

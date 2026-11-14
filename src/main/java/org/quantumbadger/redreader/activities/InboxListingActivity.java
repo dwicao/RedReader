@@ -61,6 +61,7 @@ import org.quantumbadger.redreader.http.FailedRequestBody;
 import org.quantumbadger.redreader.reddit.APIResponseHandler;
 import org.quantumbadger.redreader.reddit.ReactionGifFilter;
 import org.quantumbadger.redreader.reddit.RedditAPI;
+import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.reddit.kthings.JsonUtils;
 import org.quantumbadger.redreader.reddit.kthings.MaybeParseError;
 import org.quantumbadger.redreader.reddit.kthings.RedditComment;
@@ -184,6 +185,9 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 
 		PrefsUtility.applyTheme(this);
 		super.onCreate(savedInstanceState);
+
+		// The user is about to see the inbox: clear the unread indicator
+		NewMessageChecker.setInboxUnreadPending(this, false);
 
 		mTheme = new RRThemeAttributes(this);
 		mChangeDataManager = RedditChangeDataManager.getInstance(

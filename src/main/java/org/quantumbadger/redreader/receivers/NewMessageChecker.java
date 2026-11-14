@@ -75,6 +75,21 @@ public class NewMessageChecker extends BroadcastReceiver {
 
 	public static final String PREFS_SAVED_MESSAGE_ID = "LastMessageId";
 	public static final String PREFS_SAVED_MESSAGE_TIMESTAMP = "LastMessageTimestamp";
+	public static final String PREFS_INBOX_UNREAD_PENDING = "inbox_unread_pending";
+
+	public static boolean isInboxUnreadPending(@NonNull final Context context) {
+		return General.getSharedPrefs(context)
+				.getBoolean(PREFS_INBOX_UNREAD_PENDING, false);
+	}
+
+	public static void setInboxUnreadPending(
+			@NonNull final Context context,
+			final boolean pending) {
+		General.getSharedPrefs(context)
+				.edit()
+				.putBoolean(PREFS_INBOX_UNREAD_PENDING, pending)
+				.apply();
+	}
 
 
 	@Override
@@ -176,6 +191,8 @@ public class NewMessageChecker extends BroadcastReceiver {
 							}
 
 							final int messageCount = unread.size();
+
+							setInboxUnreadPending(context, messageCount > 0);
 
 							if(General.isSensitiveDebugLoggingEnabled()) {
 								Log.i(TAG, "Got response. Message count = " + messageCount);
