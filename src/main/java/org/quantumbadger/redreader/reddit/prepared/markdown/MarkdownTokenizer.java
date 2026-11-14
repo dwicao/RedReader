@@ -576,6 +576,24 @@ public final class MarkdownTokenizer {
 
 									linkParseSuccess = true;
 
+									// Remove a single pair of pointy brackets wrapping the
+									// link destination, e.g. [text](<http://x(y)z>). These
+									// are markdown syntax, not part of the URL.
+									int angleStart = parenOpenPos + 1;
+									while(input.data[angleStart] == ' ') {
+										angleStart++;
+									}
+									int angleEnd = parenClosePos - 1;
+									while(input.data[angleEnd] == ' ') {
+										angleEnd--;
+									}
+									if(angleStart < angleEnd
+											&& input.data[angleStart] == '<'
+											&& input.data[angleEnd] == '>') {
+										toDelete[angleStart] = true;
+										toDelete[angleEnd] = true;
+									}
+
 									for(int j = lastBracketSquareOpen + 1;
 										j < lastBracketSquareClose;
 										j++) {
@@ -806,36 +824,50 @@ public final class MarkdownTokenizer {
 
 	private static int findParenClosePos(final IntArrayLengthPair tokens, final int startPos) {
 
+		boolean inQuote = false;
+		boolean inAngleBracket = false;
+
 		for(int i = startPos; i < tokens.pos; i++) {
 
-			switch(tokens.data[i]) {
+			final int token = tokens.data[i];
+
+			if(inAngleBracket) {
+
+				// Parens inside pointy brackets are allowed
+				if(token == '>') {
+					inAngleBracket = false;
+				}
+				continue;
+			}
+
+			if(inQuote) {
+
+				// Parens inside a quoted destination are allowed.
+				// Backslashes were consumed at tokenization time, so no need to check here.
+				if(token == '"') {
+					inQuote = false;
+				}
+				continue;
+			}
+
+			switch(token) {
 
 				case TOKEN_PAREN_CLOSE:
 					return i;
 
 				case '"':
-					i = indexOfIgnoreEscaped(tokens, '"', i + 1);
-					if(i < 0) {
-						return -1;
-					}
+					inQuote = true;
+					break;
+
+				case '<':
+					inAngleBracket = true;
+					break;
+
+				default:
 					break;
 			}
 		}
 
-		return -1;
-	}
-
-	private static int indexOfIgnoreEscaped(
-			final IntArrayLengthPair haystack,
-			final int needle,
-			final int startPos) {
-		for(int i = startPos; i < haystack.pos; i++) {
-			if(haystack.data[i] == '\\') {
-				i++;
-			} else if(haystack.data[i] == needle) {
-				return i;
-			}
-		}
 		return -1;
 	}
 

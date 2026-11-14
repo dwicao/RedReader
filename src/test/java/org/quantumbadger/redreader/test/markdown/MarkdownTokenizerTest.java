@@ -194,6 +194,86 @@ public class MarkdownTokenizerTest {
 	}
 
 	@Test
+	public void testTokenizeLink9() {
+
+		// Parens inside a pointy-bracket destination don't end the link
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(
+				toCAS("a [b](<http://x(y)z>) d"));
+
+		final int[] expected = new int[] {
+				'a', ' ', MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'b',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'h', 't', 't', 'p', ':', '/', '/', 'x', '(', 'y', ')', 'z',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE,
+				' ', 'd'
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
+	public void testTokenizeLink10() {
+
+		// Parens inside a quoted destination don't end the link
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(
+				toCAS("a [b](\"http://x(y)z\") d"));
+
+		final int[] expected = new int[] {
+				'a', ' ', MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'b',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'"', 'h', 't', 't', 'p', ':', '/', '/', 'x', '(', 'y', ')', 'z', '"',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE,
+				' ', 'd'
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
+	public void testTokenizeLink11() {
+
+		// Pointy brackets wrapping the destination are markdown syntax, not URL content
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(
+				toCAS("a [b]( <http://example.com> ) d"));
+
+		final int[] expected = new int[] {
+				'a', ' ', MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'b',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'h', 't', 't', 'p', ':', '/', '/', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE,
+				' ', 'd'
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
+	public void testTokenizeLink12() {
+
+		// The example from the issue: a complex URL inside pointy brackets
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(toCAS(
+				"[Test](<https://google.com/!~'~((5!e):_)=:;.;+,~@(:~+',*,)~.-(___$=)!+-;~+&.*&@)*&'+/>)"));
+
+		final int[] expected = new int[] {
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'T', 'e', 's', 't',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'h', 't', 't', 'p', 's', ':', '/', '/', 'g', 'o', 'o', 'g', 'l', 'e', '.',
+				'c', 'o', 'm', '/', '!', '~', '\'', '~', '(', '(', '5', '!', 'e', ')',
+				':', '_', ')', '=', ':', ';', '.', ';', '+', ',', '~', '@', '(', ':', '~',
+				'+', '\'', ',', '*', ',', ')', '~', '.', '-', '(', '_', '_', '_', '$',
+				'=', ')', '!', '+', '-', ';', '~', '+', '&', '.', '*', '&', '@', ')',
+				'*', '&', '\'', '+', '/',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
 	public void testTokenizeUnderscore1() {
 		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(toCAS("a_b_c_d"));
 
