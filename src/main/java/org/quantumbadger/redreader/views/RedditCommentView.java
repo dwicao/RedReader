@@ -202,9 +202,27 @@ public class RedditCommentView extends FlingableItemView
 					return null;
 				}
 
+				if(mComment.asComment().isCollapsed(mChangeDataManager)) {
+					return new ActionDescriptionPair(
+							RedditAPICommentAction.RedditCommentAction.COLLAPSE,
+							R.string.action_expand_comment);
+				}
+
 				return new ActionDescriptionPair(
 						RedditAPICommentAction.RedditCommentAction.COLLAPSE,
 						R.string.action_collapse);
+
+			case COLLAPSE_THREAD:
+
+				if(mFragment == null
+						|| (mComment.getIndent() == 0
+								&& mComment.asComment().isCollapsed(mChangeDataManager))) {
+					return null;
+				}
+
+				return new ActionDescriptionPair(
+						RedditAPICommentAction.RedditCommentAction.COLLAPSE_THREAD,
+						R.string.action_collapse_thread);
 
 			case ACTION_MENU:
 
@@ -497,7 +515,10 @@ public class RedditCommentView extends FlingableItemView
 		}
 
 		addAccessibilityActionFromDescriptionPair(
-			chooseFlingAction(PrefsUtility.CommentFlingAction.COLLAPSE));
+				chooseFlingAction(PrefsUtility.CommentFlingAction.COLLAPSE));
+
+		addAccessibilityActionFromDescriptionPair(
+				chooseFlingAction(PrefsUtility.CommentFlingAction.COLLAPSE_THREAD));
 
 		mAccessibilityActionManager.addAction(R.string.button_next_comment_parent, () -> {
 			mFragment.onNextParent();
@@ -565,7 +586,16 @@ public class RedditCommentView extends FlingableItemView
 			@NonNull final PrefsUtility.CommentAction pref) {
 		switch (pref) {
 			case COLLAPSE:
+				if(mComment.asComment().isCollapsed(mChangeDataManager)) {
+					return R.string.action_expand_comment;
+				}
 				return R.string.action_collapse;
+			case COLLAPSE_THREAD:
+				if(mComment.getIndent() == 0
+						&& mComment.asComment().isCollapsed(mChangeDataManager)) {
+					return R.string.action_expand_comment;
+				}
+				return R.string.action_collapse_thread;
 			case ACTION_MENU:
 				return R.string.action_actionmenu;
 		}
