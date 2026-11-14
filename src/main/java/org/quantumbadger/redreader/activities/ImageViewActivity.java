@@ -112,6 +112,11 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 	private static final String TAG = "ImageViewActivity";
 
+	// Mute state chosen with the in-player button, remembered for the lifetime of the app
+	// process but not persisted; falls back to the preference on a cold start
+	@Nullable
+	private static Boolean sSessionMuted = null;
+
 	private TextView mProgressText;
 
 	private GLSurfaceView surfaceView;
@@ -1441,8 +1446,11 @@ public class ImageViewActivity extends ViewsBaseActivity
 			//noinspection ClickableViewAccessibility
 			layout.setOnTouchListener(gestureHandler);
 
-			final boolean muteByDefault
-					= PrefsUtility.pref_behaviour_video_mute_default();
+			// Remember the mute state for the rest of the app's lifetime (but not across
+			// restarts): opening the next video keeps the user's last choice
+			final boolean muteByDefault = sSessionMuted != null
+					? sSessionMuted
+					: PrefsUtility.pref_behaviour_video_mute_default();
 
 			mVideoPlayerWrapper.setMuted(muteByDefault);
 
@@ -1466,11 +1474,13 @@ public class ImageViewActivity extends ViewsBaseActivity
 								button.setImageResource(iconUnmuted);
 								button.setContentDescription(
 										getResources().getString(R.string.video_mute));
+								sSessionMuted = false;
 							} else {
 								mVideoPlayerWrapper.setMuted(true);
 								button.setImageResource(iconMuted);
 								button.setContentDescription(
 										getResources().getString(R.string.video_unmute));
+								sSessionMuted = true;
 							}
 						}));
 			}
