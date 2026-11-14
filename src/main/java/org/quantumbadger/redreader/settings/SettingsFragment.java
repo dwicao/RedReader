@@ -1105,7 +1105,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 
 		// Animations disabled (e.g. battery saver or the accessibility setting):
 		// an indeterminate horizontal progress bar can render blank on older APIs
-		if(android.animation.ValueAnimator.areAnimatorsEnabled()) {
+		if(!AndroidCommon.areAnimationsDisabled(context)) {
 			progressBar.setIndeterminate(true);
 		} else {
 			progressBar.setIndeterminate(false);

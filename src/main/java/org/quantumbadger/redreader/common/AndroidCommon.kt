@@ -24,9 +24,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
+import android.provider.Settings
 import android.os.Looper
 import android.os.SystemClock
-import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -224,6 +224,7 @@ object AndroidCommon {
 	 * If the "Incognito keyboard" preference is enabled, ask the IME not to learn
 	 * what's typed into this text view (IME_FLAG_NO_PERSONALIZED_LEARNING).
 	 */
+	@SuppressLint("InlinedApi")
 	@JvmStatic
 	fun applyKeyboardPrivacy(textView: TextView) {
 		if(PrefsUtility.pref_behaviour_incognito_keyboard()) {
@@ -232,9 +233,25 @@ object AndroidCommon {
 		}
 	}
 
-	/**
-	 * Apply the global line spacing preference to a text view.
-	 */
+    /**
+     * Whether the system's animator duration scale is 0 (animations disabled),
+     * as set by the accessibility "Remove animations" setting or the developer
+     * options' "Animator duration scale: Animation off". Works on all supported
+     * API levels.
+     */
+    @JvmStatic
+    fun areAnimationsDisabled(context: Context): Boolean {
+        val scale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f)
+
+        return scale == 0f
+    }
+
+    /**
+     * Apply the global line spacing preference to a text view.
+     */
 	@JvmStatic
 	fun applyGlobalLineSpacing(textView: TextView) {
 		textView.setLineSpacing(0f, PrefsUtility.appearance_linespacing_global())
@@ -246,6 +263,7 @@ object AndroidCommon {
 	 * opens after that much time with the finger held still. With the system
 	 * default, the normal framework handling is used unchanged.
 	 */
+	@SuppressLint("ClickableViewAccessibility")
 	@JvmStatic
 	fun setExtendedLongClickListener(view: View, listener: View.OnLongClickListener) {
 

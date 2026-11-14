@@ -23,6 +23,7 @@ import android.graphics.Color;
 import android.widget.RelativeLayout;
 import com.github.lzyzsd.circleprogress.DonutProgress;
 import org.quantumbadger.redreader.R;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.General;
 
 public class ButtonLoadingSpinnerView extends RelativeLayout {
@@ -56,7 +57,7 @@ public class ButtonLoadingSpinnerView extends RelativeLayout {
 
 		// Animations disabled (e.g. battery saver or the accessibility setting):
 		// show a static indicator instead of an animated one
-		if(!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+		if(AndroidCommon.areAnimationsDisabled(context)) {
 			mProgressView.setIndeterminate(false);
 			mProgressView.setProgress(0.3f);
 		}

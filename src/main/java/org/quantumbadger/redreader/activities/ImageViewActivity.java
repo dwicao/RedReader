@@ -829,7 +829,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		// Animations disabled (e.g. battery saver or the accessibility setting):
 		// show a static indicator instead of an animated one
-		if(!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+		if(AndroidCommon.areAnimationsDisabled(this)) {
 			progressBar.setIndeterminate(false);
 			progressBar.setProgress(0.3f);
 		}
@@ -869,7 +869,7 @@ public class ImageViewActivity extends ViewsBaseActivity
 		if(mProgressBar != null) {
 			mProgressBar.setVisibility(View.VISIBLE);
 
-			if(android.animation.ValueAnimator.areAnimatorsEnabled()) {
+			if(!AndroidCommon.areAnimationsDisabled(this)) {
 				mProgressBar.setIndeterminate(true);
 			} else {
 				mProgressBar.setIndeterminate(false);
