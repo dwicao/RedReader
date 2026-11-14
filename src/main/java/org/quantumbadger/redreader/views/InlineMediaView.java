@@ -20,6 +20,7 @@ package org.quantumbadger.redreader.views;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Movie;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
@@ -37,10 +38,16 @@ import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RRError;
+import org.quantumbadger.redreader.common.UriString;
+import org.quantumbadger.redreader.image.AlbumInfo;
 import org.quantumbadger.redreader.reddit.prepared.InlineMedia;
 import org.quantumbadger.redreader.reddit.prepared.InlinePreviewLoader;
 import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElementInlineMedia;
+import org.quantumbadger.redreader.reddit.prepared.bodytext.CommentMediaAlbum;
+import org.quantumbadger.redreader.reddit.prepared.html.InlineMediaCollector;
 import org.quantumbadger.redreader.views.liststatus.ErrorView;
+
+import java.util.List;
 
 /**
  * Displays an image, or the first frame of a GIF, which is attached to a comment.
@@ -63,6 +70,8 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 	@NonNull private final ImageView mImageView;
 	@NonNull private final LoadingSpinnerView mLoadingSpinner;
 	@Nullable private final TextView mGifBadge;
+	@Nullable private GIFView mMovieView;
+	@Nullable private Movie mMovieViewMovie;
 
 	@Nullable private ErrorView mErrorView;
 	private boolean mFailed;
@@ -143,10 +152,38 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 					: R.string.inline_media_description_image));
 		}
 
-		setOnClickListener(v -> LinkHandler.onLinkClicked(activity, element.getUrl()));
+		// Tapping opens the media as the link would. If the body of text this image is
+		// in has other images in it, they're shown as one album, so that the user can
+		// swipe between them. A single image works exactly as before.
+		setOnClickListener(v -> {
+			final InlineMediaCollector source = element.getAlbumSource();
+			final List<BodyElementInlineMedia> all = source == null
+					? null
+					: source.getGenerated();
+
+			if(all != null && all.size() > 1) {
+				final AlbumInfo album = CommentMediaAlbum.buildAlbum(all, element.getUrl());
+
+				int index = all.indexOf(element);
+				if(index < 0) {
+					index = 0;
+				}
+
+				LinkHandler.onLinkClicked(activity, element.getUrl(), false, null, album, index);
+				return;
+			}
+
+			LinkHandler.onLinkClicked(activity, element.getUrl());
+		});
 
 		setOnLongClickListener(v -> {
-			LinkHandler.onLinkLongClicked(activity, element.getUrl());
+			final InlineMedia media = element.getMedia();
+
+			// The last still is the largest one, or the media itself for animated media
+			final UriString contentUrl =
+					media.getStills().get(media.getStills().size() - 1).getUrl();
+
+			LinkHandler.onLinkLongClicked(activity, element.getUrl(), false, contentUrl);
 			return true;
 		});
 	}
@@ -210,8 +247,18 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 			case LOADED:
 
 				mFailed = false;
-				mImageView.setImageBitmap(loader.getBitmap());
-				mImageView.setVisibility(VISIBLE);
+
+				final Movie movie = loader.getMovie();
+
+				if(movie != null && PrefsUtility.images_inline_media_autoplay()) {
+					showMovieView(movie);
+					mImageView.setVisibility(GONE);
+				} else {
+					hideMovieView();
+					mImageView.setImageBitmap(loader.getBitmap());
+					mImageView.setVisibility(VISIBLE);
+				}
+
 				mLoadingSpinner.setVisibility(GONE);
 				setGifBadgeVisibility(VISIBLE);
 				break;
@@ -222,6 +269,7 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 				mImageView.setImageBitmap(null);
 				mImageView.setVisibility(GONE);
 				mLoadingSpinner.setVisibility(GONE);
+				hideMovieView();
 				setGifBadgeVisibility(GONE);
 
 				final RRError error = loader.getError();
@@ -242,6 +290,7 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 				mImageView.setImageBitmap(null);
 				mImageView.setVisibility(VISIBLE);
 				mLoadingSpinner.setVisibility(VISIBLE);
+				hideMovieView();
 				setGifBadgeVisibility(VISIBLE);
 				break;
 		}
@@ -252,6 +301,34 @@ public final class InlineMediaView extends FrameLayout implements InlinePreviewL
 	private void setGifBadgeVisibility(final int visibility) {
 		if(mGifBadge != null) {
 			mGifBadge.setVisibility(visibility);
+		}
+	}
+
+	private void showMovieView(@NonNull final Movie movie) {
+
+		if(mMovieView != null && mMovieViewMovie != movie) {
+			removeView(mMovieView);
+			mMovieView = null;
+			mMovieViewMovie = null;
+		}
+
+		if(mMovieView == null) {
+			mMovieView = new GIFView(getContext(), movie);
+			mMovieViewMovie = movie;
+
+			final LayoutParams params = new LayoutParams(
+					LayoutParams.MATCH_PARENT,
+					LayoutParams.MATCH_PARENT);
+			addView(mMovieView, 0, params);
+		}
+
+		mMovieView.setVisibility(VISIBLE);
+	}
+
+	private void hideMovieView() {
+
+		if(mMovieView != null) {
+			mMovieView.setVisibility(GONE);
 		}
 	}
 

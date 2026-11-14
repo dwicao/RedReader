@@ -39,7 +39,11 @@ data class InlineMedia(
 	// media, these are frames of the animation.
 	val stills: List<Still>,
 
-	val isSizeKnown: Boolean = true
+	val isSizeKnown: Boolean = true,
+
+	// For animated media, the URL of the animation itself (a GIF), if it's known. Used
+	// for playback; the stills are used for the poster frame.
+	val animatedUrl: UriString? = null
 ) {
 	enum class Type {
 		IMAGE, ANIMATED
@@ -150,19 +154,24 @@ class InlineMediaResolver @JvmOverloads constructor(
 		 * The first frame of a GIF from Giphy, scaled to a fixed width. Its height isn't known
 		 * until it has been downloaded.
 		 */
-		private fun giphyStill(id: String) = InlineMedia(
-			type = InlineMedia.Type.ANIMATED,
-			width = GIPHY_STILL_WIDTH_PX,
-			height = GIPHY_STILL_WIDTH_PX,
-			stills = listOf(
-				InlineMedia.Still(
-					url = UriString("https://media.giphy.com/media/$id/200w_s.gif"),
-					width = GIPHY_STILL_WIDTH_PX,
-					height = GIPHY_STILL_WIDTH_PX
-				)
-			),
-			isSizeKnown = false
-		)
+		private fun giphyStill(id: String): InlineMedia {
+			val url = "https://media.giphy.com/media/$id/200w_s.gif"
+
+			return InlineMedia(
+				type = InlineMedia.Type.ANIMATED,
+				width = GIPHY_STILL_WIDTH_PX,
+				height = GIPHY_STILL_WIDTH_PX,
+				stills = listOf(
+					InlineMedia.Still(
+						url = UriString(url),
+						width = GIPHY_STILL_WIDTH_PX,
+						height = GIPHY_STILL_WIDTH_PX
+					)
+				),
+				isSizeKnown = false,
+				animatedUrl = UriString(url)
+			)
+		}
 
 		// Giphy page URLs may have a description before the ID, separated by dashes
 		private val giphyPattern: Pattern = Pattern.compile(
@@ -210,7 +219,12 @@ class InlineMediaResolver @JvmOverloads constructor(
 				type = type,
 				width = source.x.toPositiveIntOrNull() ?: return null,
 				height = source.y.toPositiveIntOrNull() ?: return null,
-				stills = stills
+				stills = stills,
+				animatedUrl = if (type == InlineMedia.Type.ANIMATED) {
+					source.gif?.decoded?.let { UriString(it) }
+				} else {
+					null
+				}
 			)
 		}
 	}

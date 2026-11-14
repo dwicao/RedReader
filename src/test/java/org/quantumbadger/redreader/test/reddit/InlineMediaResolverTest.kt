@@ -221,6 +221,7 @@ class InlineMediaResolverTest {
 		assertNotNull(media)
 		assertEquals(InlineMedia.Type.ANIMATED, media!!.type)
 		assertEquals(108, media.width)
+		assertEquals("https://i.redd.it/tgwaot33ovxh1.gif", media.animatedUrl?.value)
 	}
 
 	@Test

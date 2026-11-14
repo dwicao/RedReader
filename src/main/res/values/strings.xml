@@ -2078,4 +2078,18 @@
 	<string name="pref_images_inline_comment_media_max_height_custom_title">Custom</string>
 	<!-- Translators: message shown in the dialog to set the custom max height of images shown inline in comments. The value is in dp (density-independent pixels). -->
 	<string name="pref_images_inline_comment_media_max_height_custom_dialog_message">Maximum height of images shown inline in comments, in dp</string>
+
+	<!-- 2026-11-14 -->
+	<string name="pref_images_inline_post_media_key" translatable="false">pref_images_inline_post_media</string>
+	<string name="pref_images_inline_post_media_title">Inline images in posts</string>
+	<string name="pref_images_inline_media_autoplay_key" translatable="false">pref_images_inline_media_autoplay</string>
+	<string name="pref_images_inline_media_autoplay_title">Autoplay GIFs</string>
+	<!-- Translators: summary of the setting to animate GIFs shown inline in posts and comments -->
+	<string name="pref_images_inline_media_autoplay_summary">GIFs shown inline in posts and comments animate while they are on screen</string>
+	<string name="pref_behaviour_keyword_filter_key" translatable="false">pref_behaviour_keyword_filter</string>
+	<string name="pref_behaviour_keyword_filter_title">Hide posts matching these words</string>
+	<!-- Translators: summary of the setting which hides posts whose title, flair or text contain any of the given words. Words are separated by commas or new lines, and the comparison is case-insensitive. -->
+	<string name="pref_behaviour_keyword_filter_summary">Posts containing any of these words in their title, flair or text are hidden. Words are separated by commas or new lines; case-insensitive</string>
+	<!-- Translators: message shown in the dialog to edit the words which posts must not contain -->
+	<string name="pref_behaviour_keyword_filter_dialog_message">One or more words, separated by commas or new lines. Matching is case-insensitive</string>
 </resources>

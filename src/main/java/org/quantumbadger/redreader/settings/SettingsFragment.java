@@ -235,6 +235,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 				R.string.pref_images_thumbnail_size_key,
 				R.string.pref_images_inline_image_previews_key,
 				R.string.pref_images_inline_comment_media_key,
+				R.string.pref_images_inline_post_media_key,
 				R.string.pref_images_high_res_thumbnails_key,
 				R.string.pref_accessibility_min_comment_height_key,
 				R.string.pref_appearance_android_status_key,
@@ -599,6 +600,8 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 				getString(R.string.pref_images_inline_image_previews_key));
 		final ListPreference inlineCommentMediaPref = findPreference(
 				getString(R.string.pref_images_inline_comment_media_key));
+		final ListPreference inlinePostMediaPref = findPreference(
+				getString(R.string.pref_images_inline_post_media_key));
 		final Preference inlineCommentMediaGiphyPref = findPreference(
 				getString(R.string.pref_images_inline_comment_media_giphy_key));
 		final Preference inlineImagesNsfwPref =
@@ -606,26 +609,84 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		final Preference inlineImagesSpoilerPref =
 				findPreference(getString(R.string.pref_images_inline_image_previews_spoiler_key));
 
-		// The NSFW and spoiler settings apply to both post previews and images in comments
+		// The NSFW, spoiler and Giphy settings apply to all inline media (post previews,
+		// and images in posts and comments)
 		if(inlineImagesPref != null && inlineCommentMediaPref != null) {
+
+			// Recompute the shared preferences from the current values of the three
+			// media preferences. Called when one of them changes; the changed preference
+			// hasn't taken effect yet, so post the update
+			final Runnable updateSharedEnabled = () -> {
+
+				final boolean postMediaNever = inlinePostMediaPref == null
+						? true
+						: "never".equals(inlinePostMediaPref.getValue());
+
+				final boolean commentMediaNever = "never".equals(inlineCommentMediaPref.getValue());
+				final boolean previewsNever = "never".equals(inlineImagesPref.getValue());
+
+				final boolean nsfwSpoilerEnabled =
+						!postMediaNever || !commentMediaNever || !previewsNever;
+				inlineImagesNsfwPref.setEnabled(nsfwSpoilerEnabled);
+				inlineImagesSpoilerPref.setEnabled(nsfwSpoilerEnabled);
+
+				inlineCommentMediaGiphyPref.setEnabled(
+						!postMediaNever || !commentMediaNever);
+			};
+
+			final Runnable postUpdateSharedEnabled =
+					() -> AndroidCommon.UI_THREAD_HANDLER.post(updateSharedEnabled);
+
 			inlineImagesPref.setOnPreferenceChangeListener((preference, newValue) -> {
 				final int index = inlineImagesPref.findIndexOfValue((String)newValue);
 				inlineImagesPref.setSummary(inlineImagesPref.getEntries()[index]);
-				final boolean enabled = !newValue.equals("never")
-						|| !"never".equals(inlineCommentMediaPref.getValue());
-				inlineImagesNsfwPref.setEnabled(enabled);
-				inlineImagesSpoilerPref.setEnabled(enabled);
+				postUpdateSharedEnabled.run();
 				return true;
 			});
 
 			inlineCommentMediaPref.setOnPreferenceChangeListener((preference, newValue) -> {
 				final int index = inlineCommentMediaPref.findIndexOfValue((String)newValue);
 				inlineCommentMediaPref.setSummary(inlineCommentMediaPref.getEntries()[index]);
-				final boolean enabled = !newValue.equals("never")
-						|| !"never".equals(inlineImagesPref.getValue());
-				inlineImagesNsfwPref.setEnabled(enabled);
-				inlineImagesSpoilerPref.setEnabled(enabled);
-				inlineCommentMediaGiphyPref.setEnabled(!newValue.equals("never"));
+				postUpdateSharedEnabled.run();
+				return true;
+			});
+
+			if(inlinePostMediaPref != null) {
+				inlinePostMediaPref.setOnPreferenceChangeListener((preference, newValue) -> {
+					final int index = inlinePostMediaPref.findIndexOfValue((String)newValue);
+					inlinePostMediaPref.setSummary(
+							inlinePostMediaPref.getEntries()[index]);
+					postUpdateSharedEnabled.run();
+					return true;
+				});
+			}
+
+			updateSharedEnabled.run();
+		}
+		}
+
+		{
+		final EditTextPreference keywordFilterPref = findPreference(
+				getString(R.string.pref_behaviour_keyword_filter_key));
+
+		if(keywordFilterPref != null) {
+
+			final Runnable updateKeywordFilterSummary = () -> {
+				final String text = keywordFilterPref.getText();
+
+				if(text == null || text.trim().isEmpty()) {
+					keywordFilterPref.setSummary(
+							R.string.pref_behaviour_keyword_filter_summary);
+				} else {
+					keywordFilterPref.setSummary(text.trim());
+				}
+			};
+
+			updateKeywordFilterSummary.run();
+
+			keywordFilterPref.setOnPreferenceChangeListener((preference, newValue) -> {
+				// Delay this because the preference hasn't taken effect yet
+				AndroidCommon.UI_THREAD_HANDLER.post(updateKeywordFilterSummary);
 				return true;
 			});
 		}

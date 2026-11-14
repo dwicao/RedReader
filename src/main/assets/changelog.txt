@@ -1,3 +1,10 @@
+152/1.47
+GIFs shown inline now animate while they're on screen (Settings > Images/Video)
+Option to show inline images in posts' self text (Settings > Images/Video)
+Tap an inline image to view all the images in the post or comment together
+Save or share inline media directly from the long-press menu
+Hide posts containing given words in their title, flair or text (Settings > Behaviour)
+
 151/1.46
 Option to set the maximum height of images shown inline in comments, or to remove the limit (Settings > Images/Video)
 

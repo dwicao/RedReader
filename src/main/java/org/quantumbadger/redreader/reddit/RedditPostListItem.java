@@ -26,6 +26,7 @@ import org.quantumbadger.redreader.adapters.GroupedRecyclerViewAdapter;
 import org.quantumbadger.redreader.fragments.PostListingFragment;
 import org.quantumbadger.redreader.reddit.prepared.InlinePreviewLoader;
 import org.quantumbadger.redreader.reddit.prepared.RedditPreparedPost;
+import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElementInlineMedia;
 import org.quantumbadger.redreader.views.RedditPostView;
 
 public class RedditPostListItem
@@ -88,7 +89,7 @@ public class RedditPostListItem
 			// Grid cards load their own image through RedditPostView, so the inline
 			// preview loader would only issue a second request for a preview nothing
 			// displays (and at a different width, so the two rarely share a cache
-			// entry).
+			// entry). They don't show the self text either.
 			return;
 		}
 
@@ -96,6 +97,10 @@ public class RedditPostListItem
 
 		if(previewLoader != null) {
 			previewLoader.setActive(inWindow);
+		}
+
+		for(final BodyElementInlineMedia media : mPost.src.getInlineMedia()) {
+			media.getLoader(mActivity).setActive(inWindow);
 		}
 	}
 

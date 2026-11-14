@@ -135,6 +135,9 @@ object LinkHandler {
 			if (albumInfo != null && albumImageIndex != null) {
 				intent.putExtra("albumUrl", albumInfo.url)
 				intent.putExtra("albumImageIndex", albumImageIndex)
+				// Also pass the album itself: for albums built locally (e.g. the images
+				// attached to a comment) there is no URL to fetch it from
+				intent.putExtra("albumInfo", albumInfo)
 			}
 
 			activity.startActivity(intent)
@@ -297,13 +300,20 @@ object LinkHandler {
 	fun onLinkLongClicked(
 		activity: BaseActivity,
 		uri: UriString?,
-		forceNoImage: Boolean = false
+		forceNoImage: Boolean = false,
+		// When set, the "Save image" and "Share image" actions use this URL, rather than
+		// the page URL. For images shown inline in comments, the page URL is often an
+		// HTML page (e.g. a Giphy page), not the image itself.
+		imageContentUrl: UriString? = null
 	) {
 		if (uri == null) {
 			return
 		}
 
 		val normalUriString = UriString(convertAndNormalizeUri(uri).toString())
+		val downloadUriString = imageContentUrl?.let {
+			UriString(convertAndNormalizeUri(it).toString())
+		} ?: normalUriString
 
 		val itemPref = PrefsUtility.pref_menus_link_context_items()
 
@@ -332,7 +342,7 @@ object LinkHandler {
 			)
 		}
 		if (itemPref.contains(LinkAction.SAVE_IMAGE)
-			&& isProbablyAnImage(normalUriString)
+			&& isProbablyAnImage(downloadUriString)
 			&& !forceNoImage
 		) {
 			menu.add(
@@ -347,7 +357,7 @@ object LinkHandler {
 			menu.add(LinkMenuItem(activity, R.string.action_share, LinkAction.SHARE))
 		}
 		if (itemPref.contains(LinkAction.SHARE_IMAGE)
-			&& isProbablyAnImage(normalUriString)
+			&& isProbablyAnImage(downloadUriString)
 			&& !forceNoImage
 		) {
 			menu.add(
@@ -366,7 +376,8 @@ object LinkHandler {
 			onActionMenuItemSelected(
 				normalUriString,
 				activity,
-				menu[which].action
+				menu[which].action,
+				downloadUriString
 			)
 		}
 
@@ -376,11 +387,16 @@ object LinkHandler {
 		alert.show()
 	}
 
+	@JvmOverloads
 	fun onActionMenuItemSelected(
         uri: UriString,
         activity: BaseActivity,
-        action: LinkAction
+        action: LinkAction,
+		// When set, SAVE_IMAGE and SHARE_IMAGE operate on this URL instead of uri
+		imageContentUrl: UriString? = null
 	) {
+		val imageUri = imageContentUrl ?: uri
+
 		when (action) {
 			LinkAction.SHARE -> shareText(activity, null, getPreferredRedditUriString(uri).value)
 			LinkAction.COPY_URL -> {
@@ -410,8 +426,8 @@ object LinkHandler {
 				)
 			}
 
-			LinkAction.SHARE_IMAGE -> FileUtils.shareImageAtUri(activity, uri)
-			LinkAction.SAVE_IMAGE -> FileUtils.saveImageAtUri(activity, uri)
+			LinkAction.SHARE_IMAGE -> FileUtils.shareImageAtUri(activity, imageUri)
+			LinkAction.SAVE_IMAGE -> FileUtils.saveImageAtUri(activity, imageUri)
 		}
 	}
 

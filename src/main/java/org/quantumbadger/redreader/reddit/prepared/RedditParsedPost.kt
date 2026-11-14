@@ -17,14 +17,19 @@
 package org.quantumbadger.redreader.reddit.prepared
 
 import androidx.appcompat.app.AppCompatActivity
+
 import org.quantumbadger.redreader.R
+import org.quantumbadger.redreader.common.General
+import org.quantumbadger.redreader.common.PrefsUtility
 import org.quantumbadger.redreader.common.UriString
 import org.quantumbadger.redreader.reddit.PostCommentSort
 import org.quantumbadger.redreader.reddit.kthings.MaybeParseError
 import org.quantumbadger.redreader.reddit.kthings.RedditIdAndType
 import org.quantumbadger.redreader.reddit.kthings.RedditPost
 import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElement
+import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElementInlineMedia
 import org.quantumbadger.redreader.reddit.prepared.html.HtmlReader
+import org.quantumbadger.redreader.reddit.prepared.html.InlineMediaCollector
 import org.quantumbadger.redreader.reddit.things.RedditThingWithIdAndType
 import java.util.regex.Pattern
 
@@ -58,6 +63,36 @@ class RedditParsedPost(
 	val src: RedditPost,
 	parseSelfText: Boolean
 ) : RedditThingWithIdAndType {
+
+	private val mInlineMediaCollector: InlineMediaCollector? = run {
+
+		val enabled = parseSelfText
+				&& src.selftext_html != null
+				&& PrefsUtility.images_inline_post_media()
+					.isEnabled(General.isConnectionWifi(activity))
+				&& (!src.over_18 || PrefsUtility.images_inline_image_previews_nsfw())
+				&& (!src.spoiler || PrefsUtility.images_inline_image_previews_spoiler())
+
+		if (!enabled) {
+			null
+		} else {
+			val resolver = InlineMediaResolver(
+				src.media_metadata,
+				PrefsUtility.images_inline_comment_media_giphy())
+
+			if (resolver.isEmpty()) {
+				null
+			} else {
+				InlineMediaCollector(resolver)
+			}
+		}
+	}
+
+	/**
+	 * The images and GIFs displayed in the body of this post.
+	 */
+	val inlineMedia: List<BodyElementInlineMedia>
+		get() = mInlineMediaCollector?.generated ?: emptyList()
 
 	val title: String = src.title?.decoded?.replace('\n', ' ')?.trim() ?: "[null]"
 
@@ -170,7 +205,7 @@ class RedditParsedPost(
 		crosspostParent = src.crosspost_parent
 
 		selfText = if (parseSelfText && src.selftext_html != null) {
-			HtmlReader.parse(src.selftext_html.decoded, activity)
+			HtmlReader.parse(src.selftext_html.decoded, activity, mInlineMediaCollector)
 		} else {
 			null
 		}

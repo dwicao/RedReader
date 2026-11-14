@@ -99,10 +99,22 @@ Added in this fork:
 * **Inline images and GIFs in comments** — an opt-in setting (*Settings >
     Images/Video > Inline images in comments*) shows images and GIFs attached to
     a comment in its body instead of as a link, similar to the official site.
-    GIFs show their first frame with a badge, the NSFW and spoiler preview
-    settings also apply, an optional extra setting loads Giphy GIFs
-    directly from Giphy's CDN, and the maximum height of an image can be
-    capped (or left unlimited) under *Max image height*.
+    GIFs animate while they're on screen (there's an autoplay setting), the NSFW
+    and spoiler preview settings also apply, an optional extra setting loads
+    Giphy GIFs directly from Giphy's CDN, and the maximum height of an image
+    can be capped (or left unlimited) under *Max image height*.
+* **Inline images in posts** — the same treatment for a post's self text
+    (*Settings > Images/Video > Inline images in posts*).
+* **Comment/post image albums** — tapping an inline image opens every image in
+    the post or comment together in the image viewer, so you can swipe through
+    them.
+* **Save and share from long-press** — the long-press menu on an inline image
+    offers Save image and Share image, using the actual image URL (not the
+    page link).
+* **Keyword filter** — *Settings > Behaviour > Hide posts matching these words*
+    hides posts whose title, flair or text contain any of the given words
+    (comma or newline separated, case-insensitive), like the RES keyword
+    filter. Applies to post listings and the Favourites list.
 
 **Performance**
 

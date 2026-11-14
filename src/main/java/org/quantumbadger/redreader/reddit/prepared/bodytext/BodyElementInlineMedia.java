@@ -27,9 +27,11 @@ import androidx.annotation.UiThread;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.common.DisplayUtils;
 import org.quantumbadger.redreader.common.General;
+import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.reddit.prepared.InlineMedia;
 import org.quantumbadger.redreader.reddit.prepared.InlinePreviewLoader;
+import org.quantumbadger.redreader.reddit.prepared.html.InlineMediaCollector;
 import org.quantumbadger.redreader.views.InlineMediaView;
 
 /**
@@ -47,6 +49,7 @@ public class BodyElementInlineMedia extends BodyElement {
 	@NonNull private final UriString mUrl;
 	@NonNull private final InlineMedia mMedia;
 	@Nullable private final String mCaption;
+	@Nullable private final InlineMediaCollector mAlbumSource;
 
 	@Nullable private InlinePreviewLoader mLoader;
 
@@ -55,11 +58,21 @@ public class BodyElementInlineMedia extends BodyElement {
 			@NonNull final InlineMedia media,
 			@Nullable final String caption) {
 
+		this(url, media, caption, null);
+	}
+
+	public BodyElementInlineMedia(
+			@NonNull final UriString url,
+			@NonNull final InlineMedia media,
+			@Nullable final String caption,
+			@Nullable final InlineMediaCollector albumSource) {
+
 		super(BlockType.INLINE_MEDIA);
 
 		mUrl = url;
 		mMedia = media;
 		mCaption = caption;
+		mAlbumSource = albumSource;
 	}
 
 	/**
@@ -78,6 +91,16 @@ public class BodyElementInlineMedia extends BodyElement {
 	@Nullable
 	public String getCaption() {
 		return mCaption;
+	}
+
+	/**
+	 * The collector for all media attached to the same body of text as this element, from
+	 * which the images can be collected into one album. Null when the element wasn't
+	 * generated with inline media collection.
+	 */
+	@Nullable
+	public InlineMediaCollector getAlbumSource() {
+		return mAlbumSource;
 	}
 
 	@NonNull
@@ -121,12 +144,23 @@ public class BodyElementInlineMedia extends BodyElement {
 
 		final int boxHeight = Math.max(1, (int)Math.min(naturalBoxHeight, maxBoxHeight));
 
+		// When animated media should animate, the animation itself is downloaded; the
+		// same bytes are used to decode the poster frame
+		final boolean animationRequested = mMedia.getAnimatedUrl() != null
+				&& PrefsUtility.images_inline_media_autoplay();
+
+		final UriString stillUrl = mMedia.chooseStill(boxWidth).getUrl();
+		final UriString url = animationRequested
+				? mMedia.getAnimatedUrl()
+				: stillUrl;
+
 		return new InlinePreviewLoader.PreviewDetails(
-				mMedia.chooseStill(boxWidth).getUrl(),
+				url,
 				mMedia.getWidth(),
 				mMedia.getHeight(),
 				boxWidth,
-				boxHeight);
+				boxHeight,
+				mMedia.getAnimatedUrl());
 	}
 
 	@Override

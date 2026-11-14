@@ -84,7 +84,7 @@ public class HtmlRawElementInlineMedia extends HtmlRawElement {
 			@NonNull final ArrayList<BodyElement> destination) {
 
 		final BodyElementInlineMedia element
-				= new BodyElementInlineMedia(mUrl, mMedia, mCaption);
+				= new BodyElementInlineMedia(mUrl, mMedia, mCaption, mCollector);
 
 		mCollector.onGenerated(element);
 		destination.add(element);

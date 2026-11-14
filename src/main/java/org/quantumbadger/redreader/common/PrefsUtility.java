@@ -167,6 +167,7 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(R.string.pref_behaviour_fling_post_left_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_fling_post_right_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_nsfw_key))
+				|| key.equals(context.getString(R.string.pref_behaviour_keyword_filter_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_postcount_key))
 				|| key.equals(context.getString(
 						R.string.pref_behaviour_mark_posts_as_read_on_scroll_key))
@@ -185,6 +186,8 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(R.string.pref_images_thumbnail_size_key))
 				|| key.equals(context.getString(R.string.pref_images_inline_image_previews_key))
 				|| key.equals(context.getString(R.string.pref_images_inline_comment_media_key))
+				|| key.equals(context.getString(R.string.pref_images_inline_post_media_key))
+				|| key.equals(context.getString(R.string.pref_images_inline_media_autoplay_key))
 				|| key.equals(context.getString(
 						R.string.pref_images_inline_comment_media_giphy_key))
 				|| key.equals(context.getString(
@@ -965,6 +968,24 @@ public final class PrefsUtility {
 						"never")));
 	}
 
+	public static NeverAlwaysOrWifiOnly images_inline_post_media() {
+		return NeverAlwaysOrWifiOnly.valueOf(StringUtils.asciiUppercase(
+				getString(
+						R.string.pref_images_inline_post_media_key,
+						"never")));
+	}
+
+	/**
+	 * Whether GIFs shown inline in posts and comments should animate while they're on
+	 * screen. On by default: the animation is decoded from bytes which are already being
+	 * downloaded, so this costs no extra network traffic.
+	 */
+	public static boolean images_inline_media_autoplay() {
+		return getBoolean(
+				R.string.pref_images_inline_media_autoplay_key,
+				true);
+	}
+
 	public static boolean images_inline_comment_media_giphy() {
 		return getBoolean(
 				R.string.pref_images_inline_comment_media_giphy_key,
@@ -1440,6 +1461,17 @@ public final class PrefsUtility {
 		return getBoolean(
 				R.string.pref_behaviour_hide_read_posts_key,
 				false);
+	}
+
+	/**
+	 * The keyword filter, as entered by the user: words separated by commas or new lines.
+	 * Posts matching any term are hidden. An empty string means the filter is off.
+	 */
+	@Nullable
+	public static String pref_behaviour_keyword_filter() {
+		return getString(
+				R.string.pref_behaviour_keyword_filter_key,
+				"");
 	}
 
 	public static boolean pref_behaviour_mark_posts_as_read() {

@@ -184,6 +184,13 @@
 							android:dependency="@string/pref_behaviour_mark_posts_as_read_key"
 							android:defaultValue="false"/>
 
+		<EditTextPreference android:title="@string/pref_behaviour_keyword_filter_title"
+							android:key="@string/pref_behaviour_keyword_filter_key"
+							android:summary="@string/pref_behaviour_keyword_filter_summary"
+							android:dialogMessage="@string/pref_behaviour_keyword_filter_dialog_message"
+							android:inputType="textMultiLine|textNoSuggestions"
+							android:defaultValue=""/>
+
         <ListPreference android:title="@string/pref_behaviour_postcount_title"
                         android:key="@string/pref_behaviour_postcount_key"
                         android:entries="@array/pref_behaviour_postcount_items"

@@ -217,7 +217,16 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		mPost = IntentCompat.getParcelableExtra(intent, "post", RedditPost.class);
 
-		if(intent.hasExtra("albumUrl")) {
+		final AlbumInfo albumInfoExtra = IntentCompat.getParcelableExtra(
+				intent, "albumInfo", AlbumInfo.class);
+
+		if(albumInfoExtra != null) {
+			// The caller built the album from data it already has (e.g. the images attached
+			// to a comment), so there is nothing to fetch
+			mAlbumInfo = albumInfoExtra;
+			mAlbumImageIndex = intent.getIntExtra("albumImageIndex", 0);
+
+		} else if(intent.hasExtra("albumUrl")) {
 			LinkHandler.getAlbumInfo(
 					this,
 					Objects.requireNonNull(IntentCompat.getParcelableExtra(

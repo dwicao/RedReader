@@ -38,13 +38,13 @@ class InlineMediaHtmlTest {
 
 	companion object {
 		// As in body_html, where the URL of an uploaded image is linked to itself
-		private const val IMAGE_HREF = "https://preview.redd.it/13ukkwdf324e1.jpeg" +
+		internal const val IMAGE_HREF = "https://preview.redd.it/13ukkwdf324e1.jpeg" +
 				"?width=828&amp;format=pjpg&amp;auto=webp" +
 				"&amp;s=223c05d014c62128899605b9cfb2fb4975128b9b"
 
-		private const val IMAGE_LINK = "<a href=\"$IMAGE_HREF\">$IMAGE_HREF</a>"
+		internal const val IMAGE_LINK = "<a href=\"$IMAGE_HREF\">$IMAGE_HREF</a>"
 
-		private const val GIPHY_LINK =
+		internal const val GIPHY_LINK =
 			"<a href=\"https://giphy.com/gifs/fqfPOiwKagbluB8Ors\" target=\"_blank\">" +
 					"<img src=\"https://external-preview.redd.it/" +
 					"JIOcmGvocKjXObYt7f5_bx2TpbyDPsmYkBhPDxCHFE8.gif?width=200&amp;height=200" +

@@ -17,7 +17,9 @@
 
 package org.quantumbadger.redreader.image
 
+import android.os.Parcelable
 import androidx.compose.runtime.Immutable
+import kotlinx.parcelize.Parcelize
 import org.apache.commons.text.StringEscapeUtils
 import org.quantumbadger.redreader.common.UriString
 import org.quantumbadger.redreader.jsonwrap.JsonObject
@@ -27,14 +29,13 @@ import org.quantumbadger.redreader.reddit.kthings.RedditPost
 import kotlin.math.min
 
 @Immutable
+@Parcelize
 class AlbumInfo(
 	@JvmField val url: UriString,
 	@JvmField val title: String?,
-	val description: String?,
-	images: List<ImageInfo>
-) {
-	@JvmField
-	val images = ArrayList(images)
+	@JvmField val description: String?,
+	@JvmField val images: List<ImageInfo>
+) : Parcelable {
 
 	companion object {
 		@JvmStatic

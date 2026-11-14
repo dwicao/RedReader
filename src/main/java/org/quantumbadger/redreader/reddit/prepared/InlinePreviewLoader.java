@@ -18,6 +18,7 @@
 package org.quantumbadger.redreader.reddit.prepared;
 
 import android.graphics.Bitmap;
+import android.graphics.Movie;
 import android.graphics.Rect;
 import android.util.Log;
 
@@ -41,12 +42,14 @@ import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.Optional;
 import org.quantumbadger.redreader.common.PrioritisedCachedThreadPool;
 import org.quantumbadger.redreader.common.Priority;
+import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.common.datastream.SeekableInputStream;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.image.ScaledBitmapDecoder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.UUID;
 
@@ -119,6 +122,10 @@ public final class InlinePreviewLoader {
 		// When set, loaded after the placeholder URL as a higher-quality upgrade
 		@Nullable public final UriString upgradeUrl;
 
+		// For animated media, the URL of the animation itself (a GIF). Used for playback;
+		// the URL above is used for the poster frame.
+		@Nullable public final UriString animatedUrl;
+
 		/**
 		 * For previews which are the full media themselves, with no fallback or upgrade
 		 * handling needed (e.g. images displayed inline in comments).
@@ -131,7 +138,23 @@ public final class InlinePreviewLoader {
 				final int boxHeightPx) {
 
 			this(url, imageWidthPx, imageHeightPx, boxWidthPx, boxHeightPx,
-					false, false, null);
+					false, false, null, null);
+		}
+
+		/**
+		 * As {@link #PreviewDetails(UriString, int, int, int, int)}, for animated media.
+		 * @param animatedUrl The URL of the animation (a GIF); used for playback.
+		 */
+		public PreviewDetails(
+				@NonNull final UriString url,
+				final int imageWidthPx,
+				final int imageHeightPx,
+				final int boxWidthPx,
+				final int boxHeightPx,
+				@Nullable final UriString animatedUrl) {
+
+			this(url, imageWidthPx, imageHeightPx, boxWidthPx, boxHeightPx,
+					false, false, null, animatedUrl);
 		}
 
 		private PreviewDetails(
@@ -142,7 +165,8 @@ public final class InlinePreviewLoader {
 				final int boxHeightPx,
 				final boolean isFallback,
 				final boolean isVideoPoster,
-				@Nullable final UriString upgradeUrl) {
+				@Nullable final UriString upgradeUrl,
+				@Nullable final UriString animatedUrl) {
 
 			this.url = url;
 			this.imageWidthPx = imageWidthPx;
@@ -152,6 +176,7 @@ public final class InlinePreviewLoader {
 			this.isFallback = isFallback;
 			this.isVideoPoster = isVideoPoster;
 			this.upgradeUrl = upgradeUrl;
+			this.animatedUrl = animatedUrl;
 		}
 	}
 
@@ -272,7 +297,8 @@ public final class InlinePreviewLoader {
 				boxHeight,
 				isFallback,
 				isVideoPoster,
-				upgradeUrl);
+				upgradeUrl,
+				null);
 	}
 
 	private static final long LOAD_TIMEOUT_MS = 20_000;
@@ -286,6 +312,7 @@ public final class InlinePreviewLoader {
 
 	@NonNull private State mState = State.NOT_LOADED;
 	@Nullable private Bitmap mBitmap;
+	@Nullable private Movie mMovie;
 	@Nullable private RRError mError;
 
 	@Nullable private CacheRequest mRequest;
@@ -301,6 +328,11 @@ public final class InlinePreviewLoader {
 	// The size of the display box which the current bitmap, or in-flight request, is for
 	private int mLoadedForWidthPx;
 	private int mLoadedForHeightPx;
+
+	// The URL of the current bitmap, or in-flight request. An animation is
+	// resolution-independent, so reloading one because the display box changed is
+	// wasted work.
+	@Nullable private UriString mLoadedForUrl;
 
 	public InlinePreviewLoader(
 			@NonNull final BaseActivity activity,
@@ -318,6 +350,15 @@ public final class InlinePreviewLoader {
 	@Nullable
 	public Bitmap getBitmap() {
 		return mBitmap;
+	}
+
+	/**
+	 * The animation being displayed, or null for static media. Set together with
+	 * {@link #getBitmap()} (the bitmap is the poster frame) when an animated GIF loads.
+	 */
+	@Nullable
+	public Movie getMovie() {
+		return mMovie;
 	}
 
 	@Nullable
@@ -381,6 +422,17 @@ public final class InlinePreviewLoader {
 			return;
 		}
 
+		if(mState == State.LOADED
+				&& mMovie != null
+				&& details.animatedUrl != null
+				&& mLoadedForUrl != null
+				&& details.url.value.equals(mLoadedForUrl.value)) {
+
+			// The animation is already loaded and resolution-independent, so there is
+			// nothing to reload
+			return;
+		}
+
 		if(mState != State.NOT_LOADED
 				&& mLoadedForWidthPx >= details.boxWidthPx
 				&& mLoadedForHeightPx >= details.boxHeightPx) {
@@ -408,10 +460,12 @@ public final class InlinePreviewLoader {
 		}
 
 		mBitmap = null;
+		mMovie = null;
 		mError = null;
 		mState = State.NOT_LOADED;
 		mLoadedForWidthPx = 0;
 		mLoadedForHeightPx = 0;
+		mLoadedForUrl = null;
 	}
 
 	private void startLoad(@NonNull final PreviewDetails details) {
@@ -426,12 +480,14 @@ public final class InlinePreviewLoader {
 
 		mLoadedForWidthPx = details.boxWidthPx;
 		mLoadedForHeightPx = details.boxHeightPx;
+		mLoadedForUrl = details.url;
 		mPendingUpgradeUrl = details.upgradeUrl;
 
 		// When reloading at a higher resolution, keep showing the image we already have
 		// until the new one is ready, rather than flashing up a loading spinner
 		if(mState != State.LOADED || mBitmap == null) {
 			mBitmap = null;
+			mMovie = null;
 			mError = null;
 			mState = State.LOADING;
 			notifyListener();
@@ -513,6 +569,7 @@ public final class InlinePreviewLoader {
 
 			mRequest = null;
 			mBitmap = null;
+			mMovie = null;
 			mError = new RRError(
 					mActivity.getString(R.string.error_connection_title),
 					mActivity.getString(R.string.error_connection_message),
@@ -535,6 +592,13 @@ public final class InlinePreviewLoader {
 
 	@UiThread
 	private void onLoadSucceeded(final int generation, @NonNull final Bitmap bitmap) {
+		onLoadSucceeded(generation, bitmap, null);
+	}
+
+	private void onLoadSucceeded(
+			final int generation,
+			@NonNull final Bitmap bitmap,
+			@Nullable final Movie movie) {
 
 		if(generation != mGeneration) {
 			// Superseded, or released since this load was started
@@ -545,6 +609,7 @@ public final class InlinePreviewLoader {
 
 		mRequest = null;
 		mBitmap = bitmap;
+		mMovie = movie;
 		mError = null;
 		mState = State.LOADED;
 
@@ -563,6 +628,7 @@ public final class InlinePreviewLoader {
 					mLoadedForHeightPx,
 					true,
 					false,
+					null,
 					null));
 		}
 	}
@@ -591,6 +657,7 @@ public final class InlinePreviewLoader {
 					mLoadedForHeightPx,
 					true,
 					false,
+					null,
 					null));
 
 			return;
@@ -603,6 +670,7 @@ public final class InlinePreviewLoader {
 		}
 
 		mBitmap = null;
+		mMovie = null;
 		mError = error;
 		mState = State.FAILED;
 
@@ -614,6 +682,21 @@ public final class InlinePreviewLoader {
 		if(mListener != null) {
 			mListener.onInlinePreviewStateChanged(this);
 		}
+	}
+
+	private static byte[] readAllBytes(@NonNull final SeekableInputStream input)
+			throws IOException {
+
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final byte[] buffer = new byte[16_384];
+
+		int read;
+
+		while((read = input.read(buffer)) != -1) {
+			out.write(buffer, 0, read);
+		}
+
+		return out.toByteArray();
 	}
 
 	private final class LoadCallbacks implements CacheRequestCallbacks {
@@ -637,14 +720,54 @@ public final class InlinePreviewLoader {
 				final boolean fromCache,
 				@Nullable final String mimetype) {
 
+			// When the request was for the animation itself, decode it as a Movie for
+			// playback; the same bytes are used to decode a poster frame
+			final boolean isAnimationRequest = mDetails.animatedUrl != null
+					&& mDetails.animatedUrl.value.equals(mDetails.url.value)
+					&& PrefsUtility.images_inline_media_autoplay();
+
 			final Bitmap bitmap;
+			final Movie movie;
 
-			try(SeekableInputStream is = streamFactory.create()) {
+			try {
 
-				bitmap = ScaledBitmapDecoder.decodeToFitWithin(
-						is,
-						mDetails.boxWidthPx,
-						mDetails.boxHeightPx);
+				if(isAnimationRequest) {
+
+					final byte[] bytes;
+
+					try(SeekableInputStream is = streamFactory.create()) {
+						bytes = readAllBytes(is);
+					}
+
+					final Movie decoded = Movie.decodeByteArray(bytes, 0, bytes.length);
+
+					if(decoded != null && decoded.duration() > 0) {
+						movie = decoded;
+					} else {
+						movie = null;
+					}
+
+					// Poster frame; streams can be re-created, so this decodes the
+					// first frame from a fresh read
+					try(SeekableInputStream is = streamFactory.create()) {
+						bitmap = ScaledBitmapDecoder.decodeToFitWithin(
+								is,
+								mDetails.boxWidthPx,
+								mDetails.boxHeightPx);
+					}
+
+				} else {
+
+					try(SeekableInputStream is = streamFactory.create()) {
+
+						bitmap = ScaledBitmapDecoder.decodeToFitWithin(
+								is,
+								mDetails.boxWidthPx,
+								mDetails.boxHeightPx);
+					}
+
+					movie = null;
+				}
 
 			} catch(final Throwable t) {
 
@@ -660,7 +783,7 @@ public final class InlinePreviewLoader {
 			}
 
 			AndroidCommon.runOnUiThread(
-					() -> onLoadSucceeded(mCallbackGeneration, bitmap));
+					() -> onLoadSucceeded(mCallbackGeneration, bitmap, movie));
 		}
 
 		@Override
