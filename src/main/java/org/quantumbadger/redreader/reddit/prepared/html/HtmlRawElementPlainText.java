@@ -45,6 +45,11 @@ public class HtmlRawElementPlainText extends HtmlRawElement {
 		mText = text;
 	}
 
+	@NonNull
+	String getText() {
+		return mText;
+	}
+
 	@Override
 	public void getPlainText(@NonNull final StringBuilder stringBuilder) {
 		stringBuilder.append(mText);

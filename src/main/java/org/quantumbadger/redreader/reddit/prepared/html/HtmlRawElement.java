@@ -187,7 +187,8 @@ public abstract class HtmlRawElement {
 					result = new HtmlRawElementTagStrong(children);
 					break;
 				case "p":
-					result = new HtmlRawElementBlock(BlockType.NORMAL_TEXT, children);
+					result = new HtmlRawElementBlock(BlockType.NORMAL_TEXT,
+							splitSpoilerTags(children));
 					break;
 				case "th":
 				case "td":
@@ -264,7 +265,8 @@ public abstract class HtmlRawElement {
 					result = new HtmlRawElementNumberedList(children, startIndex);
 					break;
 				case "li":
-					result = new HtmlRawElementBlock(BlockType.LIST_ELEMENT, children);
+					result = new HtmlRawElementBlock(BlockType.LIST_ELEMENT,
+							splitSpoilerTags(children));
 					break;
 				case "blockquote":
 					result = new HtmlRawElementQuote(new HtmlRawElementBlock(
@@ -328,5 +330,180 @@ public abstract class HtmlRawElement {
 			return HtmlRawElementInlineErrorMessage.create(
 					"Error: Unexpected token type " + startToken.type);
 		}
+	}
+
+	/**
+	 * Reddit's server does not recognise spoiler tags which contain spaces
+	 * (e.g. {@code >! One two three. !<}), leaving them as literal text.
+	 * Split the children on {@code >!}...{@code !<} markers and wrap each run
+	 * in a spoiler element, mirroring how Reddit renders md-spoiler-text.
+	 * Unmatched markers are left as literal text.
+	 */
+	@NonNull
+	static ArrayList<HtmlRawElement> splitSpoilerTags(
+			@NonNull final ArrayList<HtmlRawElement> children) {
+
+		// ---------- Pass 1: collect marker events in order of appearance ----------
+
+		final ArrayList<Integer> evChild = new ArrayList<>();
+		final ArrayList<Integer> evOffset = new ArrayList<>();
+		final ArrayList<Boolean> evIsOpen = new ArrayList<>();
+
+		for(int i = 0; i < children.size(); i++) {
+			final HtmlRawElement child = children.get(i);
+			if(!(child instanceof HtmlRawElementPlainText)) {
+				continue;
+			}
+
+			final String text = ((HtmlRawElementPlainText)child).getText();
+			int pos = 0;
+
+			while(pos < text.length()) {
+				final int open = text.indexOf(">!", pos);
+				final int close = text.indexOf("!<", pos);
+
+				if(open < 0 && close < 0) {
+					break;
+				}
+
+				if(open >= 0 && (close < 0 || open < close)) {
+					evChild.add(i);
+					evOffset.add(open);
+					evIsOpen.add(true);
+					pos = open + 2;
+
+				} else {
+					evChild.add(i);
+					evOffset.add(close);
+					evIsOpen.add(false);
+					pos = close + 2;
+				}
+			}
+		}
+
+		// ---------- Pass 1b: pair markers sequentially ----------
+
+		final boolean[] evMatched = new boolean[evChild.size()];
+		int pending = -1;
+
+		for(int e = 0; e < evChild.size(); e++) {
+			if(evIsOpen.get(e)) {
+				if(pending == -1) {
+					pending = e;
+				}
+
+			} else if(pending != -1) {
+				evMatched[pending] = true;
+				evMatched[e] = true;
+				pending = -1;
+			}
+		}
+
+		boolean anyMatched = false;
+		for(final boolean matched : evMatched) {
+			if(matched) {
+				anyMatched = true;
+				break;
+			}
+		}
+
+		if(!anyMatched) {
+			return children;
+		}
+
+		// ---------- Pass 2: rebuild the child list ----------
+
+		final ArrayList<HtmlRawElement> output = new ArrayList<>(children.size() + 4);
+
+		ArrayList<HtmlRawElement> normalSegment = new ArrayList<>();
+		ArrayList<HtmlRawElement> spoilerSegment = null;
+
+		for(int i = 0; i < children.size(); i++) {
+			final HtmlRawElement child = children.get(i);
+
+			if(!(child instanceof HtmlRawElementPlainText)) {
+
+				if(spoilerSegment != null) {
+					spoilerSegment.add(child);
+				} else {
+					normalSegment.add(child);
+				}
+
+			} else {
+
+				final String text = ((HtmlRawElementPlainText)child).getText();
+				int pos = 0;
+
+				for(int e = 0; e < evChild.size(); e++) {
+					if(evChild.get(e) != i || !evMatched[e]) {
+						continue;
+					}
+
+					final int markerOffset = evOffset.get(e);
+					final boolean isOpen = evIsOpen.get(e);
+
+					if(markerOffset > pos) {
+						final HtmlRawElementPlainText before =
+								new HtmlRawElementPlainText(text.substring(pos, markerOffset));
+
+						if(spoilerSegment != null) {
+							spoilerSegment.add(before);
+						} else {
+							normalSegment.add(before);
+						}
+					}
+
+					pos = markerOffset + 2;
+
+					if(isOpen) {
+						emitSpoilerSplitSegment(output, normalSegment, false);
+						normalSegment = new ArrayList<>();
+						spoilerSegment = new ArrayList<>();
+
+					} else {
+						emitSpoilerSplitSegment(output, spoilerSegment, true);
+						spoilerSegment = null;
+						normalSegment = new ArrayList<>();
+					}
+				}
+
+				if(pos < text.length()) {
+					final HtmlRawElementPlainText rest =
+							new HtmlRawElementPlainText(text.substring(pos));
+
+					if(spoilerSegment != null) {
+						spoilerSegment.add(rest);
+					} else {
+						normalSegment.add(rest);
+					}
+				}
+			}
+		}
+
+		// A matched close must always follow a matched open, so spoilerSegment is always
+		// null here, but emit literally rather than dropping anything, just in case
+		emitSpoilerSplitSegment(output, spoilerSegment, false);
+		emitSpoilerSplitSegment(output, normalSegment, false);
+
+		return output;
+	}
+
+	private static void emitSpoilerSplitSegment(
+			@NonNull final ArrayList<HtmlRawElement> output,
+			@Nullable final ArrayList<HtmlRawElement> segment,
+			final boolean asSpoiler) {
+
+		if(segment == null || segment.isEmpty()) {
+			return;
+		}
+
+		if(!asSpoiler) {
+			output.addAll(segment);
+			return;
+		}
+
+		output.add(new HtmlRawElementSpoiler(new HtmlRawElementBlock(
+				BlockType.BUTTON,
+				segment)));
 	}
 }
