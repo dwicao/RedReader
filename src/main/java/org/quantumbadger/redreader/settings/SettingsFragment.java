@@ -1102,7 +1102,15 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 				context,
 				null,
 				android.R.attr.progressBarStyleHorizontal);
-		progressBar.setIndeterminate(true);
+
+		// Animations disabled (e.g. battery saver or the accessibility setting):
+		// an indeterminate horizontal progress bar can render blank on older APIs
+		if(android.animation.ValueAnimator.areAnimatorsEnabled()) {
+			progressBar.setIndeterminate(true);
+		} else {
+			progressBar.setIndeterminate(false);
+			progressBar.setProgress(0);
+		}
 		progressBar.setContentDescription(getString(R.string.cache_clear_dialog_loading));
 
 		cacheDialog.getListView().addHeaderView(progressBar, null, false);

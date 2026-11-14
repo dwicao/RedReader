@@ -60,6 +60,13 @@ public class LoadingSpinnerView extends RelativeLayout {
 		mProgressView.setStartingDegree(-90);
 		mProgressView.initPainters();
 
+		// Animations disabled (e.g. battery saver or the accessibility setting):
+		// show a static indicator instead of an animated one
+		if(!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+			mProgressView.setIndeterminate(false);
+			mProgressView.setProgress(0.3f);
+		}
+
 		addView(mProgressView);
 		final int progressDimensionsPx = General.dpToPixels(context, 100);
 		mProgressView.getLayoutParams().width = progressDimensionsPx;

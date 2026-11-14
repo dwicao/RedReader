@@ -827,6 +827,13 @@ public class ImageViewActivity extends ViewsBaseActivity
 		progressBar.setStartingDegree(-90);
 		progressBar.initPainters();
 
+		// Animations disabled (e.g. battery saver or the accessibility setting):
+		// show a static indicator instead of an animated one
+		if(!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+			progressBar.setIndeterminate(false);
+			progressBar.setProgress(0.3f);
+		}
+
 		final LinearLayout progressTextLayout = new LinearLayout(this);
 		progressTextLayout.setOrientation(LinearLayout.VERTICAL);
 		progressTextLayout.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -861,7 +868,13 @@ public class ImageViewActivity extends ViewsBaseActivity
 
 		if(mProgressBar != null) {
 			mProgressBar.setVisibility(View.VISIBLE);
-			mProgressBar.setIndeterminate(true);
+
+			if(android.animation.ValueAnimator.areAnimatorsEnabled()) {
+				mProgressBar.setIndeterminate(true);
+			} else {
+				mProgressBar.setIndeterminate(false);
+				mProgressBar.setProgress(0.3f);
+			}
 		}
 
 		if(mProgressText != null) {
