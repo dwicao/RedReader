@@ -383,10 +383,10 @@ public final class RedditPostView extends FlingableItemView
 				mOuterView.setOnClickListener(v -> fragmentParent.onPostCommentsSelected(mPost));
 
 				mThumbnailView.setOnClickListener(v -> fragmentParent.onPostSelected(mPost));
-				mThumbnailView.setOnLongClickListener(longClickListener);
+				AndroidCommon.setExtendedLongClickListener(mThumbnailView, longClickListener);
 
 				mImagePreviewOuter.setOnClickListener(v -> fragmentParent.onPostSelected(mPost));
-				mImagePreviewOuter.setOnLongClickListener(longClickListener);
+				AndroidCommon.setExtendedLongClickListener(mImagePreviewOuter, longClickListener);
 
 				AndroidCommon.removeClickListeners(title);
 
@@ -399,11 +399,11 @@ public final class RedditPostView extends FlingableItemView
 				AndroidCommon.removeClickListeners(mImagePreviewOuter);
 
 				title.setOnClickListener(v -> fragmentParent.onPostCommentsSelected(mPost));
-				title.setOnLongClickListener(longClickListener);
+				AndroidCommon.setExtendedLongClickListener(title, longClickListener);
 				break;
 		}
 
-		mOuterView.setOnLongClickListener(longClickListener);
+		AndroidCommon.setExtendedLongClickListener(mOuterView, longClickListener);
 
 		if(mCommentsButtonPref) {
 			mCommentsButton.setOnClickListener(v -> fragmentParent.onPostCommentsSelected(mPost));

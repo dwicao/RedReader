@@ -1477,4 +1477,18 @@
 		<item>custom</item>
 	</string-array>
 
+	<string-array name="pref_accessibility_long_press_delay_items">
+		<item>@string/pref_accessibility_long_press_delay_system_default</item>
+		<item>@string/pref_accessibility_long_press_delay_750ms</item>
+		<item>@string/pref_accessibility_long_press_delay_1000ms</item>
+		<item>@string/pref_accessibility_long_press_delay_1500ms</item>
+		<item>@string/pref_accessibility_long_press_delay_2000ms</item>
+	</string-array>
+	<string-array name="pref_accessibility_long_press_delay_return">
+		<item>0</item>
+		<item>750</item>
+		<item>1000</item>
+		<item>1500</item>
+		<item>2000</item>
+	</string-array>
 </resources>

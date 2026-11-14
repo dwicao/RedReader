@@ -142,7 +142,7 @@ public class RedditInboxItemView extends FrameLayout {
 
 		mCard.setOnClickListener(v -> handleInboxClick(mActivity));
 
-		mCard.setOnLongClickListener(v -> {
+		AndroidCommon.setExtendedLongClickListener(mCard, v -> {
 			handleInboxLongClick(mActivity);
 			return true;
 		});

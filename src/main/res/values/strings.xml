@@ -2180,4 +2180,12 @@
 	<string name="pref_behaviour_domain_filter_summary">Posts whose link domain matches one of these are hidden (e.g. twitter.com). Domains are separated by commas or new lines; matches subdomains too</string>
 	<!-- Translators: message shown in the dialog to edit the domains which posts must not link to -->
 	<string name="pref_behaviour_domain_filter_dialog_message">One or more domains, separated by commas or new lines (e.g. twitter.com or x.com). Matching is case-insensitive and matches subdomains</string>
+	<string name="pref_accessibility_long_press_delay_key" translatable="false">pref_accessibility_long_press_delay</string>
+	<string name="pref_accessibility_long_press_delay_title">Long-press delay</string>
+	<string name="pref_accessibility_long_press_delay_summary">How long you need to hold your finger still for the long-press menu to open</string>
+	<string name="pref_accessibility_long_press_delay_system_default">System default</string>
+	<string name="pref_accessibility_long_press_delay_750ms">750ms</string>
+	<string name="pref_accessibility_long_press_delay_1000ms">1000ms (1 second)</string>
+	<string name="pref_accessibility_long_press_delay_1500ms">1500ms (1.5 seconds)</string>
+	<string name="pref_accessibility_long_press_delay_2000ms">2000ms (2 seconds)</string>
 </resources>

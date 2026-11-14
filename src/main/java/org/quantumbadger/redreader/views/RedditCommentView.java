@@ -380,7 +380,7 @@ public class RedditCommentView extends FlingableItemView
 
 		setOnClickListener(view -> mListener.onCommentClicked(this));
 
-		setOnLongClickListener(v -> {
+		AndroidCommon.setExtendedLongClickListener(this, v -> {
 			mListener.onCommentLongClicked(this);
 			return true;
 		});

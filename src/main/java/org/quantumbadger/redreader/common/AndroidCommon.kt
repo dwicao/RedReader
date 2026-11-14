@@ -25,6 +25,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
@@ -237,6 +238,85 @@ object AndroidCommon {
 	@JvmStatic
 	fun applyGlobalLineSpacing(textView: TextView) {
 		textView.setLineSpacing(0f, PrefsUtility.appearance_linespacing_global())
+	}
+
+	/**
+	 * Apply a long-click listener, honouring the long-press delay preference:
+	 * if the user chose a delay longer than the system default, the menu only
+	 * opens after that much time with the finger held still. With the system
+	 * default, the normal framework handling is used unchanged.
+	 */
+	@JvmStatic
+	fun setExtendedLongClickListener(view: View, listener: View.OnLongClickListener) {
+
+		val delayMs = PrefsUtility.pref_accessibility_long_press_delay().toLong()
+
+		if (delayMs <= 0L) {
+			view.setOnLongClickListener(listener)
+			return
+		}
+
+		var downTime = 0L
+		var downX = 0f
+		var downY = 0f
+		var longFired = false
+
+		val handler = UI_THREAD_HANDLER
+		val touchSlop = android.view.ViewConfiguration.get(view.context).scaledTouchSlop
+
+		fun fireLongClick() {
+			if (longFired) {
+				return
+			}
+
+			longFired = true
+			// Any pending timer returns early via the longFired guard
+			listener.onLongClick(view)
+		}
+
+		val timer = Runnable { fireLongClick() }
+
+		view.setOnTouchListener { _, event ->
+
+			when (event.actionMasked) {
+
+				android.view.MotionEvent.ACTION_DOWN -> {
+					longFired = false
+					downTime = SystemClock.uptimeMillis()
+					downX = event.x
+					downY = event.y
+					handler.postDelayed(timer, delayMs)
+					false
+				}
+
+				android.view.MotionEvent.ACTION_MOVE -> {
+					if (Math.abs(event.x - downX) > touchSlop || Math.abs(event.y - downY) > touchSlop) {
+						handler.removeCallbacks(timer)
+					}
+					false
+				}
+
+				android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+					handler.removeCallbacks(timer)
+					longFired
+				}
+
+				else -> false
+			}
+		}
+
+		// Accessibility actions go through the framework long-click path;
+		// honour the same delay there and never double-fire
+		view.setOnLongClickListener { v ->
+			if (SystemClock.uptimeMillis() - downTime >= delayMs) {
+				fireLongClick()
+				true
+			} else {
+				false
+			}
+		}
+
+		view.isLongClickable = true
 	}
 
 	/** Apply the incognito keyboard flag to every EditText in a view hierarchy. */

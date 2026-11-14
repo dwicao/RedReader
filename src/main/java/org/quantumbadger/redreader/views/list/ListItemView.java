@@ -27,6 +27,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.android.material.textview.MaterialTextView;
 import org.quantumbadger.redreader.R;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.Optional;
 
 // TODO just make this a linear layout
@@ -99,7 +100,7 @@ public class ListItemView extends FrameLayout {
 
 		if(longClickListener != null) {
 			mMainLink.setLongClickable(true);
-			mMainLink.setOnLongClickListener(longClickListener);
+			AndroidCommon.setExtendedLongClickListener(mMainLink, longClickListener);
 		} else {
 			mMainLink.setLongClickable(false);
 			mMainLink.setOnLongClickListener(null);

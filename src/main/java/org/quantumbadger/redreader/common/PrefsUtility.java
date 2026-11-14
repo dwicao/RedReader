@@ -2329,6 +2329,17 @@ public final class PrefsUtility {
 				"ONLY_BOTS")));
 	}
 
+	public static int pref_accessibility_long_press_delay() {
+		try {
+			return Integer.parseInt(getString(
+					R.string.pref_accessibility_long_press_delay_key,
+					"0"));
+
+		} catch(final NumberFormatException e) {
+			return 0;
+		}
+	}
+
 	public static boolean pref_accessibility_concise_mode() {
 		return getBoolean(
 				R.string.pref_accessibility_concise_mode_key,

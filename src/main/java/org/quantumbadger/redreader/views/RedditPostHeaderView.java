@@ -118,7 +118,7 @@ public class RedditPostHeaderView extends LinearLayout {
 			}
 		});
 
-		greyHeader.setOnLongClickListener(v -> {
+		AndroidCommon.setExtendedLongClickListener(greyHeader, v -> {
 			RedditPostActions.INSTANCE.showActionMenu(activity, post);
 			return true;
 		});

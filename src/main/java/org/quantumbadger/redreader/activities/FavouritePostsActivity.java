@@ -38,6 +38,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.cache.CacheManager;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
@@ -415,7 +416,7 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 			holder.itemView.setOnClickListener(
 					view -> openPost(post));
 
-			holder.itemView.setOnLongClickListener(view -> {
+			AndroidCommon.setExtendedLongClickListener(holder.itemView, view -> {
 				showRemoveConfirmDialog(post);
 				return true;
 			});
