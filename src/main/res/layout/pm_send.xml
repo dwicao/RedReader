@@ -57,7 +57,7 @@
 			  android:singleLine="false"
 			  android:scrollHorizontally="false"
 			  android:scrollbars="none"
-			  android:inputType="textCapSentences|textMultiLine"
+			  android:inputType="textCapSentences|textAutoComplete|textMultiLine"
 			  android:hint="@string/pm_send_hint_message_text"
 			  android:importantForAutofill="no"/>
 
