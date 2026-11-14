@@ -816,8 +816,9 @@ public class MainActivity extends RefreshableActivity
 
 			commentListingController
 					= new CommentListingController(
-					PostCommentListingURL.forPostId(post.src
-							.getIdAlone()));
+					PostCommentListingURL.forPostId(
+						post.src.getIdAlone(),
+						PostCommentListingURL.suggestedOrderFor(post.src)));
 			showBackButton(true);
 
 			if(isMenuShown) {
@@ -846,7 +847,9 @@ public class MainActivity extends RefreshableActivity
 		} else {
 			LinkHandler.onLinkClicked(
 					this,
-					PostCommentListingURL.forPostId(post.src.getIdAlone()).toUriString(),
+					PostCommentListingURL.forPostId(
+					post.src.getIdAlone(),
+					PostCommentListingURL.suggestedOrderFor(post.src)).toUriString(),
 					false);
 		}
 	}

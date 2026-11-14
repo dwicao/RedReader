@@ -571,7 +571,9 @@ public class ImageViewActivity extends ViewsBaseActivity
 	public void onPostCommentsSelected(final RedditPreparedPost post) {
 		LinkHandler.onLinkClicked(
 				this,
-				new UriString(PostCommentListingURL.forPostId(post.src.getIdAlone())
+				new UriString(PostCommentListingURL.forPostId(
+						post.src.getIdAlone(),
+						PostCommentListingURL.suggestedOrderFor(post.src))
 						.generateJsonUri()
 						.toString()),
 				false);

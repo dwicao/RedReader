@@ -20,10 +20,13 @@ package org.quantumbadger.redreader.reddit.url;
 import android.content.Context;
 import android.net.Uri;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import org.quantumbadger.redreader.common.Constants;
 import org.quantumbadger.redreader.common.General;
+import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.StringUtils;
 import org.quantumbadger.redreader.reddit.PostCommentSort;
+import org.quantumbadger.redreader.reddit.prepared.RedditParsedPost;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +47,27 @@ public class PostCommentListingURL extends CommentListingURL {
 
 	public static PostCommentListingURL forPostId(final String postId) {
 		return new PostCommentListingURL(null, postId, null, null, null, null, false);
+	}
+
+	public static PostCommentListingURL forPostId(final String postId,
+			@Nullable final PostCommentSort order) {
+
+		return new PostCommentListingURL(null, postId, null, null, null, order, false);
+	}
+
+	/**
+	 * The sort order to use when opening a post's comment listing: the post's suggested
+	 * sort order if the user enabled the "Default to suggested comment sort" preference
+	 * and the post suggests one; otherwise null (callers fall back to the configured default).
+	 */
+	@Nullable
+	public static PostCommentSort suggestedOrderFor(@Nullable final RedditParsedPost post) {
+
+		if(post == null || !PrefsUtility.pref_behaviour_suggested_commentsort()) {
+			return null;
+		}
+
+		return post.getSuggestedCommentSort();
 	}
 
 	public PostCommentListingURL(

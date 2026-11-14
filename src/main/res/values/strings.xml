@@ -492,6 +492,9 @@
 
     <string name="pref_behaviour_commentsort_key" translatable="false">pref_behaviour_commentsort</string>
     <string name="pref_behaviour_commentsort">Comments (default)</string>
+    <string name="pref_behaviour_suggested_commentsort_key" translatable="false">pref_behaviour_suggested_commentsort</string>
+    <string name="pref_behaviour_suggested_commentsort_title">Default to suggested comment sort</string>
+    <string name="pref_behaviour_suggested_commentsort_summary">Open comment threads using the subreddit\'s suggested sort order, when set</string>
 
     <!-- 2013-05-18 -->
 

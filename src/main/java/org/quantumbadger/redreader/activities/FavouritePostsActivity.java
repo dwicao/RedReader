@@ -298,7 +298,8 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 		LinkHandler.onLinkClicked(
 				this,
 				PostCommentListingURL.forPostId(
-						post.getIdAndType().toString()).toUriString());
+						post.getIdAndType().toString(),
+						PostCommentListingURL.suggestedOrderFor(post)).toUriString());
 	}
 
 	private void toggleUpvote(final RedditPreparedPost post) {

@@ -1389,7 +1389,8 @@ public class PostListingFragment extends RRFragment
 			final int positionInList) {
 
 		final CommentListingController controller = new CommentListingController(
-				PostCommentListingURL.forPostId(preparedPost.src.getIdAlone()));
+				PostCommentListingURL.forPostId(preparedPost.src.getIdAlone(),
+							PostCommentListingURL.suggestedOrderFor(preparedPost.src)));
 
 		final UriString url = UriString.from(controller.getUri());
 

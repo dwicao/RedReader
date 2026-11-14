@@ -202,7 +202,9 @@ public class MoreCommentsListingActivity extends RefreshableActivity
 	public void onPostCommentsSelected(final RedditPreparedPost post) {
 		LinkHandler.onLinkClicked(
 				this,
-				PostCommentListingURL.forPostId(post.src.getIdAlone()).toUriString(),
+				PostCommentListingURL.forPostId(
+				post.src.getIdAlone(),
+				PostCommentListingURL.suggestedOrderFor(post.src)).toUriString(),
 				false);
 	}
 

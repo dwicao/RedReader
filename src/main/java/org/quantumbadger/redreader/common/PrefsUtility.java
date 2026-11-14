@@ -1487,6 +1487,12 @@ public final class PrefsUtility {
 				"new")));
 	}
 
+	public static boolean pref_behaviour_suggested_commentsort() {
+		return getBoolean(
+				R.string.pref_behaviour_suggested_commentsort_key,
+				false);
+	}
+
 	public enum PinnedSubredditSort {
 		NAME, DATE
 	}
