@@ -464,7 +464,7 @@ object RedditPostActions {
 			}
 
 			Action.SAVE_IMAGE -> {
-				FileUtils.saveImageAtUri(activity, post.src.url)
+				FileUtils.saveImageAtUri(activity, post.src.url, post.src.src)
 			}
 
 			Action.SHARE -> if (post.src.url != null) {

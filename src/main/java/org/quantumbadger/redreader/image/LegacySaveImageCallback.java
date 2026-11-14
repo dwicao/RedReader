@@ -21,6 +21,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 
+import androidx.annotation.Nullable;
+
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.cache.CacheRequest;
@@ -37,9 +39,20 @@ public class LegacySaveImageCallback implements BaseActivity.PermissionCallback 
 	private final BaseActivity activity;
 	private final UriString uri;
 
+	@Nullable
+	private final String suggestedName;
+
 	public LegacySaveImageCallback(final BaseActivity activity, final UriString uri) {
+		this(activity, uri, null);
+	}
+
+	public LegacySaveImageCallback(
+			final BaseActivity activity,
+			final UriString uri,
+			@Nullable final String suggestedName) {
 		this.activity = activity;
 		this.uri = uri;
+		this.suggestedName = suggestedName;
 	}
 
 	@Override
@@ -50,7 +63,9 @@ public class LegacySaveImageCallback implements BaseActivity.PermissionCallback 
 				uri,
 				(info, cacheFile, mimetype) -> {
 
-					final String filename = General.filenameFromString(info.original.url.value);
+					final String filename = suggestedName != null
+							? suggestedName
+							: General.filenameFromString(info.original.url.value);
 
 					File dst = new File(
 							Environment.getExternalStoragePublicDirectory(

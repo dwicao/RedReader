@@ -50,6 +50,7 @@ import org.quantumbadger.redreader.fragments.ShareOrderDialog;
 import org.quantumbadger.redreader.image.GetImageInfoListener;
 import org.quantumbadger.redreader.image.ImageInfo;
 import org.quantumbadger.redreader.image.LegacySaveImageCallback;
+import org.quantumbadger.redreader.reddit.kthings.RedditPost;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -378,13 +379,37 @@ public class FileUtils {
 		}
 	}
 
+	private static String filenameForSave(
+			@Nullable final String suggestedName,
+			@NonNull final String url) {
+
+		return suggestedName != null ? suggestedName : General.filenameFromString(url);
+	}
+
 	public static void saveImageAtUri(
 			@NonNull final BaseActivity activity,
 			@Nullable final UriString uri) {
 
+		saveImageAtUri(activity, uri, null);
+	}
+
+	public static void saveImageAtUri(
+			@NonNull final BaseActivity activity,
+			@Nullable final UriString uri,
+			@Nullable final RedditPost post) {
+
 		if (uri == null) {
 			return;
 		}
+
+		// If the post is known, name the file after it; otherwise fall back to the URL
+		@Nullable final String suggestedName = post == null
+				? null
+				: General.filenameFromPost(
+						uri.value,
+						post.getSubreddit() == null ? null : post.getSubreddit().getDecoded(),
+						post.getAuthor() == null ? null : post.getAuthor().getDecoded(),
+						post.getTitle() == null ? null : post.getTitle().getDecoded());
 
 		final PrefsUtility.SaveLocation saveLocation
 				= PrefsUtility.pref_behaviour_save_location();
@@ -395,7 +420,7 @@ public class FileUtils {
 
 				downloadImageToSave(activity, uri, (info, cacheFile, mimetype) -> {
 
-					final String filename = General.filenameFromString(info.original.url.value);
+					final String filename = filenameForSave(suggestedName, info.original.url.value);
 
 					createSAFDocumentWithIntent(
 							activity,
@@ -418,7 +443,7 @@ public class FileUtils {
 
 					downloadImageToSave(activity, uri, (info, cacheFile, mimetype) -> {
 
-						final String filename = General.filenameFromString(info.original.url.value);
+						final String filename = filenameForSave(suggestedName, info.original.url.value);
 
 						mediaStoreDownloadsInsertFile(
 								activity,

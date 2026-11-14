@@ -670,13 +670,77 @@ object General {
         }
     }
 
+    /**
+     * Build a descriptive filename for a saved post image, e.g.
+     * "RedReader-aww-user456-checkoutmycat.jpg". Components that are missing
+     * or empty are skipped. Falls back to [filenameFromString] if nothing is usable.
+     */
+    @JvmStatic
+	fun filenameFromPost(
+        url: String?,
+        subreddit: String?,
+        author: String?,
+        title: String?
+    ): String {
+
+        fun sanitize(input: String?, allowedExtraChars: String, max: Int): String {
+            if (input == null) return ""
+            val sb = StringBuilder(input.length)
+            for (c in input) {
+                val keep = (c.isLetterOrDigit() && c.code < 128) || allowedExtraChars.indexOf(c) >= 0
+                if (keep) {
+                    sb.append(c.lowercaseChar())
+                }
+            }
+            return sb.toString().take(max)
+        }
+
+        val path = run {
+            val noFragment = url?.substringBefore('#', missingDelimiterValue = url ?: "") ?: return@run null
+            val noQuery = noFragment.substringBefore('?', missingDelimiterValue = noFragment)
+            val schemeEnd = noQuery.indexOf("://")
+            if (schemeEnd >= 0) {
+                val pathStart = noQuery.indexOf('/', schemeEnd + 3)
+                if (pathStart >= 0) noQuery.substring(pathStart) else "/"
+            } else {
+                noQuery
+            }
+        }
+
+        val extension = run {
+            val dot = path?.lastIndexOf('.') ?: -1
+            if (dot >= 0 && path != null) {
+                val ext = path.substring(dot + 1)
+                if (ext.length in 1..6 && ext.all { it.isLetterOrDigit() && it.code < 128 }) {
+                    return@run ext.lowercase()
+                }
+            }
+            if (url != null && url.contains("v.redd.it")) "mp4" else "jpg"
+        }
+
+        val parts = listOf(
+            "RedReader",
+            sanitize(subreddit, "_", 24),
+            sanitize(author, "_-", 24),
+            sanitize(title, "", 48)
+        ).filter { it.isNotEmpty() }
+
+        // If we only have "RedReader", there's no useful info in the filename
+        if (parts.size == 1) {
+            return filenameFromString(url ?: "file")
+        }
+
+        return parts.joinToString("-") + "." + extension
+    }
+
     @JvmStatic
 	fun filenameFromString(url: String): String {
-        val uri = url.toUri()
-        var filename = uri.path?.replace(File.separator, "")?.takeUnless { it.isEmpty() } ?: "file"
+        val noFragment = url.substringBefore('#', missingDelimiterValue = url)
+        val noQuery = noFragment.substringBefore('?', missingDelimiterValue = noFragment)
+        var filename = noQuery.substringAfterLast('/').takeUnless { it.isEmpty() } ?: "file"
         val parts = filename.split("\\.".toRegex(), limit = 2).toTypedArray()
         if (parts.size < 2) {
-            filename += if ("v.redd.it" == uri.host) {
+            filename += if (url.contains("v.redd.it")) {
                 ".mp4"
             } else {
                 ".jpg"
