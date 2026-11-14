@@ -776,6 +776,7 @@
     <string name="block_subreddit">Block Subreddit</string>
     <string name="unblock_subreddit">Unblock Subreddit</string>
     <string name="pref_blocked_subreddits_key" translatable="false">pref_blocked_subreddits</string>
+    <string name="pref_collapsed_selftext_posts_key" translatable="false">pref_collapsed_selftext_posts</string>
 	<string name="pref_blocked_subreddit_regexes_key" translatable="false">pref_blocked_subreddit_regexes</string>
 	<string name="pref_behaviour_manage_blocked_subreddits_key" translatable="false">pref_behaviour_manage_blocked_subreddits</string>
 	<string name="pref_behaviour_manage_blocked_subreddits_title">Manage blocked subreddits</string>

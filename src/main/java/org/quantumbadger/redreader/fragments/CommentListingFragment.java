@@ -682,17 +682,31 @@ public class CommentListingFragment extends RRFragment
 
 				final PrefsUtility.SelfpostAction actionOnClick
 						= PrefsUtility.pref_behaviour_self_post_tap_actions();
-				if(actionOnClick == PrefsUtility.SelfpostAction.COLLAPSE) {
+
+				final String postKey = post.src.getIdAlone();
+
+				// Persist the collapsed state: refreshing the listing must not re-expand the OP.
+				final boolean storedCollapsed = PrefsUtility.pref_collapsed_selftext_is_collapsed(
+						postKey);
+
+				if(storedCollapsed) {
+					mSelfTextVisible = false;
+				}
+
+				if(actionOnClick == PrefsUtility.SelfpostAction.COLLAPSE || storedCollapsed) {
 					paddingLayout.setOnClickListener(v -> {
 						if(selfText.getVisibility() == View.GONE) {
 							mSelfTextVisible = true;
 							selfText.setVisibility(View.VISIBLE);
 							collapsedView.setVisibility(View.GONE);
+							PrefsUtility.pref_collapsed_selftext_set_collapsed(postKey, false);
+
 						} else {
 							mSelfTextVisible = false;
 							selfText.setVisibility(View.GONE);
 							collapsedView.setVisibility(View.VISIBLE);
 							layoutManager.scrollToPositionWithOffset(0, 0);
+							PrefsUtility.pref_collapsed_selftext_set_collapsed(postKey, true);
 						}
 					});
 				}

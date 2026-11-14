@@ -2083,6 +2083,47 @@ public final class PrefsUtility {
 	}
 
 	///////////////////////////////
+	// pref_collapsed_selftext_posts
+	///////////////////////////////
+
+	// Cap the number of remembered collapsed posts so the store can't grow forever
+	private static final int MAX_COLLAPSED_SELFTEXT_POSTS = 1000;
+
+	public static boolean pref_collapsed_selftext_is_collapsed(@NonNull final String postId) {
+		return WritableHashSet.escapedStringToList(getString(
+				R.string.pref_collapsed_selftext_posts_key,
+				"")).contains(postId);
+	}
+
+	public static void pref_collapsed_selftext_set_collapsed(
+			@NonNull final String postId,
+			final boolean collapsed) {
+
+		final ArrayList<String> list = WritableHashSet.escapedStringToList(getString(
+				R.string.pref_collapsed_selftext_posts_key,
+				""));
+
+		if(collapsed) {
+			if(!list.contains(postId)) {
+				list.add(postId);
+
+				while(list.size() > MAX_COLLAPSED_SELFTEXT_POSTS) {
+					list.remove(0);
+				}
+			}
+
+		} else {
+			list.remove(postId);
+		}
+
+		sharedPrefs.edit()
+				.putString(
+						getPrefKey(R.string.pref_collapsed_selftext_posts_key),
+						WritableHashSet.listToEscapedString(list))
+				.apply();
+	}
+
+	///////////////////////////////
 	// pref_blocked_subreddits
 	///////////////////////////////
 
