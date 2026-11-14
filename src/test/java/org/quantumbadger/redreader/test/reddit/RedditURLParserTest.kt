@@ -70,6 +70,17 @@ class RedditURLParserTest {
 	}
 
 	@Test
+	fun videoPlayerEmbedIsTreatedAsCommentListing() {
+
+		val uri = Uri.parse(
+			"https://www.reddit.com/link/1uf92k0/video/someslug/player")
+
+		val parsed = RedditURLParser.parse(uri)
+
+		assertEquals(RedditURLParser.POST_COMMENT_LISTING_URL, parsed?.pathType())
+	}
+
+	@Test
 	fun clickRedditmailRedirectToNonHttpTargetIsRejected() {
 
 		val uri = Uri.parse(
@@ -97,6 +108,28 @@ class RedditURLParserTest {
 		val parsed = RedditURLParser.parse(uri)
 
 		assertEquals(RedditURLParser.SUBREDDIT_POST_LISTING_URL, parsed?.pathType())
+	}
+
+	@Test
+	fun subredditNameWithDashIsAccepted() {
+
+		val uri = Uri.parse("https://reddit.com/r/u_Ruby_Soho-")
+
+		val parsed = RedditURLParser.parse(uri)
+
+		assertEquals(RedditURLParser.SUBREDDIT_POST_LISTING_URL, parsed?.pathType())
+	}
+
+	@Test
+	fun multiredditNamesWithDashesAreAccepted() {
+
+		assertEquals(
+			RedditURLParser.SUBREDDIT_POST_LISTING_URL,
+			RedditURLParser.parse(Uri.parse("https://reddit.com/r/a-b+c-d"))?.pathType())
+
+		assertEquals(
+			RedditURLParser.SUBREDDIT_POST_LISTING_URL,
+			RedditURLParser.parse(Uri.parse("https://reddit.com/r/all-foo"))?.pathType())
 	}
 
 	@Test

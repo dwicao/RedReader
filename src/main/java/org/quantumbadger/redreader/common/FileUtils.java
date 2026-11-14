@@ -194,6 +194,14 @@ public class FileUtils {
 	}
 
 	public static void copyFile(final InputStream fis, final File dst) throws IOException {
+
+		// Create the destination directory if needed, so saving into a folder that
+		// doesn't exist yet works instead of failing
+		final File parent = dst.getParentFile();
+		if (parent != null && !parent.exists()) {
+			parent.mkdirs();
+		}
+
 		try (FileOutputStream fos = new FileOutputStream(dst)) {
 			General.copyStream(fis, fos);
 			fos.flush();
@@ -417,6 +425,17 @@ public class FileUtils {
 		switch (saveLocation) {
 
 			case PROMPT_EVERY_TIME: {
+
+				// On Android 5.x (API < 24) the Storage Access Framework document
+				// picker is unreliable for this flow, so fall back to the legacy
+				// direct-write path like SYSTEM_DEFAULT does
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+
+					activity.requestPermissionWithCallback(
+							Manifest.permission.WRITE_EXTERNAL_STORAGE,
+							new LegacySaveImageCallback(activity, uri, suggestedName));
+					break;
+				}
 
 				downloadImageToSave(activity, uri, (info, cacheFile, mimetype) -> {
 

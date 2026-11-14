@@ -31,6 +31,7 @@ import org.quantumbadger.redreader.common.UriString;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 
 public class RedditURLParser {
 
@@ -173,6 +174,25 @@ public class RedditURLParser {
 					= MultiredditPostListURL.parse(uri);
 			if(multiredditPostListURL != null) {
 				return multiredditPostListURL;
+			}
+		}
+
+		// reddit.com/link/<postId>/video/<slug>/player is the comment-embedded video URL
+		// format: treat it as the post's comment listing so videos embedded in
+		// comments open in the app instead of the generic fallback browser
+		{
+			final List<String> segments = uri.getPathSegments();
+
+			if(segments.size() == 5
+					&& "link".equalsIgnoreCase(segments.get(0))
+					&& "video".equalsIgnoreCase(segments.get(2))
+					&& "player".equalsIgnoreCase(segments.get(4))) {
+				final PostCommentListingURL videoPlayerURL
+						= PostCommentListingURL.forPostId(segments.get(1));
+
+				if(videoPlayerURL != null) {
+					return videoPlayerURL;
+				}
 			}
 		}
 

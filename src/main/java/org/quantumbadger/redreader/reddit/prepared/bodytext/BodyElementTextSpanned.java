@@ -17,12 +17,12 @@
 
 package org.quantumbadger.redreader.reddit.prepared.bodytext;
 
-import android.graphics.Color;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.content.Context;
+import android.content.res.TypedArray;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -71,6 +71,8 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 	// views are rebuilt on refresh, like any change to text styling would be.
 	private void muteVisitedLinks(@NonNull final Context context) {
 
+		final int mutedColor = resolveThemeColor(context, 0xFF9E9E9E);
+
 		final VisitableClickableSpan[] spans = mSpanned.getSpans(
 				0,
 				mSpanned.length(),
@@ -79,11 +81,28 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 		for(final VisitableClickableSpan span : spans) {
 			if(VisitedLinks.isVisited(context, span.url)) {
 				mSpanned.setSpan(
-						new ForegroundColorSpan(Color.rgb(0x9E, 0x9E, 0x9E)),
+						new ForegroundColorSpan(mutedColor),
 						mSpanned.getSpanStart(span),
 						mSpanned.getSpanEnd(span),
 						Spanned.SPAN_INCLUSIVE_EXCLUSIVE);
 			}
+		}
+	}
+
+	// Use the theme's secondary (muted) text colour for visited links, so they
+	// fit every theme; fall back to mid-grey if it can't be resolved
+	private static int resolveThemeColor(
+			@NonNull final Context context,
+			final int fallbackColor) {
+
+		final TypedArray typedArray = context.obtainStyledAttributes(
+				new int[] { android.R.attr.textColorSecondary });
+
+		try {
+			return typedArray.getColor(0, fallbackColor);
+
+		} finally {
+			typedArray.recycle();
 		}
 	}
 

@@ -1,3 +1,17 @@
+157/1.52
+Refresh inbox in place (no screen flicker) when pulling to refresh or toggling unread-only
+"Mark all as read" now marks each message read individually (more reliable)
+Back from a notification deep-link lands on the main screen, not the launcher
+Match comment search case-insensitively (e.g. "Havertz" matches "havertz")
+Open video/gallery posts externally via the comments page (with audio), not the raw video URL
+Open comment-embedded video player URLs (/link/<id>/video/<slug>/player) in the app
+Back from gallery taps title area to go back
+Popular listing uses global popular, not geo-restricted popular
+Fix crash opening subreddits with hyphens in the name (e.g. r/u_name-with-dash)
+Fix saving media when the target folder doesn't exist
+Fix "save" flow looping the Documents prompt on Android 5.x
+Visited links now use the theme's muted colour instead of grey
+
 156/1.51
 Add "Mute visited links" option, showing already-clicked links in a muted colour
 Add "Hide non-stickied bot and moderator comments" option

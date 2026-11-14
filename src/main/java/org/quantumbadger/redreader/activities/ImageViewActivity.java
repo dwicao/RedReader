@@ -621,7 +621,19 @@ public class ImageViewActivity extends ViewsBaseActivity
 		Log.i(TAG, "Using external browser");
 
 		final Runnable r = () -> {
-			LinkHandler.openWebBrowser(this, mUrl.toUri(), false);
+			// For video posts, the comments permalink hosts the embedded player; the
+			// raw v.redd.it URL is a video-only MP4 with no audio track
+			final UriString target;
+
+			// v.redd.it links are video-only progressive MP4s with no audio track;
+			// the comments permalink hosts the embedded player instead
+			if(mPost != null && mUrl.value.contains("://v.redd.it/")) {
+				target = new UriString("https://reddit.com" + mPost.getPermalink().getDecoded());
+
+			} else {
+				target = mUrl;
+			}
+			LinkHandler.openWebBrowser(this, target.toUri(), false);
 			finish();
 		};
 

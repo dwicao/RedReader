@@ -418,7 +418,11 @@ object RedditPostActions {
 
 			Action.EXTERNAL -> {
 				try {
-					val url: UriString? = if (activity is WebViewActivity) activity.currentUrl else post.src.url
+					// For video posts, the comments permalink hosts the embedded player; the
+					// raw v.redd.it URL is a progressive MP4 with no audio track
+					val url: UriString? = if (activity is WebViewActivity) activity.currentUrl
+					else if (post.src.isVideoPreview) UriString("https://reddit.com" + post.src.permalink)
+					else post.src.url
 					if (url == null) {
 						General.quickToast(activity, R.string.link_does_not_exist)
 						return

@@ -155,6 +155,14 @@ Added in this fork:
     (system default, 750ms – 2s).
 * **Line spacing** — *Settings > Fonts > Global line spacing* adjusts the
     space between lines of text, for comments, posts and titles.
+* **Popular is global** — /r/popular opens the worldwide popular feed,
+    not a geo-restricted one.
+* **Inbox without flicker** — pulling down to refresh the inbox, or the
+    refresh button, now re-fetches in place instead of recreating the
+    screen; same for toggling unread-only.
+* **Mark all as read works** — "Mark all as read" now marks each message
+    individually, which is much more reliable than the old all-at-once
+    endpoint.
 * **Scroll position memory** — reopening a long thread, including after the
     app was backgrounded and the process killed, returns to where you
     scrolled.

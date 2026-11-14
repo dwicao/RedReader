@@ -39,7 +39,11 @@ public class FilteredCommentListingManager extends RedditListingManager {
 			@Nullable final String searchString) {
 
 		super(context);
-		mSearchString = searchString;
+		// The comment search is case-insensitive and compares against a lowercased body,
+		// so the query needs to be lowercase too (e.g. "Havertz" must match "havertz")
+		mSearchString = searchString == null
+				? null
+				: StringUtils.asciiLowercase(searchString);
 	}
 
 	public void addComments(final Collection<RedditCommentListItem> comments) {

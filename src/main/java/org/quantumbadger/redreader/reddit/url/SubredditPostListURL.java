@@ -157,6 +157,9 @@ public class SubredditPostListURL extends PostListingURL {
 
 			case POPULAR:
 				builder.encodedPath("/r/popular");
+				// Reddit serves a geo-restricted feed by default; the /r/popular listing
+				// is meant to be the global one
+				builder.appendQueryParameter("geofilter", "global");
 				break;
 		}
 
@@ -307,7 +310,7 @@ public class SubredditPostListURL extends PostListingURL {
 							before,
 							after);
 
-				} else if(subreddit.matches("all(\\-[\\w\\.]+)+")) {
+				} else if(subreddit.matches("all(\\-[\\w\\.\\-]+)+")) {
 
 					if(pathSegments.length == 2) {
 						return new SubredditPostListURL(
@@ -331,7 +334,7 @@ public class SubredditPostListURL extends PostListingURL {
 						return null;
 					}
 
-				} else if(subreddit.matches("\\w+(\\+[\\w\\.]+)+")) {
+				} else if(subreddit.matches("[\\w\\.\\-]+(\\+[\\w\\.\\-]+)+")) {
 
 					final Type type = subreddit.equals(
 							PrefsUtility.pref_pinned_subreddits_multireddit())
@@ -360,7 +363,7 @@ public class SubredditPostListURL extends PostListingURL {
 						return null;
 					}
 
-				} else if(subreddit.matches("[\\w\\.]+")) {
+				} else if(subreddit.matches("[\\w\\.\\-]+")) {
 
 					if(pathSegments.length == 2) {
 						return new SubredditPostListURL(

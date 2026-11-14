@@ -18,6 +18,7 @@
 package org.quantumbadger.redreader.activities;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -134,6 +135,11 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 			this.mItem = item;
 		}
 
+		@NonNull
+		private RedditIdAndType getIdAndType() {
+			return mItem.getIdAndType();
+		}
+
 		@Override
 		public Class getViewType() {
 			return RedditInboxItemView.class;
@@ -242,8 +248,7 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 				= new ScrollbarRecyclerViewManager(this, null, false);
 
 		if(PrefsUtility.pref_behaviour_enable_swipe_refresh()) {
-			recyclerViewManager.enablePullToRefresh(
-					() -> General.recreateActivityNoAnimation(this));
+			recyclerViewManager.enablePullToRefresh(this::reload);
 		}
 
 		adapter = new GroupedRecyclerViewAdapter(1);
@@ -260,7 +265,26 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 	public void cancel() {
 		if(request != null) {
 			request.cancel();
+			request = null;
 		}
+	}
+
+	// Reload the inbox in place, without recreating the activity
+	private void reload() {
+		cancel();
+
+		mItems.clear();
+		adapter.removeAllFromGroup(0);
+
+		notifications.removeAllViews();
+		loadingView = new LoadingView(
+				this,
+				getString(R.string.download_waiting),
+				true,
+				true);
+		notifications.addView(loadingView);
+
+		makeFirstRequest(this);
 	}
 
 	private void makeFirstRequest(final Context context) {
@@ -521,50 +545,77 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 	}
 
 	@Override
+	protected boolean baseActivityOnBackPressed() {
+
+		// Back from a notification deep-link should land on the main screen,
+		// not close the app entirely
+		if (isTaskRoot()) {
+			startActivity(new Intent(this, MainActivity.class));
+			finish();
+			return true;
+		}
+
+		return false;
+	}
+
+	@Override
+	protected boolean baseActivityMustInterceptBack() {
+		return isTaskRoot();
+	}
+
+	@Override
 	public boolean onOptionsItemSelected(final MenuItem item) {
 		switch(item.getItemId()) {
 			case OPTIONS_MENU_MARK_ALL_AS_READ:
-				RedditAPI.markAllAsRead(
-						CacheManager.getInstance(this),
-						new APIResponseHandler.ActionResponseHandler(this) {
-							@Override
-							protected void onSuccess() {
-								General.quickToast(
-										context,
-										R.string.mark_all_as_read_success);
 
-								AndroidCommon.runOnUiThread(() -> {
-									final TimestampUTC now = TimestampUTC.now();
+				// /api/read_all_messages is unreliable on modern Reddit; fall back to
+				// marking each loaded message read individually, which is the same
+				// endpoint the per-item UI uses
+				final ArrayList<InboxItem> allItems = new ArrayList<>(mItems);
 
-									for(final InboxItem item : mItems) {
-										mChangeDataManager.markRead(
-												now,
-												item.mItem.getIdAndType(),
-												true);
-									}
+				final TimestampUTC now = TimestampUTC.now();
 
-									adapter.notifyItemRangeChanged(0, adapter.getItemCount());
-								});
-							}
+				for(final InboxItem inboxItem : allItems) {
+					mChangeDataManager.markRead(now, inboxItem.getIdAndType(), true);
+				}
 
-							@Override
-							protected void onCallbackException(final Throwable t) {
-								BugReportActivity.addGlobalError(new RRError(
-										"Mark all as Read failed",
-										"Callback exception",
-										true,
-										t));
-							}
+				adapter.notifyItemRangeChanged(0, adapter.getItemCount());
 
-							@Override
-							protected void onFailure(@NonNull final RRError error) {
-								General.showResultDialog(
-										InboxListingActivity.this,
-										error);
-							}
-						},
-						RedditAccountManager.getInstance(this).getDefaultAccount(),
-						this);
+				for(final InboxItem inboxItem : allItems) {
+					RedditAPI.markMessageAsRead(
+							CacheManager.getInstance(this),
+							new APIResponseHandler.ActionResponseHandler(this) {
+								@Override
+								protected void onSuccess() {
+									// Nothing to do: state was already updated
+								}
+
+								@Override
+								protected void onCallbackException(final Throwable t) {
+									BugReportActivity.addGlobalError(new RRError(
+											"Mark all as read failed",
+											"Callback exception",
+											true,
+											t));
+								}
+
+								@Override
+								protected void onFailure(@NonNull final RRError error) {
+									BugReportActivity.addGlobalError(new RRError(
+											"Mark all as read failed",
+											"Request failed",
+											true,
+											error.t));
+								}
+							},
+							RedditAccountManager.getInstance(this).getDefaultAccount(),
+							inboxItem.getIdAndType(),
+							this);
+				}
+
+				General.quickToast(
+						this,
+						R.string.mark_all_as_read_success);
 
 				return true;
 
@@ -580,12 +631,12 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 						.putBoolean(PREF_ONLY_UNREAD, enabled)
 						.apply();
 
-				General.recreateActivityNoAnimation(this);
+				reload();
 				return true;
 			}
 
 			case OPTIONS_MENU_REFRESH: {
-				General.recreateActivityNoAnimation(this);
+				reload();
 				return true;
 			}
 

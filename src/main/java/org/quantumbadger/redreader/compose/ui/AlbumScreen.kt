@@ -25,6 +25,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -444,8 +445,9 @@ fun AlbumScreen(
 
 			Box(
 				modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 6.dp),
+					.weight(1f)
+					.padding(start = 6.dp)
+					.clickable { onBackPressed() },
 			) {
 				androidx.compose.animation.AnimatedVisibility(
 					modifier = Modifier.fillMaxWidth(),
