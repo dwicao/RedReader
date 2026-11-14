@@ -28,8 +28,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.view.KeyEvent;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -41,6 +43,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.common.AndroidCommon;
@@ -592,6 +595,54 @@ public abstract class ViewsBaseActivity extends BaseActivity {
 		});
 
 		return root;
+	}
+
+	@Override
+	public boolean dispatchKeyEvent(@NonNull final KeyEvent event) {
+
+		// Hardware keyboard Page Up/Page Down should scroll the listing,
+		// not move focus between items
+		if(event.getAction() == KeyEvent.ACTION_DOWN
+				&& (event.getKeyCode() == KeyEvent.KEYCODE_PAGE_UP
+				|| event.getKeyCode() == KeyEvent.KEYCODE_PAGE_DOWN)
+				&& !(getCurrentFocus() instanceof EditText)) {
+
+			final RecyclerView recyclerView = mContentListing != null
+					? findFirstRecyclerView(mContentListing)
+					: null;
+
+			if(recyclerView != null) {
+				final int sign = event.getKeyCode() == KeyEvent.KEYCODE_PAGE_UP ? -1 : 1;
+
+				recyclerView.scrollBy(0, sign * recyclerView.getHeight());
+				return true;
+			}
+		}
+
+		return super.dispatchKeyEvent(event);
+	}
+
+	@Nullable
+	private static RecyclerView findFirstRecyclerView(@NonNull final ViewGroup group) {
+
+		for(int i = 0; i < group.getChildCount(); i++) {
+
+			final View child = group.getChildAt(i);
+
+			if(child instanceof RecyclerView) {
+				return (RecyclerView)child;
+			}
+
+			if(child instanceof ViewGroup) {
+				final RecyclerView found = findFirstRecyclerView((ViewGroup)child);
+
+				if(found != null) {
+					return found;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	public void setBaseActivityListing(@NonNull final View view) {
