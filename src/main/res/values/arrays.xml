@@ -905,6 +905,7 @@
 		<item>@string/mainmenu_frontpage</item>
 		<item>@string/mainmenu_popular</item>
 		<item>@string/mainmenu_all</item>
+		<item>@string/mainmenu_pinned</item>
 		<item>@string/find_location</item>
 		<item>@string/mainmenu_custom_destination</item>
 	</string-array>
@@ -914,6 +915,7 @@
 		<item>frontpage</item>
 		<item>popular</item>
 		<item>all</item>
+		<item>pinned</item>
 		<item>subreddit_search</item>
 		<item>custom</item>
 	</string-array>

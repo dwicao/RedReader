@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import org.quantumbadger.redreader.common.PrefsUtility;
+
 
 // Keeps an in-memory list of all known subreddits per account
 public class RedditSubredditHistory {
@@ -40,6 +42,7 @@ public class RedditSubredditHistory {
 
 		if(result == null) {
 			result = new HashSet<>(Constants.Reddit.DEFAULT_SUBREDDITS);
+			result.addAll(PrefsUtility.pref_pinned_subreddits(false));
 			SUBREDDITS.put(account, result);
 		}
 

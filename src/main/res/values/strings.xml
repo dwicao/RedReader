@@ -166,7 +166,9 @@
     <string name="mainmenu_upvoted">Upvoted Posts</string>
     <string name="mainmenu_inbox">Inbox</string>
     <string name="mainmenu_profile">My Profile</string>
-    <string name="mainmenu_header_subreddits">Subreddits</string>
+	<string name="mainmenu_header_subreddits">Subreddits</string>
+	<string name="mainmenu_pinned">Pinned Subreddits</string>
+	<string name="mainmenu_pinned_empty">No pinned subreddits</string>
 
     <!-- General Listing -->
 
@@ -666,6 +668,8 @@
     <!-- 2015-05-29 -->
     <string name="pref_behaviour_skiptofrontpage_title">Skip to front page</string>
     <string name="pref_behaviour_skiptofrontpage_key" translatable="false">pref_behaviour_skiptofrontpage</string>
+	<string name="pref_behaviour_skiptopinned_key" translatable="false">pref_behaviour_skiptopinned</string>
+	<string name="pref_behaviour_skiptopinned_title">Skip to pinned subreddits</string>
 
     <!-- 2015-06-07 -->
     <string name="error_archived_vote" >This has been archived and can no longer be voted on.</string>

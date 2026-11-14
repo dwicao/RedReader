@@ -231,9 +231,14 @@ public class MainActivity extends RefreshableActivity
 			AndroidCommon.promptForNotificationPermission(this, null);
 		}
 
-		if(savedInstanceState == null
-				&& PrefsUtility.pref_behaviour_skiptofrontpage()) {
-			onSelected(SubredditPostListURL.getFrontPage());
+		if(savedInstanceState == null) {
+			if(PrefsUtility.pref_behaviour_skiptopinned()
+					&& !PrefsUtility.pref_pinned_subreddits_is_empty()) {
+				onSelected(SubredditPostListURL.getPinned());
+
+			} else if(PrefsUtility.pref_behaviour_skiptofrontpage()) {
+				onSelected(SubredditPostListURL.getFrontPage());
+			}
 		}
 
 		AppUpdater.checkForUpdates(this);
@@ -286,6 +291,17 @@ public class MainActivity extends RefreshableActivity
 			case MainMenuFragment.MENU_MENU_ACTION_ALL:
 				onSelected(SubredditPostListURL.getAll());
 				break;
+
+			case MainMenuFragment.MENU_MENU_ACTION_PINNED: {
+				final String pinned = PrefsUtility.pref_pinned_subreddits_multireddit();
+
+				if(pinned.isEmpty()) {
+					General.quickToast(this, R.string.mainmenu_pinned_empty);
+				} else {
+					onSelected(SubredditPostListURL.getPinned());
+				}
+				break;
+			}
 
 			case MainMenuFragment.MENU_MENU_ACTION_SUBMITTED:
 				onSelected(UserPostListingURL.getSubmitted(username));

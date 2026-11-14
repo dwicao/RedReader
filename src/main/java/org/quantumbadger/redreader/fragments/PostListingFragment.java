@@ -351,6 +351,7 @@ public class PostListingFragment extends RRFragment
 					case FRONTPAGE:
 					case ALL:
 					case POPULAR:
+					case PINNED:
 						setHeader(
 								mPostListingURL.humanReadableName(getActivity(), true),
 								mPostListingURL.humanReadableUrl(),
