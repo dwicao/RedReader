@@ -29,9 +29,12 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.AdapterView
 import android.widget.ListAdapter
-import android.widget.TextView
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import org.quantumbadger.redreader.R
@@ -213,6 +216,37 @@ object AndroidCommon {
 			setOnLongClickListener(null)
 			isClickable = false
 			isLongClickable = false
+		}
+	}
+
+	/**
+	 * If the "Incognito keyboard" preference is enabled, ask the IME not to learn
+	 * what's typed into this text view (IME_FLAG_NO_PERSONALIZED_LEARNING).
+	 */
+	@JvmStatic
+	fun applyKeyboardPrivacy(textView: TextView) {
+		if(PrefsUtility.pref_behaviour_incognito_keyboard()) {
+			textView.imeOptions =
+				textView.imeOptions or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+		}
+	}
+
+	/** Apply the incognito keyboard flag to every EditText in a view hierarchy. */
+	@JvmStatic
+	fun applyKeyboardPrivacyToTree(view: View) {
+
+		if(!PrefsUtility.pref_behaviour_incognito_keyboard()) {
+			return
+		}
+
+		if(view is EditText) {
+			applyKeyboardPrivacy(view)
+		}
+
+		if(view is ViewGroup) {
+			for(i in 0 until view.childCount) {
+				applyKeyboardPrivacyToTree(view.getChildAt(i))
+			}
 		}
 	}
 }

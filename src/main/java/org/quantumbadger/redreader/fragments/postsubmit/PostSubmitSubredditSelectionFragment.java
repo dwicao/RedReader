@@ -245,6 +245,8 @@ public class PostSubmitSubredditSelectionFragment extends Fragment {
 
 		final View root = inflater.inflate(R.layout.subreddit_selection, container, false);
 
+		AndroidCommon.applyKeyboardPrivacyToTree(root);
+
 		mUsernameSpinner = root.findViewById(R.id.subreddit_selection_account);
 		mSubredditBox = root.findViewById(R.id.subreddit_selection_textbox);
 

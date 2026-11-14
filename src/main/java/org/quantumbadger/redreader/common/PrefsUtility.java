@@ -2261,6 +2261,12 @@ public final class PrefsUtility {
 				false);
 	}
 
+	public static boolean pref_behaviour_incognito_keyboard() {
+		return getBoolean(
+				R.string.pref_behaviour_incognito_keyboard_key,
+				false);
+	}
+
 	@Nullable
 	public static String pref_reddit_client_id_override() {
 		final String value = getString(R.string.pref_reddit_client_id_override_key, null);

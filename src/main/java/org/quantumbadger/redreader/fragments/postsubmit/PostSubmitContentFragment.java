@@ -223,6 +223,8 @@ public class PostSubmitContentFragment extends Fragment {
 
 		final View root = inflater.inflate(R.layout.post_submit, container, false);
 
+		AndroidCommon.applyKeyboardPrivacyToTree(root);
+
 		mMainControls = Objects.requireNonNull(
 				root.findViewById(R.id.post_submit_main_controls));
 

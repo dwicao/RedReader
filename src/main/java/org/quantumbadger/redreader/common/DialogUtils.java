@@ -75,6 +75,7 @@ public class DialogUtils {
 				= Objects.requireNonNull(alertDialog.findViewById(R.id.editbox_layout));
 
 		editTextRef.set(editText);
+		AndroidCommon.applyKeyboardPrivacy(editText);
 
 		final TextView.OnEditorActionListener onEnter = (v, actionId, event) -> {
 			performSearch(editText, listener);

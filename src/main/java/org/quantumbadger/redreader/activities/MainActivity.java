@@ -529,6 +529,7 @@ public class MainActivity extends RefreshableActivity
 	private void showCustomSubredditsDialog() {
 
 		final EditText editText = new EditText(this);
+		AndroidCommon.applyKeyboardPrivacy(editText);
 		editText.setInputType(
 				InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
 		editText.setMinLines(3);

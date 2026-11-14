@@ -1143,6 +1143,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		final int currentValue = PrefsUtility.pref_behaviour_min_comments();
 
 		final EditText editText = new EditText(context);
+		AndroidCommon.applyKeyboardPrivacy(editText);
 		editText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
 		editText.setText(String.valueOf(currentValue));
 		editText.setSelection(editText.getText().length());
@@ -1244,6 +1245,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 	private void showAddBlockedSubredditDialog(@NonNull final Context context) {
 
 		final EditText input = new EditText(context);
+		AndroidCommon.applyKeyboardPrivacy(input);
 		input.setSingleLine(true);
 		input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
 		input.setHint(R.string.blocked_subreddits_add_hint);

@@ -25,6 +25,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.EditText;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -42,6 +43,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import org.quantumbadger.redreader.R;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.Optional;
 import org.quantumbadger.redreader.common.PrefsUtility;
@@ -220,6 +222,13 @@ public abstract class ViewsBaseActivity extends BaseActivity {
 			if (baseActivityIsToolbarSearchBarEnabled()) {
 				supportActionBar.setCustomView(R.layout.actionbar_search);
 				General.setLayoutMatchParent(supportActionBar.getCustomView());
+
+				final View searchEditField = supportActionBar.getCustomView()
+						.findViewById(androidx.appcompat.R.id.search_src_text);
+
+				if (searchEditField instanceof EditText) {
+					AndroidCommon.applyKeyboardPrivacy((EditText) searchEditField);
+				}
 
 			} else {
 				supportActionBar.setCustomView(R.layout.actionbar_title);
@@ -579,6 +588,7 @@ public abstract class ViewsBaseActivity extends BaseActivity {
 
 	public void setBaseActivityListing(@NonNull final View view) {
 		mContentListing.removeAllViews();
+		AndroidCommon.applyKeyboardPrivacyToTree(view);
 		mContentListing.addView(view);
 	}
 
@@ -589,10 +599,15 @@ public abstract class ViewsBaseActivity extends BaseActivity {
 	public void setBaseActivityListing(final int layoutRes) {
 		mContentListing.removeAllViews();
 		getLayoutInflater().inflate(layoutRes, mContentListing, true);
+
+		for(int i = 0; i < mContentListing.getChildCount(); i++) {
+			AndroidCommon.applyKeyboardPrivacyToTree(mContentListing.getChildAt(i));
+		}
 	}
 
 	public void setBaseActivityOverlay(@NonNull final View view) {
 		mContentOverlay.removeAllViews();
+		AndroidCommon.applyKeyboardPrivacyToTree(view);
 		mContentOverlay.addView(view);
 	}
 

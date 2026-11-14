@@ -29,6 +29,7 @@ import android.widget.TextView;
 import org.apache.commons.lang3.StringUtils;
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.activities.PostListingActivity;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.reddit.url.SearchPostListURL;
 
 
@@ -52,8 +53,11 @@ public final class SearchListingHeader extends FrameLayout {
 		mQuery = findViewById(R.id.search_listing_header_query_editText);
 		mQuery.setText(url.query);
 		mQuery.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+		AndroidCommon.applyKeyboardPrivacy(mQuery);
 
 		mLocation = findViewById(R.id.search_listing_header_sub_editText);
+		mLocation.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+		AndroidCommon.applyKeyboardPrivacy(mLocation);
 
 		if(url.type == SearchPostListURL.Type.SUB_OR_SUB_COMBO && url.subreddit != null) {
 			mLocation.setText(url.subreddit);
