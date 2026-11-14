@@ -115,6 +115,17 @@ Added in this fork:
     hides posts whose title, flair or text contain any of the given words
     (comma or newline separated, case-insensitive), like the RES keyword
     filter. Applies to post listings and the Favourites list.
+* **Regular expression rules for blocked subreddits** — *Settings > Behaviour >
+    Manage blocked subreddits* lets you add subreddit names and regex rules with
+    optional case-insensitive matching; the regex rules apply to the same broad
+    listings as the blocklist (front page, /r/all, /r/popular).
+* **Hide posts with few comments** — *Settings > Behaviour > Hide posts with
+    few comments* (off by default) hides posts with fewer comments than a
+    minimum you set.
+* **Pinned Subreddits menu entry** — the main menu shows a Pinned Subreddits
+    entry (when you have pinned subreddits) that opens them as one combined
+    listing, and *Settings > Behaviour > Skip to pinned subreddits* starts the
+    app there.
 
 **Performance**
 
@@ -216,6 +227,18 @@ Before installing one, please note:
 To install a fork build:
 
     adb install -r RedReader-release.apk
+
+To verify a fork build's signature, check that the APK's signing certificate
+matches the fork's published debug certificate:
+
+```
+SHA1: 2B:BE:A0:4E:4D:73:0A:C7:0E:14:A8:86:DF:B0:7B:02:AC:F8:D1:5E
+SHA256: B1:10:8B:4A:31:47:2B:C5:7C:84:47:83:97:A4:53:CB:9B:C7:F5:D7:11:5F:EA:F6:D9:D7:1D:9E:F5:9B:97:48
+```
+
+(`apksigner verify --print-certs RedReader-release-signed.apk` prints the
+signing certificate; its SHA-256 fingerprint is the same value without the
+colons, in lowercase.)
 
 If you would like to go back to the official version afterwards, uninstall the
 fork build first and reinstall from your store.

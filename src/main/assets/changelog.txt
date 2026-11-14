@@ -1,3 +1,11 @@
+153/1.48
+New setting to loop videos, and to disable video autoplay (Settings > Images/Video)
+New setting for colourful comment indent bars (Settings > Appearance)
+Hide posts with few comments (Settings > Behaviour)
+Add a Pinned Subreddits entry to the main menu, and a skip-to-pinned option
+Regular expression rules for blocked subreddits, with a management screen (Settings > Behaviour)
+Fix tap actions triggering when the system navigation gesture cancels the touch
+
 152/1.47
 GIFs shown inline now animate while they're on screen (Settings > Images/Video)
 Option to show inline images in posts' self text (Settings > Images/Video)
