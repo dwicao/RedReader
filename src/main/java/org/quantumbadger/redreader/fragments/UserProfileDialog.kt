@@ -65,7 +65,11 @@ import org.quantumbadger.redreader.reddit.APIResponseHandler.ActionResponseHandl
 import org.quantumbadger.redreader.reddit.APIResponseHandler.UserResponseHandler
 import org.quantumbadger.redreader.reddit.RedditAPI
 import org.quantumbadger.redreader.reddit.api.RedditOAuth.completeLogin
+import org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager
+import org.quantumbadger.redreader.reddit.api.SubredditSubscriptionState
+import org.quantumbadger.redreader.reddit.things.InvalidSubredditNameException
 import org.quantumbadger.redreader.reddit.things.RedditUser
+import org.quantumbadger.redreader.reddit.things.SubredditCanonicalId
 import org.quantumbadger.redreader.reddit.url.UserPostListingURL
 import org.quantumbadger.redreader.views.LoadingSpinnerView
 import org.quantumbadger.redreader.views.liststatus.ErrorView
@@ -250,6 +254,103 @@ object UserProfileDialog {
 						chipMoreInfo.setOnClickListener {
 							UserPropertiesDialog.newInstance(user)
 								.show(activity.supportFragmentManager, null)
+						}
+						run {
+							val chipUserSubreddit =
+								dialog.findViewById<Chip>(R.id.user_profile_chip_user_subreddit)!!
+							val chipSubscribe =
+								dialog.findViewById<Chip>(R.id.user_profile_chip_subscribe)!!
+							val chipUnsubscribe =
+								dialog.findViewById<Chip>(R.id.user_profile_chip_unsubscribe)!!
+
+							val userSrId = try {
+								SubredditCanonicalId("u_$username")
+							} catch (e: InvalidSubredditNameException) {
+								null
+							}
+
+							if (userSrId == null) {
+								chipUserSubreddit.visibility = View.GONE
+								chipSubscribe.visibility = View.GONE
+								chipUnsubscribe.visibility = View.GONE
+
+							} else {
+								val subscriptionManager =
+									RedditSubredditSubscriptionManager.getSingleton(
+										context,
+										accountManager.getDefaultAccount()
+									)
+
+								chipUserSubreddit.setOnClickListener {
+									LinkHandler.onLinkClicked(
+										context,
+										UriString("/r/u_$username"),
+										false
+									)
+								}
+
+								if (accountManager.getDefaultAccount().isAnonymous()) {
+									chipSubscribe.setOnClickListener {
+										General.showMustBeLoggedInDialog(activity)
+									}
+									chipSubscribe.visibility = View.VISIBLE
+									chipUnsubscribe.visibility = View.GONE
+
+								} else {
+									fun refreshSubscriptionChips() {
+										when (subscriptionManager.getSubscriptionState(userSrId)) {
+											SubredditSubscriptionState.SUBSCRIBED -> {
+												chipSubscribe.visibility = View.GONE
+												chipUnsubscribe.visibility = View.VISIBLE
+											}
+											SubredditSubscriptionState.NOT_SUBSCRIBED -> {
+												chipSubscribe.visibility = View.VISIBLE
+												chipUnsubscribe.visibility = View.GONE
+											}
+											else -> {
+												// Not ready yet, or a change is in flight: hide both
+												chipSubscribe.visibility = View.GONE
+												chipUnsubscribe.visibility = View.GONE
+											}
+										}
+									}
+
+									refreshSubscriptionChips()
+
+									chipSubscribe.setOnClickListener {
+										subscriptionManager.subscribe(userSrId, activity)
+									}
+									chipUnsubscribe.setOnClickListener {
+										subscriptionManager.unsubscribe(userSrId, activity)
+									}
+
+									val listenerContext = subscriptionManager.addListener(
+										object :
+											org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager.SubredditSubscriptionStateChangeListener {
+											override fun onSubredditSubscriptionListUpdated(
+												m: org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager
+											) {
+												AndroidCommon.UI_THREAD_HANDLER.post(::refreshSubscriptionChips)
+											}
+
+											override fun onSubredditSubscriptionAttempted(
+												m: org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager
+											) {
+												AndroidCommon.UI_THREAD_HANDLER.post(::refreshSubscriptionChips)
+											}
+
+											override fun onSubredditUnsubscriptionAttempted(
+												m: org.quantumbadger.redreader.reddit.api.RedditSubredditSubscriptionManager
+											) {
+												AndroidCommon.UI_THREAD_HANDLER.post(::refreshSubscriptionChips)
+											}
+										})
+
+									dialog.setOnDismissListener {
+										listenerContext.removeListener()
+									}
+								}
+							}
 						}
 						chipBlock.setOnClickListener {
 							MaterialAlertDialogBuilder(activity)
