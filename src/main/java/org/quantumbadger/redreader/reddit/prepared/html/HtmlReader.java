@@ -117,21 +117,22 @@ public class HtmlReader {
 
 		boolean lastCharWasWhitespace = false;
 
+		// A single line break is treated as whitespace (as in HTML and
+		// Markdown), collapsing with adjacent whitespace into a single space
+
 		for(int i = 0; i < html.length(); i++) {
 
 			final char c = html.charAt(i);
 
-			if(c != '\n' && c != '\r') {
-				if(isWhitespace(c)) {
-					if(!lastCharWasWhitespace) {
-						result.append(" ");
-						lastCharWasWhitespace = true;
-					}
-
-				} else {
-					lastCharWasWhitespace = false;
-					result.append(c);
+			if(isWhitespace(c)) {
+				if(!lastCharWasWhitespace) {
+					result.append(" ");
+					lastCharWasWhitespace = true;
 				}
+
+			} else {
+				lastCharWasWhitespace = false;
+				result.append(c);
 			}
 		}
 
