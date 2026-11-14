@@ -443,7 +443,8 @@ public class FileUtils {
 
 					downloadImageToSave(activity, uri, (info, cacheFile, mimetype) -> {
 
-						final String filename = filenameForSave(suggestedName, info.original.url.value);
+						final String filename =
+								filenameForSave(suggestedName, info.original.url.value);
 
 						mediaStoreDownloadsInsertFile(
 								activity,

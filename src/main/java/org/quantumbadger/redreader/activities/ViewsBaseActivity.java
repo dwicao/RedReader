@@ -31,7 +31,6 @@ import android.widget.FrameLayout;
 import android.view.KeyEvent;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;

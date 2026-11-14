@@ -243,7 +243,7 @@ public final class InboxListingActivity extends ViewsBaseActivity {
 
 		if(PrefsUtility.pref_behaviour_enable_swipe_refresh()) {
 			recyclerViewManager.enablePullToRefresh(
-					() -> General.recreateActivityNoAnimation(InboxListingActivity.this));
+					() -> General.recreateActivityNoAnimation(this));
 		}
 
 		adapter = new GroupedRecyclerViewAdapter(1);
