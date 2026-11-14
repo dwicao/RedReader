@@ -1,3 +1,16 @@
+155/1.50
+Fix single line breaks vanishing from body text so words no longer join together without spaces
+Fix ordered lists starting at a number other than 1
+Fix spoiler tags with spaces not being hidden (>! like this !<)
+Fix markdown links in pointy brackets losing their URL when it contains parentheses
+Fix "Copy link" not using the preferred sharing domain
+Fix app crash when span indices are out of range (e.g. a comment emote fails to load)
+Fix app crash when the post URL is empty
+Fix "Find Location" sending malformed subreddit/user names
+Fix app crash when leaving Settings while the storage location dialog is open
+Comment and message editors capitalize the first letter after a new line
+Fix socket leak when TLS 1.2 setup fails
+
 154/1.49
 New Collapse Thread action for comments (long-press menu, tap/long-press actions and fling)
 Hide reaction GIF comments: just a GIF link with a few words, collapsed in threads and hidden from inbox and notifications (Settings > Behaviour)

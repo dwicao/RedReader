@@ -190,6 +190,23 @@ Added in this fork:
     describes the actual changes instead of old upstream notes.
 * **About points at the fork** — the source code entry in *Settings > About*
     links to this repository.
+* **Single line breaks in body text** are treated as whitespace instead of
+    vanishing, so words no longer join together.
+* **Ordered lists** that should start at a number other than 1 render
+    correctly.
+* **Spoiler tags with spaces** (`>! like this !<`) are hidden, like the web
+    version, including inline in a paragraph.
+* **Markdown links** with a pointy-bracket destination whose URL contains
+    parentheses keep the full URL.
+* **"Copy link"** in the long-press menu uses the preferred sharing domain,
+    like Share link.
+* **No more crash from emote/flair spans** — spans created from asynchronous
+    image loads are clamped to the text they belong to instead of crashing
+    the UI thread.
+* **"Find Location"** no longer offers subreddit/user destinations for
+    malformed queries.
+* **Comment, PM and body editors** capitalize the first letter after a new
+    line.
 
 
 Downloading
