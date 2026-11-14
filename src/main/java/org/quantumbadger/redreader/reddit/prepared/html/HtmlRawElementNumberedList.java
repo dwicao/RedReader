@@ -27,9 +27,20 @@ import java.util.ArrayList;
 public class HtmlRawElementNumberedList extends HtmlRawElement {
 
 	@NonNull private final ArrayList<HtmlRawElement> mChildren;
+	private final int mStartIndex;
 
-	public HtmlRawElementNumberedList(@NonNull final ArrayList<HtmlRawElement> children) {
+	public HtmlRawElementNumberedList(
+			@NonNull final ArrayList<HtmlRawElement> children) {
+
+		this(children, 1);
+	}
+
+	public HtmlRawElementNumberedList(
+			@NonNull final ArrayList<HtmlRawElement> children,
+			final int startIndex) {
+
 		mChildren = children;
+		mStartIndex = Math.max(1, startIndex);
 	}
 
 	@Override
@@ -50,7 +61,7 @@ public class HtmlRawElementNumberedList extends HtmlRawElement {
 			child.reduce(activeAttributes, activity, reduced, linkButtons);
 		}
 
-		return new HtmlRawElementNumberedList(reduced);
+		return new HtmlRawElementNumberedList(reduced, mStartIndex);
 	}
 
 	@Override
@@ -68,7 +79,7 @@ public class HtmlRawElementNumberedList extends HtmlRawElement {
 			@NonNull final AppCompatActivity activity,
 			@NonNull final ArrayList<BodyElement> destination) {
 
-		int number = 1;
+		int number = mStartIndex;
 
 		for(final HtmlRawElement child : mChildren) {
 

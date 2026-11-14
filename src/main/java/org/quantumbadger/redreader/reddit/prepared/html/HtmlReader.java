@@ -55,18 +55,16 @@ public class HtmlReader {
 		@Nullable public final String title;
 		@Nullable public final UriString src;
 
+		// The start attribute of <ol>
+		@Nullable public final String start;
+
 		public Token(
 				@NonNull final TokenType type,
 				@NonNull final String text,
 				@Nullable final String href,
 				@Nullable final String cssClass,
 				@Nullable final String title) {
-			this.type = type;
-			this.text = text;
-			this.href = href;
-			this.cssClass = cssClass;
-			this.title = title;
-			this.src = null;
+			this(type, text, href, cssClass, title, null, null);
 		}
 
 		public Token(
@@ -76,12 +74,25 @@ public class HtmlReader {
 				@Nullable final String cssClass,
 				@Nullable final String title,
 				@Nullable final UriString src) {
+			this(type, text, href, cssClass, title, src, null);
+		}
+
+		public Token(
+				@NonNull final TokenType type,
+				@NonNull final String text,
+				@Nullable final String href,
+				@Nullable final String cssClass,
+				@Nullable final String title,
+				@Nullable final UriString src,
+				@Nullable final String start) {
+
 			this.type = type;
 			this.text = text;
 			this.href = href;
 			this.cssClass = cssClass;
 			this.title = title;
 			this.src = src;
+			this.start = start;
 		}
 
 		@NonNull
@@ -282,6 +293,7 @@ public class HtmlReader {
 					@Nullable String cssClass = null;
 					@Nullable String title = null;
 					@Nullable UriString src = null;
+					@Nullable String start = null;
 
 					if(tagName.equalsIgnoreCase("pre")) {
 						mPreformattedTextPending = true;
@@ -318,6 +330,8 @@ public class HtmlReader {
 								title = value;
 							} else if(propertyName.equalsIgnoreCase("src")) {
 								src = new UriString(value);
+							} else if(propertyName.equalsIgnoreCase("start")) {
+								start = value;
 							}
 						}
 					}
@@ -330,7 +344,7 @@ public class HtmlReader {
 						type = TokenType.TAG_START_AND_END;
 					}
 
-					return new Token(type, tagName, href, cssClass, title, src);
+					return new Token(type, tagName, href, cssClass, title, src, start);
 
 				} else {
 

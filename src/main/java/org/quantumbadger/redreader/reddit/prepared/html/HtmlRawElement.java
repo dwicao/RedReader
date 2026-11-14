@@ -253,7 +253,15 @@ public abstract class HtmlRawElement {
 					result = new HtmlRawElementBulletList(children);
 					break;
 				case "ol":
-					result = new HtmlRawElementNumberedList(children);
+					int startIndex = 1;
+					if(startToken.start != null) {
+						try {
+							startIndex = Math.max(1, Integer.parseInt(startToken.start.trim()));
+						} catch(final NumberFormatException e) {
+							startIndex = 1;
+						}
+					}
+					result = new HtmlRawElementNumberedList(children, startIndex);
 					break;
 				case "li":
 					result = new HtmlRawElementBlock(BlockType.LIST_ELEMENT, children);
