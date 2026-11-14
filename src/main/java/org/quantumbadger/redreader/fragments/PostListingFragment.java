@@ -111,6 +111,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class PostListingFragment extends RRFragment
 		implements RedditPostView.PostSelectionListener {
@@ -1095,6 +1097,21 @@ public class PostListingFragment extends RRFragment
 							final HashSet<SubredditCanonicalId> blockedSubreddits
 									= new HashSet<>(PrefsUtility.pref_blocked_subreddits());
 
+							final ArrayList<Pattern> blockedSubredditPatterns = new ArrayList<>();
+
+							for(final String expression
+									: PrefsUtility.pref_blocked_subreddit_regexes()) {
+
+								try {
+									blockedSubredditPatterns.add(Pattern.compile(expression));
+
+								} catch(final PatternSyntaxException e) {
+									Log.w(TAG,
+											"Ignoring invalid blocked subreddit regex",
+											e);
+								}
+							}
+
 							Log.i(TAG, "Inline previews: "
 									+ (inlinePreviews ? "ON" : "OFF"));
 
@@ -1146,9 +1163,22 @@ public class PostListingFragment extends RRFragment
 									continue;
 								}
 
+								final String subredditName
+										= post.getSubreddit().getDecoded();
+
+								boolean blockedByRegex = false;
+
+								for(final Pattern pattern : blockedSubredditPatterns) {
+
+									if(pattern.matcher(subredditName).find()) {
+										blockedByRegex = true;
+										break;
+									}
+								}
+
 								final boolean isPostBlocked = subredditFilteringEnabled
-										&& blockedSubreddits.contains(
-										new SubredditCanonicalId(post.getSubreddit().getDecoded()));
+										&& (blockedByRegex || blockedSubreddits.contains(
+										new SubredditCanonicalId(subredditName)));
 
 								if(!isPostBlocked
 										&& (!post.getOver_18() || isNsfwAllowed)

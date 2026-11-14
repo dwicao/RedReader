@@ -770,6 +770,20 @@
     <string name="block_subreddit">Block Subreddit</string>
     <string name="unblock_subreddit">Unblock Subreddit</string>
     <string name="pref_blocked_subreddits_key" translatable="false">pref_blocked_subreddits</string>
+	<string name="pref_blocked_subreddit_regexes_key" translatable="false">pref_blocked_subreddit_regexes</string>
+	<string name="pref_behaviour_manage_blocked_subreddits_key" translatable="false">pref_behaviour_manage_blocked_subreddits</string>
+	<string name="pref_behaviour_manage_blocked_subreddits_title">Manage blocked subreddits</string>
+	<!-- Translators: summary of the setting to view, add or remove blocked subreddits and regular expression rules for blocking subreddits -->
+	<string name="pref_behaviour_manage_blocked_subreddits_summary">View, add, or remove subreddit names and regular expression rules, with optional case-insensitive matching</string>
+	<string name="blocked_subreddits_empty">No blocked subreddits or regular expression rules.</string>
+	<string name="blocked_subreddits_add_hint">Subreddit name (for example, pics) or regex between slashes (for example, /news.*/)</string>
+	<string name="blocked_subreddits_invalid_regex">That regular expression is invalid.</string>
+	<string name="blocked_subreddits_invalid_name">Enter a valid subreddit name or a regex between slashes.</string>
+	<string name="blocked_subreddits_remove_title">Remove block rule?</string>
+	<!-- Translators: message asking for confirmation to remove a blocked subreddit rule. The rule is a subreddit name or a regex. -->
+	<string name="blocked_subreddits_remove_message">Remove %1$s from the blocked list?</string>
+	<string name="blocked_subreddits_add">Add rule</string>
+	<string name="blocked_subreddits_case_insensitive">Case-insensitive (regex only)</string>
     <string name="block_done">Subreddit blocked. Future visits to the front page, /r/popular, and /r/all will exclude this subreddit.</string>
     <string name="unblock_done">Subreddit unblocked. Future visits to the front page, /r/popular, and /r/all will include this subreddit.</string>
 

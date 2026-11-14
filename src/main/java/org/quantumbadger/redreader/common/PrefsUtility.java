@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class PrefsUtility {
 
@@ -2083,6 +2084,42 @@ public final class PrefsUtility {
 	public static boolean pref_blocked_subreddits_check(final SubredditCanonicalId subreddit) {
 
 		return pref_blocked_subreddits().contains(subreddit);
+	}
+
+	/**
+	 * Regular expression rules for blocked subreddits. Each rule may be prefixed with
+	 * "(?i)" for case-insensitive matching.
+	 */
+	public static List<String> pref_blocked_subreddit_regexes() {
+		return WritableHashSet.escapedStringToList(getString(
+				R.string.pref_blocked_subreddit_regexes_key,
+				""));
+	}
+
+	/**
+	 * Adds a regex rule, replacing any exact subreddit block of the same name. Throws
+	 * {@link java.util.regex.PatternSyntaxException} if the expression doesn't compile.
+	 */
+	public static void pref_blocked_subreddit_regex_add(final String expression) {
+		Pattern.compile(expression);
+		final ArrayList<String> expressions = new ArrayList<>(
+				pref_blocked_subreddit_regexes());
+		if(!expressions.contains(expression)) {
+			expressions.add(expression);
+			sharedPrefs.edit().putString(
+					getPrefKey(R.string.pref_blocked_subreddit_regexes_key),
+					WritableHashSet.listToEscapedString(expressions)).apply();
+		}
+	}
+
+	public static void pref_blocked_subreddit_regex_remove(final String expression) {
+		final ArrayList<String> expressions = new ArrayList<>(
+				pref_blocked_subreddit_regexes());
+		if(expressions.remove(expression)) {
+			sharedPrefs.edit().putString(
+					getPrefKey(R.string.pref_blocked_subreddit_regexes_key),
+					WritableHashSet.listToEscapedString(expressions)).apply();
+		}
 	}
 
 	///////////////////////////////

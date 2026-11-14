@@ -70,6 +70,14 @@ import org.quantumbadger.redreader.receivers.NewMessageChecker;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
 import org.quantumbadger.redreader.update.AppUpdater;
 
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+
+import org.quantumbadger.redreader.reddit.things.SubredditCanonicalId;
+import org.quantumbadger.redreader.reddit.things.InvalidSubredditNameException;
+
+import java.util.regex.PatternSyntaxException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -168,6 +176,15 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 		PrefsUtility.applyLanguageSetting();
 
 		addPreferencesFromResource(resource);
+
+		final Preference manageBlockedSubredditsPreference = findPreference(getString(
+				R.string.pref_behaviour_manage_blocked_subreddits_key));
+		if(manageBlockedSubredditsPreference != null) {
+			manageBlockedSubredditsPreference.setOnPreferenceClickListener(preference -> {
+				showBlockedSubredditsDialog(requireContext());
+				return true;
+			});
+		}
 
 		final int[] listPrefsToUpdate = {
 				R.string.pref_appearance_twopane_key,
@@ -1114,7 +1131,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 
 		final int currentValue = PrefsUtility.pref_behaviour_min_comments();
 
-		final android.widget.EditText editText = new android.widget.EditText(context);
+		final EditText editText = new EditText(context);
 		editText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
 		editText.setText(String.valueOf(currentValue));
 		editText.setSelection(editText.getText().length());
@@ -1141,6 +1158,147 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 					}
 				})
 				.setNegativeButton(android.R.string.cancel, null)
+				.show();
+	}
+
+	private static String rawRegex(
+			@NonNull final List<String> regexes,
+			final int displayedIndex,
+			final int exactSubredditCount) {
+
+		return regexes.get(displayedIndex - exactSubredditCount);
+	}
+
+	private void showBlockedSubredditsDialog(@NonNull final Context context) {
+		final List<SubredditCanonicalId> blockedSubreddits
+				= PrefsUtility.pref_blocked_subreddits();
+		final List<String> regexes = PrefsUtility.pref_blocked_subreddit_regexes();
+
+		final ArrayList<String> displayedRules = new ArrayList<>();
+		final ArrayList<Boolean> isRegex = new ArrayList<>();
+
+		for(final SubredditCanonicalId subreddit : blockedSubreddits) {
+			displayedRules.add(subreddit.getDisplayNameLowercase());
+			isRegex.add(false);
+		}
+
+		for(final String regex : regexes) {
+			final boolean caseInsensitive = regex.startsWith("(?i)");
+			final String expression = caseInsensitive ? regex.substring(4) : regex;
+
+			displayedRules.add("/" + expression + "/ ("
+					+ (caseInsensitive ? "case-insensitive" : "case-sensitive") + ")");
+			isRegex.add(true);
+		}
+
+		final CharSequence[] entries = displayedRules.isEmpty()
+				? new CharSequence[] { getString(R.string.blocked_subreddits_empty) }
+				: displayedRules.toArray(new CharSequence[0]);
+
+		new MaterialAlertDialogBuilder(context)
+				.setTitle(R.string.pref_behaviour_manage_blocked_subreddits_title)
+				.setItems(entries, (dialog, which) -> {
+					if(displayedRules.isEmpty()) {
+						return;
+					}
+
+					final String rule = displayedRules.get(which);
+
+					new MaterialAlertDialogBuilder(context)
+							.setTitle(R.string.blocked_subreddits_remove_title)
+							.setMessage(getString(
+									R.string.blocked_subreddits_remove_message,
+									rule))
+							.setNegativeButton(android.R.string.cancel, null)
+							.setPositiveButton(R.string.unblock_subreddit, (confirm, button) -> {
+								if(isRegex.get(which)) {
+									PrefsUtility.pref_blocked_subreddit_regex_remove(
+											rawRegex(regexes, which, blockedSubreddits.size()));
+								} else {
+									PrefsUtility.pref_blocked_subreddits_remove(
+											context,
+											blockedSubreddits.get(which));
+								}
+
+								showBlockedSubredditsDialog(context);
+							})
+							.show();
+				})
+				.setPositiveButton(R.string.blocked_subreddits_add, (dialog, which) ->
+						showAddBlockedSubredditDialog(context))
+				.setNegativeButton(android.R.string.cancel, null)
+				.show();
+	}
+
+	private void showAddBlockedSubredditDialog(@NonNull final Context context) {
+
+		final EditText input = new EditText(context);
+		input.setSingleLine(true);
+		input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+		input.setHint(R.string.blocked_subreddits_add_hint);
+
+		final CheckBox caseInsensitive = new CheckBox(context);
+		caseInsensitive.setText(R.string.blocked_subreddits_case_insensitive);
+
+		final LinearLayout dialogContents = new LinearLayout(context);
+		dialogContents.setOrientation(LinearLayout.VERTICAL);
+
+		final int horizontalPadding = (int)(24 * context.getResources()
+				.getDisplayMetrics().density);
+		dialogContents.setPadding(horizontalPadding, 0, horizontalPadding, 0);
+
+		dialogContents.addView(input);
+		dialogContents.addView(caseInsensitive);
+
+		new MaterialAlertDialogBuilder(context)
+				.setTitle(R.string.blocked_subreddits_add)
+				.setView(dialogContents)
+				.setNegativeButton(android.R.string.cancel, null)
+				.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+					final String value = input.getText().toString().trim();
+
+					if(value.length() >= 2 && value.startsWith("/") && value.endsWith("/")) {
+						final String expression = value.substring(1, value.length() - 1);
+
+						if(expression.isEmpty()) {
+							General.quickToast(
+									context,
+									R.string.blocked_subreddits_invalid_regex);
+							showAddBlockedSubredditDialog(context);
+							return;
+						}
+
+						try {
+							PrefsUtility.pref_blocked_subreddit_regex_add(
+									caseInsensitive.isChecked()
+											? "(?i)" + expression
+											: expression);
+
+						} catch(final PatternSyntaxException e) {
+							General.quickToast(
+									context,
+									R.string.blocked_subreddits_invalid_regex);
+							showAddBlockedSubredditDialog(context);
+							return;
+						}
+
+					} else {
+						try {
+							PrefsUtility.pref_blocked_subreddits_add(
+									context,
+									new SubredditCanonicalId(value));
+
+						} catch(final InvalidSubredditNameException e) {
+							General.quickToast(
+									context,
+									R.string.blocked_subreddits_invalid_name);
+							showAddBlockedSubredditDialog(context);
+							return;
+						}
+					}
+
+					showBlockedSubredditsDialog(context);
+				})
 				.show();
 	}
 }
