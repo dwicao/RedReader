@@ -84,9 +84,21 @@ public class LegacyTLSSocketFactory extends SSLSocketFactory {
 		return enableTLS1_2(delegate.createSocket(address, port, localAddress, localPort));
 	}
 
-	private Socket enableTLS1_2(final Socket s) {
-		if (s instanceof SSLSocket) {
-			((SSLSocket)s).setEnabledProtocols(TLS_V1_2_ONLY);
+	private Socket enableTLS1_2(final Socket s) throws IOException {
+		if(s instanceof SSLSocket) {
+			try {
+				((SSLSocket)s).setEnabledProtocols(TLS_V1_2_ONLY);
+
+			} catch(final IllegalArgumentException e) {
+				// Close the socket we created, or it leaks
+				try {
+					s.close();
+				} catch(final IOException ignore) {
+					// Nothing else to do
+				}
+
+				throw new IOException("Failed to enable TLS 1.2", e);
+			}
 		}
 		return s;
 	}
