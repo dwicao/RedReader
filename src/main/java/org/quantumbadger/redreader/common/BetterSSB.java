@@ -208,7 +208,8 @@ public class BetterSSB extends Observable {
 	}
 
 	public void replace(final int start, final int end, final CharSequence text) {
-		this.sb.replace(start, end, text);
+		final int[] clamped = clampRange(this.sb.length(), start, end);
+		this.sb.replace(clamped[0], clamped[1], text);
 		notifyAllObservers();
 	}
 
@@ -216,6 +217,12 @@ public class BetterSSB extends Observable {
 			@NonNull final CharSequence textToBeReplaced,
 			@NonNull final Object replacement) {
 		final int textStartIndex = TextUtils.indexOf(this.sb, textToBeReplaced);
+
+		if(textStartIndex < 0) {
+			// The placeholder isn't in the buffer (e.g. it was already replaced).
+			// Attaching a span with invalid indices would crash, so skip it.
+			return;
+		}
 
 		this.sb.setSpan(replacement,
 				textStartIndex,
@@ -230,9 +237,19 @@ public class BetterSSB extends Observable {
 	}
 
 	public void setSpan(final Object what, final int start, final int end, final int flag) {
-		this.sb.setSpan(what, start, end, flag);
+		final int[] clamped = clampRange(this.sb.length(), start, end);
+		this.sb.setSpan(what, clamped[0], clamped[1], flag);
 
 		notifyAllObservers();
+	}
+
+	// Spans and ranges arrive from asynchronous sources with indices computed earlier.
+	// If the buffer changed size since, the indices may be out of range or reversed,
+	// and setSpan/replace would crash. Clamp instead.
+	static int[] clampRange(final int length, final int start, final int end) {
+		final int s = Math.max(0, Math.min(Math.min(start, end), length));
+		final int e = Math.max(0, Math.min(Math.max(start, end), length));
+		return new int[] { s, e };
 	}
 
 	public SpannableStringBuilder get() {

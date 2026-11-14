@@ -44,11 +44,22 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 	@Override
 	public void addSpanDynamic(final Object what, final int start, final int end, final int flags) {
 		AndroidCommon.runOnUiThread(() -> {
-			mSpanned.setSpan(what, start, end, flags);
+			final int[] clamped = clampSpan(mSpanned.length(), start, end);
+			mSpanned.setSpan(what, clamped[0], clamped[1], flags);
 			if(mTextView != null) {
 				mTextView.setText(mSpanned);
 			}
 		});
+	}
+
+	// Spans arrive from asynchronous image loads with indices computed earlier.
+	// If the text changed size since, the indices may be out of range or reversed,
+	// and setSpan would crash. Clamp instead.
+	@NonNull
+	static int[] clampSpan(final int length, final int start, final int end) {
+		final int s = Math.max(0, Math.min(Math.min(start, end), length));
+		final int e = Math.max(0, Math.min(Math.max(start, end), length));
+		return new int[] { s, e };
 	}
 
 	@Override
