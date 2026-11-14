@@ -506,6 +506,15 @@ public class MainMenuListingManager {
 		}
 	}
 
+	public boolean isPinnedSubredditsEmpty() {
+		return PrefsUtility.pref_pinned_subreddits_is_empty();
+	}
+
+	// Rebuild just the pinned-subreddits section, keeping scroll position
+	public void refreshPinnedSubreddits() {
+		setPinnedSubreddits();
+	}
+
 	private void setPinnedSubreddits() {
 
 		final List<SubredditCanonicalId> pinnedSubreddits

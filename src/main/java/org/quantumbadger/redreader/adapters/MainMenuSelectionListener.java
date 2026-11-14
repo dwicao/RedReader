@@ -26,4 +26,9 @@ public interface MainMenuSelectionListener {
 	void onLongSelected(@MainMenuFragment.MainMenuAction int type);
 
 	void onSelected(PostListingURL url);
+
+	// Called when the number of pinned subreddits crosses the empty/non-empty
+	// boundary, so the main menu can rebuild the "Pinned subreddits" entry
+	default void onPinnedSubredditsChanged() {
+	}
 }

@@ -810,6 +810,11 @@ public class MainActivity extends RefreshableActivity
 	}
 
 	@Override
+	public void onPinnedSubredditsChanged() {
+		requestRefresh(RefreshableFragment.MAIN, false);
+	}
+
+	@Override
 	public void onPostCommentsSelected(final RedditPreparedPost post) {
 
 		if(twoPane) {

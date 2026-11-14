@@ -23,6 +23,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.View;
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 import org.quantumbadger.redreader.R;
@@ -33,6 +34,7 @@ import org.quantumbadger.redreader.adapters.MainMenuListingManager;
 import org.quantumbadger.redreader.adapters.MainMenuSelectionListener;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.PrefsUtility;
+import org.quantumbadger.redreader.common.SharedPrefsWrapper;
 import org.quantumbadger.redreader.common.RRError;
 import org.quantumbadger.redreader.common.TimestampBound;
 import org.quantumbadger.redreader.common.time.TimeDuration;
@@ -53,7 +55,8 @@ import java.util.HashSet;
 public class MainMenuFragment extends RRFragment implements
 		MainMenuSelectionListener,
 		RedditSubredditSubscriptionManager.SubredditSubscriptionStateChangeListener,
-		RedditMultiredditSubscriptionManager.MultiredditListChangeListener {
+		RedditMultiredditSubscriptionManager.MultiredditListChangeListener,
+		SharedPrefsWrapper.OnSharedPreferenceChangeListener {
 
 	public static final int MENU_MENU_ACTION_FRONTPAGE = 0;
 	public static final int MENU_MENU_ACTION_PROFILE = 1;
@@ -101,6 +104,11 @@ public class MainMenuFragment extends RRFragment implements
 
 	private final View mOuter;
 
+	// Track the empty/non-empty boundary so the pinned shortcut entry stays correct:
+	// crossing it requires a full rebuild of the menu, otherwise the pinned section
+	// can be refreshed in place without resetting scroll position
+	private boolean mPinnedEmpty;
+
 	public MainMenuFragment(
 			final AppCompatActivity parent,
 			final Bundle savedInstanceState,
@@ -127,6 +135,11 @@ public class MainMenuFragment extends RRFragment implements
 		}
 
 		mManager = new MainMenuListingManager(getActivity(), this, user);
+
+		mPinnedEmpty = mManager.isPinnedSubredditsEmpty();
+
+		General.getSharedPrefs(context)
+				.registerOnSharedPreferenceChangeListener(this);
 
 		recyclerView.setAdapter(mManager.getAdapter());
 
@@ -231,6 +244,32 @@ public class MainMenuFragment extends RRFragment implements
 	public void onSubredditSubscriptionsChanged(
 			final Collection<SubredditCanonicalId> subscriptions) {
 		mManager.setSubreddits(subscriptions);
+	}
+
+	@Override
+	public void onSharedPreferenceChanged(
+			@NonNull final SharedPrefsWrapper sharedPreferences,
+			@NonNull final String key) {
+
+		if(!key.equals(getActivity().getString(R.string.pref_pinned_subreddits_key))) {
+			return;
+		}
+
+		final boolean empty = mManager.isPinnedSubredditsEmpty();
+
+		if(empty != mPinnedEmpty) {
+			// Crossing the empty/non-empty boundary requires a full rebuild
+			// so the "Pinned subreddits" entry appears or disappears
+			mPinnedEmpty = empty;
+
+			if(getActivity() instanceof MainMenuSelectionListener) {
+				((MainMenuSelectionListener) getActivity()).onPinnedSubredditsChanged();
+			}
+
+		} else {
+			// Same state, just refresh the pinned section in place
+			mManager.refreshPinnedSubreddits();
+		}
 	}
 
 	public void onMultiredditSubscriptionsChanged(final Collection<String> subscriptions) {
