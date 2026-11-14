@@ -38,6 +38,8 @@ import org.quantumbadger.redreader.reddit.api.RedditPostActions;
 import org.quantumbadger.redreader.reddit.prepared.RedditChangeDataManager;
 import org.quantumbadger.redreader.reddit.prepared.RedditPreparedPost;
 
+import java.util.EnumSet;
+
 public class RedditPostHeaderView extends LinearLayout {
 
 	private final TextView subtitle;
@@ -157,6 +159,25 @@ public class RedditPostHeaderView extends LinearLayout {
 				final ImageButton buttonMore =
 						buttons.findViewById(R.id.post_toolbar_botton_more);
 
+				// Respect the post action menu hidden items: if the user hid the upvote or
+				// downvote action, also hide the corresponding header buttons
+				final EnumSet<RedditPostActions.Action> actionMenuItems =
+						PrefsUtility.pref_menus_post_context_items();
+				final boolean showUpvote =
+						actionMenuItems.contains(RedditPostActions.Action.UPVOTE);
+				final boolean showDownvote =
+						actionMenuItems.contains(RedditPostActions.Action.DOWNVOTE);
+
+				if(!showUpvote) {
+					buttonAddUpvote.setVisibility(GONE);
+					buttonRemoveUpvote.setVisibility(GONE);
+				}
+
+				if(!showDownvote) {
+					buttonAddDownvote.setVisibility(GONE);
+					buttonRemoveDownvote.setVisibility(GONE);
+				}
+
 				buttonAddUpvote.setOnClickListener(v -> post.performAction(
 						activity,
 						RedditPostActions.Action.UPVOTE));
@@ -191,23 +212,25 @@ public class RedditPostHeaderView extends LinearLayout {
 					final boolean isDownvoted = changeDataManager.isDownvoted(
 							post.src.getIdAndType());
 
-					if(isUpvoted) {
-						buttonAddUpvote.setVisibility(GONE);
-						buttonRemoveUpvote.setVisibility(VISIBLE);
-						buttonAddDownvote.setVisibility(VISIBLE);
-						buttonRemoveDownvote.setVisibility(GONE);
+					if(showUpvote) {
+						if(isUpvoted) {
+							buttonAddUpvote.setVisibility(GONE);
+							buttonRemoveUpvote.setVisibility(VISIBLE);
+						} else {
+							buttonAddUpvote.setVisibility(VISIBLE);
+							buttonRemoveUpvote.setVisibility(GONE);
+						}
+					}
 
-					} else if(isDownvoted) {
-						buttonAddUpvote.setVisibility(VISIBLE);
-						buttonRemoveUpvote.setVisibility(GONE);
-						buttonAddDownvote.setVisibility(GONE);
-						buttonRemoveDownvote.setVisibility(VISIBLE);
+					if(showDownvote) {
+						if(!isUpvoted) {
+							buttonAddDownvote.setVisibility(isDownvoted ? GONE : VISIBLE);
+							buttonRemoveDownvote.setVisibility(isDownvoted ? VISIBLE : GONE);
 
-					} else {
-						buttonAddUpvote.setVisibility(VISIBLE);
-						buttonRemoveUpvote.setVisibility(GONE);
-						buttonAddDownvote.setVisibility(VISIBLE);
-						buttonRemoveDownvote.setVisibility(GONE);
+						} else {
+							buttonAddDownvote.setVisibility(VISIBLE);
+							buttonRemoveDownvote.setVisibility(GONE);
+						}
 					}
 				};
 
