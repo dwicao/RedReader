@@ -231,6 +231,14 @@ object AndroidCommon {
 		}
 	}
 
+	/**
+	 * Apply the global line spacing preference to a text view.
+	 */
+	@JvmStatic
+	fun applyGlobalLineSpacing(textView: TextView) {
+		textView.setLineSpacing(0f, PrefsUtility.appearance_linespacing_global())
+	}
+
 	/** Apply the incognito keyboard flag to every EditText in a view hierarchy. */
 	@JvmStatic
 	fun applyKeyboardPrivacyToTree(view: View) {

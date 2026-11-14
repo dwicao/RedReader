@@ -374,6 +374,7 @@ public class RedditCommentView extends FlingableItemView
 		mHeader.setTextSize(
 				TypedValue.COMPLEX_UNIT_PX,
 				mHeader.getTextSize() * mHeaderFontScale);
+		AndroidCommon.applyGlobalLineSpacing(mHeader);
 
 		mShowLinkButtons = PrefsUtility.pref_appearance_linkbuttons();
 

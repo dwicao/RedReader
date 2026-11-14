@@ -35,6 +35,7 @@ import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.activities.CommentReplyActivity;
 import org.quantumbadger.redreader.activities.InboxListingActivity;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.BetterSSB;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.Optional;
@@ -284,6 +285,7 @@ public final class RedditPreparedMessage implements RedditRenderableInboxItem {
 				: "(no subject)"));
 		subjectText.setTextColor(textColor);
 		subjectText.setTextSize(textSize);
+		AndroidCommon.applyGlobalLineSpacing(subjectText);
 		subjectText.setTypeface(null, Typeface.BOLD);
 
 		subjectLayout.addView(subjectText);

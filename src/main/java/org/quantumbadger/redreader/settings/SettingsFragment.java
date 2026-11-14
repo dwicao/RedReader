@@ -200,6 +200,7 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 				R.string.pref_cache_maxage_image_key,
 				R.string.pref_cache_maxage_entry_key,
 				R.string.pref_appearance_fontscale_global_key,
+				R.string.pref_appearance_linespacing_global_key,
 				R.string.pref_appearance_fontscale_posts_key,
 				R.string.pref_appearance_fontscale_post_subtitles_key,
 				R.string.pref_appearance_fontscale_post_header_titles_key,

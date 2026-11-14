@@ -134,6 +134,7 @@ public class RedditInboxItemView extends FrameLayout {
 		mCurrentIndicatorCol = mReadIndicatorCol;
 
 		mHeader.setTextSize(11.0f * theme.rrCommentHeaderFontScale);
+		AndroidCommon.applyGlobalLineSpacing(mHeader);
 		mHeader.setTextColor(theme.rrCommentHeaderCol);
 
 		mBodyHolder.setMaxHeightPx(General.dpToPixels(activity, COLLAPSED_MAX_HEIGHT_DP));

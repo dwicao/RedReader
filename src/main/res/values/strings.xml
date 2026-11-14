@@ -1247,6 +1247,9 @@
 	<string name="prefs_category_fonts">Font</string>
 	<string name="pref_appearance_fontscale_header">Font Scale</string>
 	<string name="pref_appearance_fontscale_global_key" translatable="false">pref_appearance_fontscale_global</string>
+	<string name="pref_appearance_linespacing_global_key" translatable="false">pref_appearance_linespacing_global</string>
+	<string name="pref_appearance_linespacing_global_title">Global line spacing</string>
+	<string name="pref_appearance_linespacing_global_summary">Spacing between lines of text, including comments, posts and titles</string>
 	<string name="pref_appearance_fontscale_global_title">Global</string>
 	<string name="pref_appearance_fontscale_use_global">Use global font scale</string>
 	<string name="pref_appearance_fontscale_linkbuttons_key" translatable="false">pref_appearance_fontscale_linkbuttons</string>

@@ -77,6 +77,7 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 		if(textSize != null) {
 			mTextView.setTextSize(textSize);
 		}
+		AndroidCommon.applyGlobalLineSpacing(mTextView);
 
 		mTextView.setText(mSpanned, LinkifiedTextView.BufferType.SPANNABLE);
 

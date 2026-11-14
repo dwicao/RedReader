@@ -31,6 +31,7 @@ import org.quantumbadger.redreader.account.RedditAccount;
 import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.activities.BaseActivity;
 import org.quantumbadger.redreader.common.Fonts;
+import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
@@ -78,6 +79,7 @@ public class RedditPostHeaderView extends LinearLayout {
 
 		final TextView title = new TextView(activity);
 		title.setTextSize(19.0f * titleFontScale);
+		AndroidCommon.applyGlobalLineSpacing(title);
 		title.setTypeface(Fonts.getRobotoLightOrAlternative());
 		title.setText(post.src.getTitle());
 		title.setContentDescription(post.buildAccessibilityTitle(activity, true));
@@ -89,6 +91,7 @@ public class RedditPostHeaderView extends LinearLayout {
 
 		subtitle = new TextView(activity);
 		subtitle.setTextSize(13.0f * subtitleFontScale);
+		AndroidCommon.applyGlobalLineSpacing(subtitle);
 		subtitle.setText(post.buildSubtitle(activity, true));
 		subtitle.setContentDescription(post.buildAccessibilitySubtitle(activity, true));
 		General.suppressAccessibilityTextChangeEvents(subtitle);

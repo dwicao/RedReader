@@ -412,9 +412,11 @@ public final class RedditPostView extends FlingableItemView
 		title.setTextSize(
 				TypedValue.COMPLEX_UNIT_PX,
 				title.getTextSize() * titleFontScale);
+		AndroidCommon.applyGlobalLineSpacing(title);
 		subtitle.setTextSize(
 				TypedValue.COMPLEX_UNIT_PX,
 				subtitle.getTextSize() * subtitleFontScale);
+		AndroidCommon.applyGlobalLineSpacing(subtitle);
 
 		mLeftFlingPref =
 				PrefsUtility.pref_behaviour_fling_post_left();

@@ -560,6 +560,12 @@ public final class PrefsUtility {
 				"1"));
 	}
 
+	public static float appearance_linespacing_global() {
+		return Float.parseFloat(getString(
+				R.string.pref_appearance_linespacing_global_key,
+				"1"));
+	}
+
 	public static float appearance_fontscale_bodytext() {
 		if(getString(
 				R.string.pref_appearance_fontscale_bodytext_key,

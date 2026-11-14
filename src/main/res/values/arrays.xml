@@ -1002,6 +1002,27 @@
 
 	<!-- 2020-03-05 -->
 
+	<string-array name="pref_appearance_linespacing_global">
+		<item>0.9x</item>
+		<item>@string/pref_appearance_scale_normal</item>
+		<item>1.15x</item>
+		<item>1.25x</item>
+		<item>1.4x</item>
+		<item>1.5x</item>
+		<item>1.75x</item>
+		<item>2x</item>
+	</string-array>
+	<string-array name="pref_appearance_linespacing_global_return">
+		<item>0.9</item>
+		<item>1</item>
+		<item>1.15</item>
+		<item>1.25</item>
+		<item>1.4</item>
+		<item>1.5</item>
+		<item>1.75</item>
+		<item>2</item>
+	</string-array>
+
 	<string-array name="pref_appearance_fontscale_global">
 		<item>0.7x</item>
 		<item>0.8x</item>
