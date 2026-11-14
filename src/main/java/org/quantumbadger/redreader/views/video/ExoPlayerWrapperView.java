@@ -139,7 +139,13 @@ public class ExoPlayerWrapperView extends FrameLayout {
 			mVideoPlayer.setRepeatMode(Player.REPEAT_MODE_OFF);
 		}
 
-		mVideoPlayer.setPlayWhenReady(true);
+		// Autoplay cannot be disabled if video controls are disabled
+		if(PrefsUtility.pref_behaviour_video_playback_controls()
+				&& !PrefsUtility.pref_behaviour_video_autoplay()) {
+			mVideoPlayer.setPlayWhenReady(false);
+		} else {
+			mVideoPlayer.setPlayWhenReady(true);
+		}
 
 		if(PrefsUtility.pref_behaviour_video_zoom_default()) {
 			videoPlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);

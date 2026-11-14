@@ -1978,6 +1978,10 @@
 	<!-- 2026-11-14 -->
 	<string name="pref_behaviour_video_loop_key" translatable="false">pref_behaviour_video_loop</string>
 	<string name="pref_behaviour_video_loop_title">Loop videos</string>
+	<string name="pref_behaviour_video_autoplay_key" translatable="false">pref_behaviour_video_autoplay</string>
+	<string name="pref_behaviour_video_autoplay_title">Autoplay videos</string>
+	<!-- Translators: summary of the setting to not autoplay videos. Videos can only be paused before autoplay when playback controls are enabled. -->
+	<string name="pref_behaviour_video_autoplay_summary">If video playback controls are not enabled, this preference is ignored and videos will always autoplay</string>
 
 	<!-- 2025-12-07 -->
 	<string name="no_messages_yet">No messages yet.</string>
