@@ -405,7 +405,10 @@ object LinkHandler {
 				if (clipboardManager != null) {
 					// Using newPlainText here instead of newRawUri because links from
 					// comments/self-text are often not valid URIs
-					val data = ClipData.newPlainText(null, uri.value)
+					val data = ClipData.newPlainText(
+						null,
+						getPreferredRedditUriString(uri).value
+					)
 					clipboardManager.setPrimaryClip(data)
 
 					quickToast(
