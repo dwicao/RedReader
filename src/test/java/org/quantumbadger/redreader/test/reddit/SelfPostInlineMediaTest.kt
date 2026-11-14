@@ -32,7 +32,6 @@ import org.quantumbadger.redreader.reddit.kthings.RedditPost
 import org.quantumbadger.redreader.reddit.kthings.RedditTimestampUTC
 import org.quantumbadger.redreader.reddit.kthings.UrlEncodedString
 import org.quantumbadger.redreader.reddit.prepared.RedditParsedPost
-import org.quantumbadger.redreader.reddit.prepared.bodytext.BodyElementInlineMedia
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -45,8 +44,7 @@ class SelfPostInlineMediaTest {
 
 	@Before
 	fun setUp() {
-		val context = RuntimeEnvironment.getApplication()
-		PrefsUtility.init(context)
+		initPrefs(RuntimeEnvironment.getApplication())
 		setInlinePostMedia("never")
 	}
 
@@ -55,6 +53,34 @@ class SelfPostInlineMediaTest {
 			.edit()
 			.putString("pref_images_inline_post_media", value)
 			.apply()
+	}
+
+	/**
+	 * Initialise PrefsUtility's static state directly, as the full init path calls
+	 * General.initAppConfig(), which doesn't work under Robolectric.
+	 */
+	private fun initPrefs(app: android.app.Application) {
+		try {
+			val cachedPrefsField = General::class.java.getDeclaredField("mPrefs")
+			cachedPrefsField.isAccessible = true
+			@Suppress("UNCHECKED_CAST")
+			(cachedPrefsField.get(null) as java.util.concurrent.atomic.AtomicReference<Any?>)
+				.set(null)
+
+			val resField = PrefsUtility::class.java.getDeclaredField("mRes")
+			resField.isAccessible = true
+			resField.set(null, app.resources)
+
+			val prefsField = PrefsUtility::class.java.getDeclaredField("sharedPrefs")
+			prefsField.isAccessible = true
+			prefsField.set(null, General.getSharedPrefs(app))
+
+			val contextField = PrefsUtility::class.java.getDeclaredField("appContext")
+			contextField.isAccessible = true
+			contextField.set(null, app)
+		} catch (e: ReflectiveOperationException) {
+			throw RuntimeException(e)
+		}
 	}
 
 	private fun post(selftextHtml: String?) = RedditPost(
@@ -118,7 +144,6 @@ class SelfPostInlineMediaTest {
 
 		for (media in parsed.inlineMedia) {
 			assertNotNull(media.media.stills.last().url)
-			assertTrue(media is BodyElementInlineMedia)
 		}
 	}
 }
