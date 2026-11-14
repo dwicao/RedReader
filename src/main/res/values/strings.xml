@@ -547,6 +547,12 @@
     <string name="pref_appearance_indentlines_title">Show indent lines</string>
     <string name="pref_appearance_indentlines_key" translatable="false">pref_appearance_indentlines</string>
 
+	<!-- 2026-11-14 -->
+	<string name="pref_appearance_indentlines_colorful_key" translatable="false">pref_appearance_indentlines_colorful</string>
+	<string name="pref_appearance_indentlines_colorful_title">Colorful comment indent bars</string>
+	<!-- Translators: summary of the setting to use a different colour for each level of nested comments, when indent lines are shown -->
+	<string name="pref_appearance_indentlines_colorful_summary">Use a different colour for each level of nested comments (only applies when indent lines are shown)</string>
+
     <!-- 2014-03-14 -->
 
     <string name="load_more_posts">Load more posts</string>

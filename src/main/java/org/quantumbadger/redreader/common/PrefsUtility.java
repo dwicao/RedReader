@@ -181,6 +181,7 @@ public final class PrefsUtility {
 						R.string.pref_appearance_hide_headertoolbar_postlist_key))
 				|| key.equals(context.getString(
 					R.string.pref_appearance_hide_comments_from_blocked_users_key))
+				|| key.equals(context.getString(R.string.pref_appearance_indentlines_colorful_key))
 				|| key.equals(context.getString(
 						R.string.pref_appearance_highlight_own_username_key))
 				|| key.equals(context.getString(R.string.pref_images_thumbnail_size_key))
@@ -717,6 +718,12 @@ public final class PrefsUtility {
 	public static boolean pref_appearance_indentlines() {
 		return getBoolean(
 				R.string.pref_appearance_indentlines_key,
+				false);
+	}
+
+	public static boolean pref_appearance_indentlines_colorful() {
+		return getBoolean(
+				R.string.pref_appearance_indentlines_colorful_key,
 				false);
 	}
 
