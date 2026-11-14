@@ -148,6 +148,8 @@ public class CommentListingRequest {
 		final Integer minimumCommentScore
 				= PrefsUtility.pref_behaviour_comment_min();
 
+		final ReactionGifFilter reactionGifFilter = PrefsUtility.reactionGifFilter();
+
 		boolean showInlineMedia = PrefsUtility.images_inline_comment_media()
 				.isEnabled(General.isConnectionWifi(mContext));
 
@@ -225,6 +227,7 @@ public class CommentListingRequest {
 					null,
 					items,
 					minimumCommentScore,
+					reactionGifFilter,
 					parentPostAuthor,
 					showInlineMedia);
 		}
@@ -307,6 +310,7 @@ public class CommentListingRequest {
 			final RedditCommentListItem parent,
 			final ArrayList<RedditCommentListItem> output,
 			final Integer minimumCommentScore,
+			@Nullable final ReactionGifFilter reactionGifFilter,
 			final String parentPostAuthor,
 			final boolean showInlineMediaInThread) {
 
@@ -410,6 +414,10 @@ public class CommentListingRequest {
 				renderableComment.setBlockedUser(true);
 			}
 
+			if(ReactionGifFilter.matches(reactionGifFilter, comment.getBody())) {
+				renderableComment.setReactionGif(true);
+			}
+
 			item = new RedditCommentListItem(
 					renderableComment,
 					parent,
@@ -436,6 +444,7 @@ public class CommentListingRequest {
 							item,
 							output,
 							minimumCommentScore,
+							reactionGifFilter,
 							parentPostAuthor,
 							showInlineMediaInThread);
 				}

@@ -56,6 +56,7 @@ public class RedditRenderableComment
 	private final boolean mShowSubreddit;
 	private final boolean mNeverAutoCollapse;
 	private boolean isBlockedUser = false;
+	private boolean isReactionGif = false;
 
 	public RedditRenderableComment(
 			final RedditParsedComment comment,
@@ -77,6 +78,10 @@ public class RedditRenderableComment
 
 	public void setBlockedUser(final boolean blocked) {
 		isBlockedUser = blocked;
+	}
+
+	public void setReactionGif(final boolean reactionGif) {
+		isReactionGif = reactionGif;
 	}
 
 	private int computeScore(final RedditChangeDataManager changeDataManager) {
@@ -669,6 +674,10 @@ public class RedditRenderableComment
 
 		//Always collapse blocked users
 		if (isBlockedUser) {
+			return true;
+		}
+
+		if(isReactionGif) {
 			return true;
 		}
 

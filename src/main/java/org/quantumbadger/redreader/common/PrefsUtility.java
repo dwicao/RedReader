@@ -43,6 +43,7 @@ import org.quantumbadger.redreader.fragments.MainMenuFragment;
 import org.quantumbadger.redreader.io.WritableHashSet;
 import org.quantumbadger.redreader.reddit.PostCommentSort;
 import org.quantumbadger.redreader.reddit.PostSort;
+import org.quantumbadger.redreader.reddit.ReactionGifFilter;
 import org.quantumbadger.redreader.reddit.UserCommentSort;
 import org.quantumbadger.redreader.reddit.api.RedditAPICommentAction;
 import org.quantumbadger.redreader.reddit.api.RedditPostActions;
@@ -175,6 +176,10 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(
 						R.string.pref_behaviour_mark_posts_as_read_on_scroll_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_comment_min_key))
+				|| key.equals(context.getString(
+						R.string.pref_behaviour_collapse_reaction_gifs_key))
+				|| key.equals(context.getString(
+						R.string.pref_behaviour_reaction_gif_domains_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_hide_few_comments_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_min_comments_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_pinned_subredditsort_key))
@@ -1179,6 +1184,28 @@ public final class PrefsUtility {
 		} catch(final Throwable e) {
 			return 150;
 		}
+	}
+
+	public static boolean pref_behaviour_collapse_reaction_gifs() {
+		return getBoolean(
+				R.string.pref_behaviour_collapse_reaction_gifs_key,
+				false);
+	}
+
+	public static String pref_behaviour_reaction_gif_domains() {
+		return getString(
+				R.string.pref_behaviour_reaction_gif_domains_key,
+				ReactionGifFilter.DEFAULT_DOMAINS);
+	}
+
+	// Null if the reaction GIF filter is turned off
+	@Nullable
+	public static ReactionGifFilter reactionGifFilter() {
+		if(!pref_behaviour_collapse_reaction_gifs()) {
+			return null;
+		}
+
+		return new ReactionGifFilter(pref_behaviour_reaction_gif_domains());
 	}
 
 	public static Integer pref_behaviour_comment_min() {
