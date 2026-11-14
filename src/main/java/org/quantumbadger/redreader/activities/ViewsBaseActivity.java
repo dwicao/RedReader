@@ -232,6 +232,14 @@ public abstract class ViewsBaseActivity extends BaseActivity {
 
 			} else {
 				supportActionBar.setCustomView(R.layout.actionbar_title);
+
+				// The custom action bar view wraps the title text, so tapping the
+				// empty area after a short title does nothing. Stretch it to the
+				// full width so the whole row handles clicks.
+				final View customView = supportActionBar.getCustomView();
+				if (customView != null) {
+					General.setLayoutMatchParent(customView);
+				}
 			}
 
 			supportActionBar.setDisplayShowCustomEnabled(true);
