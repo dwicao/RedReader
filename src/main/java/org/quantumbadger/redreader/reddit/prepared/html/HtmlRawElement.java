@@ -306,7 +306,8 @@ public abstract class HtmlRawElement {
 					result = new HtmlRawElementImg(children,
 							startToken.title == null || startToken.title.isEmpty()
 									? "emote" : startToken.title,
-							src);
+							src,
+							true);
 					break;
 
 				default:

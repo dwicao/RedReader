@@ -975,6 +975,9 @@
 
 	<string name="pref_appearance_link_text_clickable_title">Make link text clickable</string>
 	<string name="pref_appearance_link_text_clickable_key" translatable="false">pref_appearance_link_text_clickable</string>
+	<string name="pref_appearance_show_inline_emotes_key" translatable="false">pref_appearance_show_inline_emotes</string>
+	<string name="pref_appearance_show_inline_emotes_title">Show inline emotes</string>
+	<string name="pref_appearance_show_inline_emotes_summary">Display emote images inline in comments; when disabled they are shown as text placeholders</string>
 	<string name="pref_appearance_mute_visited_links_key" translatable="false">pref_appearance_mute_visited_links</string>
 	<string name="pref_appearance_mute_visited_links_title">Mute visited links</string>
 	<string name="pref_appearance_mute_visited_links_summary">Show links you&#8217;ve already opened in a muted colour</string>

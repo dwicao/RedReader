@@ -173,6 +173,11 @@
 							android:key="@string/pref_appearance_link_text_clickable_key"
 							android:defaultValue="true"/>
 
+		<CheckBoxPreference android:title="@string/pref_appearance_show_inline_emotes_title"
+						android:key="@string/pref_appearance_show_inline_emotes_key"
+						android:summary="@string/pref_appearance_show_inline_emotes_summary"
+						android:defaultValue="true"/>
+
 		<CheckBoxPreference android:title="@string/pref_appearance_mute_visited_links_title"
 							android:key="@string/pref_appearance_mute_visited_links_key"
 							android:summary="@string/pref_appearance_mute_visited_links_summary"

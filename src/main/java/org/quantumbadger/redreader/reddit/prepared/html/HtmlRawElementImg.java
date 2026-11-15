@@ -55,14 +55,24 @@ public class HtmlRawElementImg extends HtmlRawElement{
 	@NonNull private final ArrayList<HtmlRawElement> mChildren;
 	@NonNull private final String mTitle;
 	@NonNull private final UriString mSrc;
+	private final boolean mIsEmote;
 
 	public HtmlRawElementImg(
 			@NonNull final ArrayList<HtmlRawElement> children,
 			@NonNull final String title,
 			@NonNull final UriString src) {
+		this(children, title, src, false);
+	}
+
+	public HtmlRawElementImg(
+			@NonNull final ArrayList<HtmlRawElement> children,
+			@NonNull final String title,
+			@NonNull final UriString src,
+			final boolean isEmote) {
 		mChildren = children;
 		mTitle = title;
 		mSrc = src;
+		mIsEmote = isEmote;
 	}
 
 	@Override
@@ -79,6 +89,12 @@ public class HtmlRawElementImg extends HtmlRawElement{
 		final int emoteLocationStart = ssb.length();
 
 		ssb.append(mTitle);
+
+		// Emote images can be collapsed to their placeholder text via the
+		// "show inline emotes" preference; when hidden, render only the text
+		if(mIsEmote && !PrefsUtility.pref_appearance_show_inline_emotes()) {
+			return;
+		}
 
 		CacheManager.getInstance(activity).makeRequest(new CacheRequest(
 				mSrc,

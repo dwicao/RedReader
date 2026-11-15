@@ -695,6 +695,12 @@ public final class PrefsUtility {
 				false);
 	}
 
+	public static boolean pref_appearance_show_inline_emotes() {
+		return getBoolean(
+				R.string.pref_appearance_show_inline_emotes_key,
+				true);
+	}
+
 	public static boolean pref_appearance_inbox_collapse_long_messages() {
 		return getBoolean(
 				R.string.pref_appearance_inbox_collapse_long_messages_key,
