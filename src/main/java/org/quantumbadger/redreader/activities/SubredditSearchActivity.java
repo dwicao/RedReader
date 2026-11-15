@@ -65,6 +65,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class SubredditSearchActivity extends ViewsBaseActivity implements
 		RedditSubredditSubscriptionManager.SubredditSubscriptionStateChangeListener {
@@ -221,6 +223,21 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 
 			final HashSet<String> shownSubreddits = new HashSet<>(256);
 
+			// Filter out blocked subreddits, same rules as the post listings
+			final HashSet<SubredditCanonicalId> blockedSubreddits
+					= new HashSet<>(PrefsUtility.pref_blocked_subreddits());
+
+			final ArrayList<Pattern> blockedPatterns = new ArrayList<>();
+
+			for(final String expression : PrefsUtility.pref_blocked_subreddit_regexes()) {
+				try {
+					blockedPatterns.add(Pattern.compile(expression));
+
+				} catch(final PatternSyntaxException e) {
+					Log.w(TAG, "Ignoring invalid blocked subreddit regex", e);
+				}
+			}
+
 			final ArrayList<SubredditDetails> possibleSuggestions
 					= new ArrayList<>(mSubscriptions.get().get());
 
@@ -233,6 +250,11 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 
 				while(it.hasNext()) {
 					final SubredditDetails entry = it.next();
+
+					if(isBlockedSubreddit(entry, blockedSubreddits, blockedPatterns)) {
+						it.remove();
+						continue;
+					}
 
 					final String lowercaseName
 							= StringUtils.asciiLowercase(entry.name);
@@ -253,6 +275,11 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 				while(it.hasNext()) {
 					final SubredditDetails entry = it.next();
 
+					if(isBlockedSubreddit(entry, blockedSubreddits, blockedPatterns)) {
+						it.remove();
+						continue;
+					}
+
 					final String lowercaseName
 							= StringUtils.asciiLowercase(entry.name);
 
@@ -271,6 +298,9 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 
 			if(currentQueryResults != null) {
 				for(final SubredditDetails subreddit : currentQueryResults) {
+					if(isBlockedSubreddit(subreddit, blockedSubreddits, blockedPatterns)) {
+						continue;
+					}
 					final String name = StringUtils.asciiLowercase(subreddit.name);
 					if(shownSubreddits.add(name)) {
 						mRecyclerViewAdapter.appendToGroup(
@@ -572,5 +602,23 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 		super.onDestroy();
 		mSubredditSubscriptionListenerContext.apply(
 				RedditSubredditSubscriptionManager.ListenerContext::removeListener);
+	}
+
+	private boolean isBlockedSubreddit(
+			final SubredditDetails subreddit,
+			final HashSet<SubredditCanonicalId> blockedSubreddits,
+			final ArrayList<Pattern> blockedPatterns) {
+
+		if(blockedSubreddits.contains(subreddit.id)) {
+			return true;
+		}
+
+		for(final Pattern pattern : blockedPatterns) {
+			if(pattern.matcher(subreddit.name).find()) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }
