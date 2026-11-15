@@ -597,6 +597,20 @@ public class CommentListingFragment extends RRFragment
 				}
 				break;
 			}
+
+			case GO_TO_COMMENT: {
+				final RedditCommentListItem item = view.getComment();
+				if(item != null && item.isComment()) {
+					RedditAPICommentAction.onActionMenuItemSelected(
+							item.asComment(),
+							view,
+							getActivity(),
+							this,
+							RedditAPICommentAction.RedditCommentAction.GO_TO_COMMENT,
+							RedditChangeDataManager.getInstance(mUser));
+				}
+				break;
+			}
 		}
 	}
 
@@ -614,6 +628,20 @@ public class CommentListingFragment extends RRFragment
 							view,
 							RedditChangeDataManager.getInstance(mUser),
 							mPost != null && mPost.isLocked);
+				}
+				break;
+			}
+
+			case GO_TO_COMMENT: {
+				final RedditCommentListItem item = view.getComment();
+				if(item != null && item.isComment()) {
+					RedditAPICommentAction.onActionMenuItemSelected(
+							item.asComment(),
+							view,
+							getActivity(),
+							this,
+							RedditAPICommentAction.RedditCommentAction.GO_TO_COMMENT,
+							RedditChangeDataManager.getInstance(mUser));
 				}
 				break;
 			}

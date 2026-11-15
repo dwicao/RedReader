@@ -235,6 +235,7 @@
         <item>@string/action_collapse_thread</item>
         <item>@string/action_actionmenu</item>
         <item>@string/action_nothing</item>
+        <item>@string/action_comment_go_to</item>
     </string-array>
 
     <!-- Constants. Do not change. -->
@@ -243,6 +244,7 @@
         <item>collapse_thread</item>
         <item>action_menu</item>
         <item>nothing</item>
+        <item>go_to_comment</item>
     </string-array>
 
     <string-array name="pref_appearance_navbar_color_options">

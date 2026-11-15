@@ -599,6 +599,10 @@ public class RedditCommentView extends FlingableItemView
 				return R.string.action_collapse_thread;
 			case ACTION_MENU:
 				return R.string.action_actionmenu;
+			case GO_TO_COMMENT:
+				return R.string.action_comment_go_to;
+			case NOTHING:
+				break;
 		}
 		return null;
 	}

@@ -1430,7 +1430,7 @@ public final class PrefsUtility {
 	}
 
 	public enum CommentAction {
-		COLLAPSE, COLLAPSE_THREAD, ACTION_MENU, NOTHING
+		COLLAPSE, COLLAPSE_THREAD, ACTION_MENU, NOTHING, GO_TO_COMMENT
 	}
 
 	public static CommentAction pref_behaviour_actions_comment_tap() {
