@@ -420,6 +420,7 @@ fun AlbumScreen(
 			modifier = Modifier
                 // The top bar floats above the list, but a background alone isn't hit-testable,
                 // so without this taps and scrolls would pass through to the items underneath
+                .clickable { onBackPressed() }
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
