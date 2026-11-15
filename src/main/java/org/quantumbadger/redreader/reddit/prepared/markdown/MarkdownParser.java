@@ -25,15 +25,83 @@ public final class MarkdownParser {
 		TEXT, CODE, BULLET, NUMBERED, QUOTE, HEADER, HLINE, EMPTY
 	}
 
+	private static int fenceRunLength(final CharArrSubstring src, final char fenceChar) {
+
+		final int spacesAtStart = src.countSpacesAtStart();
+
+		if(spacesAtStart > 3) {
+			return 0;
+		}
+
+		int run = 0;
+
+		while(spacesAtStart + run < src.length && src.charAt(spacesAtStart + run) == fenceChar) {
+			run++;
+		}
+
+		return run >= 3 ? run : 0;
+	}
+
 	public static MarkdownParagraphGroup parse(final char[] raw) {
 
 		final CharArrSubstring[] rawLines = CharArrSubstring.generateFromLines(raw);
 
-		final MarkdownLine[] lines = new MarkdownLine[rawLines.length];
+		// Fenced code blocks (``` or ~~~). Reddit renders these literally; the
+		// tokenizer would otherwise see their contents as TEXT lines and merge
+		// them with spaces (upstream issue #1039)
+		final ArrayList<MarkdownLine> linesList = new ArrayList<>(rawLines.length);
+		char fenceChar = 0;
+		int fenceLength = 0;
+		boolean inFence = false;
 
 		for(int i = 0; i < rawLines.length; i++) {
-			lines[i] = MarkdownLine.generate(rawLines[i]);
+
+			final CharArrSubstring src = rawLines[i];
+
+			if(!inFence) {
+
+				int run = fenceRunLength(src, '`');
+
+				if(run == 0) {
+					run = fenceRunLength(src, '~');
+					fenceChar = '~';
+				} else {
+					fenceChar = '`';
+				}
+
+				if(run >= 3) {
+					inFence = true;
+					fenceLength = run;
+					continue;
+				}
+
+				linesList.add(MarkdownLine.generate(src));
+
+			} else if(fenceRunLength(src, fenceChar) >= fenceLength) {
+				inFence = false;
+
+			} else {
+
+				int codeLength = src.length;
+
+				if(codeLength > 0 && src.charAt(src.length - 1) == '\r') {
+					codeLength--;
+				}
+
+				linesList.add(new MarkdownLine(
+						codeLength == src.length
+								? src
+								: new CharArrSubstring(src.arr, src.start, codeLength),
+						MarkdownParser.MarkdownParagraphType.CODE,
+						0,
+						0,
+						0,
+						0,
+						0));
+			}
 		}
+
+		final MarkdownLine[] lines = linesList.toArray(new MarkdownLine[0]);
 
 		final ArrayList<MarkdownLine> mergedLines = new ArrayList<>(rawLines.length);
 		MarkdownLine currentLine = null;
