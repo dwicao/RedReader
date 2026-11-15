@@ -262,7 +262,7 @@ public class PostSubmitContentFragment extends Fragment {
 				args.subreddit,
 				args.username));
 
-		mTypeSpinner.setText(POST_TYPE_LINK);
+		mTypeSpinner.setText(POST_TYPE_SELF);
 
 		AndroidCommon.setAutoCompleteTextViewItemsNoFilter(mTypeSpinner, POST_TYPES);
 
