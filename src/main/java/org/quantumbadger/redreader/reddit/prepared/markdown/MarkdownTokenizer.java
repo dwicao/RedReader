@@ -610,6 +610,59 @@ public final class MarkdownTokenizer {
 										toDelete[j] = true;
 									}
 
+									// Optional trailing link title: [t](url "tooltip")
+									{
+										int li = parenOpenPos + 1;
+										while(li < parenClosePos && input.data[li] == ' ') {
+											li++;
+										}
+										final int linkPos = li;
+
+										if(input.data[li] == '"') {
+
+											int destEnd = li + 1;
+
+											while(destEnd < parenClosePos
+													&& input.data[destEnd] != '"') {
+												destEnd++;
+											}
+
+											final int afterDest = destEnd + 1;
+
+											if(afterDest < parenClosePos
+													&& input.data[afterDest] == ' ') {
+
+												for(int k = afterDest; k < parenClosePos; k++) {
+													toDelete[k] = true;
+												}
+											}
+
+										} else {
+
+											int urlEnd = li;
+
+											while(urlEnd < parenClosePos
+													&& input.data[urlEnd] != '"') {
+												urlEnd++;
+											}
+
+											if(urlEnd < parenClosePos
+													&& input.data[urlEnd] == '"') {
+
+												int urlTrim = urlEnd - 1;
+
+												while(urlTrim > linkPos
+														&& input.data[urlTrim] == ' ') {
+													urlTrim--;
+												}
+
+												for(int k = urlTrim + 1; k < parenClosePos; k++) {
+													toDelete[k] = true;
+												}
+											}
+										}
+									}
+
 									for(int j = parenOpenPos + 1;
 										j < parenClosePos;
 										j++) {

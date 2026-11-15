@@ -274,6 +274,41 @@ public class MarkdownTokenizerTest {
 	}
 
 	@Test
+	public void testTokenizeLinkWithTitleRemovesTitle() {
+
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(
+				toCAS("a [b](http://x \"my amazing tooltip\") d"));
+
+		final int[] expected = new int[] {
+				'a', ' ', MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'b',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'h', 't', 't', 'p', ':', '/', '/', 'x',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE,
+				' ', 'd'
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
+	public void testTokenizeLinkWithTitleOnly() {
+
+		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(
+				toCAS("[b](http://x \"tooltip\")"));
+
+		final int[] expected = new int[] {
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_OPEN, 'b',
+				MarkdownTokenizer.TOKEN_BRACKET_SQUARE_CLOSE,
+				MarkdownTokenizer.TOKEN_PAREN_OPEN,
+				'h', 't', 't', 'p', ':', '/', '/', 'x',
+				MarkdownTokenizer.TOKEN_PAREN_CLOSE
+		};
+
+		assertIAEquals(expected, out);
+	}
+
+	@Test
 	public void testTokenizeUnderscore1() {
 		final IntArrayLengthPair out = MarkdownTokenizer.tokenize(toCAS("a_b_c_d"));
 
