@@ -54,6 +54,19 @@ public class SettingsActivity extends ViewsBaseActivity {
 	}
 
 	@Override
+	protected boolean baseActivityOnBackPressed() {
+
+		// Pop the settings sub-section if there is one, else let the default
+		// behavior (exit Settings) run
+		if(getSupportFragmentManager().getBackStackEntryCount() > 0) {
+			getSupportFragmentManager().popBackStack();
+			return true;
+		}
+
+		return false;
+	}
+
+	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 
 		PrefsUtility.applySettingsTheme(this);
@@ -62,14 +75,21 @@ public class SettingsActivity extends ViewsBaseActivity {
 
 		setBaseActivityListing(R.layout.single_fragment_layout);
 
-		final Bundle bundle = new Bundle();
-		bundle.putString("panel", "root");
+		launchRootFragment(savedInstanceState);
+	}
 
-		getSupportFragmentManager()
-				.beginTransaction()
-				.setReorderingAllowed(false)
-				.replace(R.id.single_fragment_container, SettingsFragment.class, bundle)
-				.commit();
+	private void launchRootFragment(final Bundle savedInstanceState) {
+
+		if(savedInstanceState == null) {
+			final Bundle bundle = new Bundle();
+			bundle.putString("panel", "root");
+
+			getSupportFragmentManager()
+					.beginTransaction()
+					.setReorderingAllowed(false)
+					.replace(R.id.single_fragment_container, SettingsFragment.class, bundle)
+					.commit();
+		}
 	}
 
 	public void onPanelSelected(@NonNull final String panel) {
