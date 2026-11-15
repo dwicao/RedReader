@@ -1,3 +1,7 @@
+160/1.55
+Fix loading spinner looking stuck when animations are disabled (battery saver); it now shows a labeled static indicator
+Add option to show inline emotes as text placeholders instead of images
+
 159/1.54
 Make comment text selectable with long press
 Add "Go to comment" to comment tap and long-press actions
