@@ -1,3 +1,12 @@
+159/1.54
+Make comment text selectable with long press
+Add "Go to comment" to comment tap and long-press actions
+Strip backslash escapes in URLs, fixing wiki links
+i.imgur.com videos open as video instead of a still image
+Keep line breaks in fenced code blocks in self-posts
+Open target=_blank and window.open links in the sidebar/internal browser
+Hide blocked subreddits from subreddit search results
+
 158/1.53
 Fix comment posts/edits not showing until manual refresh
 Fix post-side toolbar not working with Android gesture navigation
