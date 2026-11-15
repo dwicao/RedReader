@@ -997,6 +997,11 @@ object LinkHandler {
 		)
 	}
 
+	private fun hasVideoExtension(urlLower: String): Boolean {
+		val beforeQuery = urlLower.substringBefore('?')
+		return videoExtensions.any { beforeQuery.endsWith(it) }
+	}
+
 	@JvmStatic
 	fun getImageInfo(
 		context: Context,
@@ -1009,13 +1014,21 @@ object LinkHandler {
 			return
 		}
 
-		run {
-			val matchImgur = imgurPattern.matcher(url.value)
-			if (matchImgur.find()) {
-				matchImgur.group(2)?.let { imgId ->
-					if (imgId.length > 2 && !imgId.startsWith("gallery")) {
-						getImgurImageInfo(context, imgId, priority, true, listener)
-						return
+		// An imgur URL with a video extension is a video, not an image; don't
+		// resolve it through the imgur API which would return a still frame
+		// (issue #1033). Fall through to the extension matcher, which marks it
+		// as a VIDEO.
+		val isVideo = hasVideoExtension(StringUtils.asciiLowercase(url.value))
+
+		if (!isVideo) {
+			run {
+				val matchImgur = imgurPattern.matcher(url.value)
+				if (matchImgur.find()) {
+					matchImgur.group(2)?.let { imgId ->
+						if (imgId.length > 2 && !imgId.startsWith("gallery")) {
+							getImgurImageInfo(context, imgId, priority, true, listener)
+							return
+						}
 					}
 				}
 			}
@@ -1642,6 +1655,12 @@ object LinkHandler {
 
 	fun convertAndNormalizeUri(uri: UriString): Uri {
 		@Suppress("NAME_SHADOWING") var uri = uri.value
+		// New Reddit's markdown escapes characters with backslashes (e.g.
+		// "https://en.wikipedia.org/wiki/Tree\_(data\_structure)"), which shows up
+		// in the link as a raw backslash or as %5C. A backslash is not a legal or
+		// useful URL character, so strip both forms (upstream issue #939).
+		uri = uri.replace("%5C", "", ignoreCase = true)
+		uri = uri.replace("\\", "")
 		if (uri.startsWith("r/") || uri.startsWith("u/")) {
 			uri = "/$uri"
 		}
