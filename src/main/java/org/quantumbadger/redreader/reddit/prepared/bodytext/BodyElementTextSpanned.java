@@ -129,6 +129,10 @@ public class BodyElementTextSpanned extends BodyElement implements DynamicSpanne
 
 		mTextView.setText(mSpanned, LinkifiedTextView.BufferType.SPANNABLE);
 
+		// Long-press to select, for accessibility and copy-paste; don't set
+		// focusable (otherwise TalkBack would land on the text, not the comment)
+		mTextView.setTextIsSelectable(true);
+
 		if(PrefsUtility.pref_accessibility_separate_body_text_lines()) {
 
 			mTextView.setFocusable(true);
