@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -191,6 +192,55 @@ public class WebViewFragment extends Fragment
 							: View.VISIBLE);
 				});
 			}
+
+			@Override
+			public boolean onCreateWindow(
+					final WebView view,
+					final boolean isDialog,
+					final boolean isUserGesture,
+					final Message resultMsg) {
+
+				// Sidebar/popup links (target="_blank" or window.open) would otherwise
+				// be silently swallowed: the default WebChromeClient refuses to create
+				// the window. Create a throwaway child WebView whose only job is to
+				// report the URL via shouldOverrideUrlLoading, then route it through
+				// our normal link handling.
+				final WebView childWebView = new WebView(mActivity);
+
+				childWebView.setWebViewClient(new WebViewClient() {
+					@Override
+					public boolean shouldOverrideUrlLoading(
+							final WebView childView,
+							final WebResourceRequest childRequest) {
+
+						if(childRequest != null) {
+							handleNavigationRequested(childRequest.getUrl());
+						}
+
+						childView.destroy();
+						return true;
+					}
+
+					@Override
+					@Deprecated
+					public boolean shouldOverrideUrlLoading(
+							final WebView childView,
+							final String url) {
+
+						handleNavigationRequested(Uri.parse(url));
+						childView.destroy();
+						return true;
+					}
+				});
+
+				final WebView.WebViewTransport transport
+						= (WebView.WebViewTransport)resultMsg.obj;
+
+				transport.setWebView(childWebView);
+				resultMsg.sendToTarget();
+
+				return true;
+			}
 		};
 
 		chromeClient.setOnToggledFullscreen(fullscreen -> {
@@ -305,13 +355,8 @@ public class WebViewFragment extends Fragment
 
 				final Uri url = request.getUrl();
 
-				if (Objects.equals(url.getScheme(), "data")) {
-					// Prevent imgur bug where we're directed to some random data URI
-					return true;
-				}
-
 				// Go back if loading same page to prevent redirect loops.
-				if(goingBack && currentUrl != null && url.equals(currentUrl)) {
+				if(goingBack && currentUrl != null && url.toString().equals(currentUrl.value)) {
 
 					General.quickToast(mActivity,
 							String.format(
@@ -323,102 +368,20 @@ public class WebViewFragment extends Fragment
 
 					if(webView.canGoBackOrForward(lastBackDepthAttempt)) {
 						webView.goBackOrForward(lastBackDepthAttempt);
+
 					} else {
 						mActivity.finish();
 					}
+
 				} else {
-
-					if(RedditURLParser.parse(url) != null) {
-						LinkHandler.onLinkClicked(mActivity, UriString.from(url), false);
-					} else {
-						// When websites recognize the user agent is on Android, they sometimes
-						// redirect or offer deep links into native apps. These come in two flavors:
-						//
-						// 1. `intent://` URLs for arbitrary native apps. Launching these may be a
-						//    security vulnerability, because it's not clear what app is being
-						//    loaded with RedReader's permissions. Luckily, these URLs often have
-						//    fallback HTTP URLs, which can be loaded instead.
-						//
-						// 2. Custom scheme URLs, like `twitter://` or `market://` URLs. While these
-						//    can also launch arbitrary apps, the assumption is custom schemes are
-						//    only used for widely known apps (though even those can be replaced by
-						//    alternative apps). Often, these URLs don't have fallbacks, so take the
-						//    risk of loading these in their native apps.
-						//
-						// All this logic is in the `else` block because processing these URLs can
-						// fail, in which case the logic falls through and treats these URLs as
-						// HTTP URLs.
-
-						if (Objects.equals(url.getScheme(), "intent")) {
-							if (onEncounteredIntentUrl(url)) {
-								return true;
-							}
-						} else if (!Objects.equals(url.getScheme(), "http")
-								&& !Objects.equals(url.getScheme(), "https")) {
-							if (onEncounteredCustomSchemeUrl(url)) {
-								return true;
-							}
-						}
-
-						if (!PrefsUtility.pref_behaviour_useinternalbrowser()) {
-							LinkHandler.openWebBrowser(
-									mActivity,
-									url,
-									true);
-						} else if (PrefsUtility.pref_behaviour_usecustomtabs()) {
-							LinkHandler.openCustomTab(
-									mActivity,
-									url,
-									null,
-									true);
-						} else {
-							webView.loadUrl(url.toString());
-							currentUrl = UriString.from(url);
-						}
-					}
+					handleNavigationRequested(request.getUrl());
 				}
 
 				return true;
 			}
 
-			/**
-			 * Assumes the {@code url} starts with `intent://`
-			 */
-			private boolean onEncounteredIntentUrl(final Uri url) {
-				final Intent nativeAppIntent;
-				try {
-					nativeAppIntent = Intent.parseUri(url.toString(), Intent.URI_INTENT_SCHEME);
-				} catch (final URISyntaxException e) {
-					return false;
-				}
 
-				if (nativeAppIntent == null) {
-					return false;
-				}
 
-				final String fallbackUrl = nativeAppIntent.getStringExtra("browser_fallback_url");
-				if (fallbackUrl == null) {
-					return false;
-				}
-
-				webView.loadUrl(fallbackUrl);
-				currentUrl = new UriString(fallbackUrl);
-				return true;
-			}
-
-			/**
-			 * Assumes the {@code url} starts with something other than `intent://`, `http://` or
-			 * `https://`
-			 */
-			private boolean onEncounteredCustomSchemeUrl(final Uri url) {
-				final Intent nativeAppIntent = new Intent(Intent.ACTION_VIEW, url);
-				try {
-					startActivity(nativeAppIntent);
-					return true;
-				} catch (final ActivityNotFoundException e) {
-					return false;
-				}
-			}
 
 			@Override
 			public void onPageStarted(final WebView view, final String url, final Bitmap favicon) {
@@ -594,5 +557,110 @@ public class WebViewFragment extends Fragment
 
 	public void clearCache() {
 		webView.clearBrowser();
+	}
+
+	/**
+	 * Handles a navigation request from the WebView (link tap, window.open, or a
+	 * target="_blank" anchor). Returns true if the URL was dealt with, in which
+	 * case the WebView must not navigate to it itself.
+	 */
+	private boolean handleNavigationRequested(final Uri url) {
+
+		if (Objects.equals(url.getScheme(), "data")) {
+			// Prevent imgur bug where we're directed to some random data URI
+			return true;
+		}
+
+		if(RedditURLParser.parse(url) != null) {
+			LinkHandler.onLinkClicked(mActivity, UriString.from(url), false);
+			return true;
+		}
+
+		// When websites recognize the user agent is on Android, they sometimes
+		// redirect or offer deep links into native apps. These come in two flavors:
+		//
+		// 1. `intent://` URLs for arbitrary native apps. Launching these may be a
+		//    security vulnerability, because it's not clear what app is being
+		//    loaded with RedReader's permissions. Luckily, these URLs often have
+		//    fallback HTTP URLs, which can be loaded instead.
+		//
+		// 2. Custom scheme URLs, like `twitter://` or `market://` URLs. While these
+		//    can also launch arbitrary apps, the assumption is custom schemes are
+		//    only used for widely known apps (though even those can be replaced by
+		//    alternative apps). Often, these URLs don't have fallbacks, so take the
+		//    risk of loading these in their native apps.
+		//
+		// All this logic is in the `else` block because processing these URLs can
+		// fail, in which case the logic falls through and treats these URLs as
+		// HTTP URLs.
+
+		if (Objects.equals(url.getScheme(), "intent")) {
+			if (onEncounteredIntentUrl(url)) {
+				return true;
+			}
+		} else if (!Objects.equals(url.getScheme(), "http")
+				&& !Objects.equals(url.getScheme(), "https")) {
+			if (onEncounteredCustomSchemeUrl(url)) {
+				return true;
+			}
+		}
+
+		if (!PrefsUtility.pref_behaviour_useinternalbrowser()) {
+			LinkHandler.openWebBrowser(
+					mActivity,
+					url,
+					true);
+			return true;
+		} else if (PrefsUtility.pref_behaviour_usecustomtabs()) {
+			LinkHandler.openCustomTab(
+					mActivity,
+					url,
+					null,
+					true);
+			return true;
+		} else {
+			webView.loadUrl(url.toString());
+			currentUrl = UriString.from(url);
+			return true;
+		}
+	}
+
+	/**
+	 * Assumes the {@code url} starts with `intent://`
+	 */
+	private boolean onEncounteredIntentUrl(final Uri url) {
+		final Intent nativeAppIntent;
+		try {
+			nativeAppIntent = Intent.parseUri(url.toString(), Intent.URI_INTENT_SCHEME);
+		} catch (final URISyntaxException e) {
+			return false;
+		}
+
+		if (nativeAppIntent == null) {
+			return false;
+		}
+
+		final String fallbackUrl = nativeAppIntent.getStringExtra("browser_fallback_url");
+		if (fallbackUrl == null) {
+			return false;
+		}
+
+		webView.loadUrl(fallbackUrl);
+		currentUrl = new UriString(fallbackUrl);
+		return true;
+	}
+
+	/**
+	 * Assumes the {@code url} starts with something other than `intent://`, `http://` or
+	 * `https://`
+	 */
+	private boolean onEncounteredCustomSchemeUrl(final Uri url) {
+		final Intent nativeAppIntent = new Intent(Intent.ACTION_VIEW, url);
+		try {
+			startActivity(nativeAppIntent);
+			return true;
+		} catch (final ActivityNotFoundException e) {
+			return false;
+		}
 	}
 }
