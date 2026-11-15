@@ -134,6 +134,10 @@ public class CommentEditActivity extends ViewsBaseActivity {
 					= new APIResponseHandler.ActionResponseHandler(this) {
 				@Override
 				protected void onSuccess() {
+
+					// Ask the comment listing to refresh when it regains focus (consumed there)
+					PrefsUtility.pref_mark_comments_refresh_needed();
+
 					AndroidCommon.UI_THREAD_HANDLER.post(() -> {
 
 						General.safeDismissDialog(progressDialog);

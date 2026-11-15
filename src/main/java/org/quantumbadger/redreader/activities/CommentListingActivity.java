@@ -165,6 +165,18 @@ public class CommentListingActivity extends RefreshableActivity
 	}
 
 	@Override
+	public void onResume() {
+
+		super.onResume();
+
+		// A comment was edited or posted while we were paused: reload now with fresh data
+		if(PrefsUtility.pref_consume_comments_refresh_needed()) {
+			controller.setSession(null);
+			requestRefresh(RefreshableFragment.COMMENTS, true);
+		}
+	}
+
+	@Override
 	public void onRedditAccountChanged() {
 		requestRefresh(RefreshableFragment.ALL, false);
 	}

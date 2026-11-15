@@ -173,6 +173,7 @@ public final class PrefsUtility {
 				|| key.equals(context.getString(R.string.pref_behaviour_nsfw_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_keyword_filter_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_domain_filter_key))
+				|| key.equals(context.getString(R.string.pref_comments_refresh_needed_key))
 				|| key.equals(context.getString(R.string.pref_behaviour_postcount_key))
 				|| key.equals(context.getString(
 						R.string.pref_behaviour_mark_posts_as_read_on_scroll_key))
@@ -2344,6 +2345,31 @@ public final class PrefsUtility {
 		return getBoolean(
 				R.string.pref_accessibility_concise_mode_key,
 				false);
+	}
+
+	/**
+	 * Marks that a comment was edited or posted in this app, and that the next
+	 * comment listing needs a fresh download to show it. Listeners consume this
+	 * flag and clear it.
+	 */
+	public static void pref_mark_comments_refresh_needed() {
+
+		sharedPrefs.edit()
+				.putBoolean(getPrefKey(R.string.pref_comments_refresh_needed_key), true)
+				.apply();
+	}
+
+	/** @return true if a comment refresh is pending, clearing the flag */
+	public static boolean pref_consume_comments_refresh_needed() {
+
+		final String key = getPrefKey(R.string.pref_comments_refresh_needed_key);
+
+		if(!sharedPrefs.getBoolean(key, false)) {
+			return false;
+		}
+
+		sharedPrefs.edit().putBoolean(key, false).apply();
+		return true;
 	}
 
 	public static boolean pref_behaviour_keep_screen_awake() {

@@ -19,9 +19,12 @@ package org.quantumbadger.redreader.views.bezelmenu;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Rect;
+import android.os.Build;
 import android.view.MotionEvent;
 import android.view.View;
 import androidx.annotation.IntDef;
+import androidx.annotation.RequiresApi;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.PrefsUtility;
 
@@ -71,17 +74,49 @@ public class BezelSwipeOverlay extends View {
 				return listener.onTap();
 			}
 
-			// The screen edges belong to the system's back gesture when gesture
-			// navigation is enabled, so the swipe zone is disabled to avoid the
-			// toolbar appearing at the start of every back gesture.
-			if(General.isGestureNavigationEnabled(this)) {
-				return listener.onTap();
-			}
-
 			return listener.onSwipe(edge);
 		}
 
 		return false;
+	}
+
+	@Override
+	protected void onSizeChanged(
+			final int w,
+			final int h,
+			final int oldw,
+			final int oldh) {
+
+		super.onSizeChanged(w, h, oldw, oldh);
+		updateSystemGestureExclusionRects();
+	}
+
+	@Override
+	protected void onAttachedToWindow() {
+		super.onAttachedToWindow();
+		// Insets may not be available yet if this runs before layout
+		post(this::updateSystemGestureExclusionRects);
+	}
+
+	// Ask the system to keep its navigation gestures out of the swipe zones,
+	// so the post-side toolbar still works with gesture navigation enabled
+	@RequiresApi(Build.VERSION_CODES.Q)
+	private void updateSystemGestureExclusionRectsApi29(
+			final int w,
+			final int h) {
+
+		final java.util.List<Rect> rects = new java.util.ArrayList<>(2);
+
+		rects.add(new Rect(0, 0, mSwipeZonePixels, h));
+		rects.add(new Rect(w - mSwipeZonePixels, 0, w, h));
+
+		setSystemGestureExclusionRects(rects);
+	}
+
+	private void updateSystemGestureExclusionRects() {
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getWidth() > 0 && getHeight() > 0) {
+			updateSystemGestureExclusionRectsApi29(getWidth(), getHeight());
+		}
 	}
 
 	public interface BezelSwipeListener {

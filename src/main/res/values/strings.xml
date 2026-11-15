@@ -1804,6 +1804,7 @@
 	<string name="pref_behaviour_keep_screen_awake_key">pref_behaviour_keep_screen_awake</string>
 	<string name="pref_behaviour_keep_screen_awake_title">Keep screen awake</string>
 	<string name="pref_behaviour_keep_screen_awake_summary">Keep screen awake when RedReader is running in the foreground</string>
+	<string name="pref_comments_refresh_needed_key" translatable="false">pref_comments_refresh_needed</string>
 	<string name="pref_behaviour_incognito_keyboard_key">pref_behaviour_incognito_keyboard</string>
 	<string name="pref_behaviour_incognito_keyboard_title">Incognito keyboard</string>
 	<string name="pref_behaviour_incognito_keyboard_summary">Ask the keyboard not to learn what you type (IME_FLAG_NO_PERSONALIZED_LEARNING)</string>

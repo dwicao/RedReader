@@ -269,6 +269,9 @@ public class CommentReplyActivity extends ViewsBaseActivity {
 									getString(R.string.comment_reply_done_norefresh));
 						}
 
+						// Ask the comment listing to refresh when it regains focus (consumed there)
+						PrefsUtility.pref_mark_comments_refresh_needed();
+
 						mDraftReset = true;
 						lastText = null;
 						lastParentIdAndType = null;

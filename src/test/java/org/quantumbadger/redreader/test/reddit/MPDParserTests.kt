@@ -34,6 +34,35 @@ class MPDParserTest {
     }
     
     @Test
+    fun testMPDWithoutContentTypeIsClassifiedByCodecs() {
+
+        // No contentType attributes anywhere; adaptation sets must be told apart by codecs
+        val mpd = """
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static">
+  <Period duration="PT10S" id="0">
+    <AdaptationSet id="0" segmentAlignment="true">
+      <Representation bandwidth="100000" codecs="avc1.4d401e" height="360" id="0" mimeType="video/mp4" width="640">
+        <BaseURL>DASH_360.mp4</BaseURL>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet id="1" segmentAlignment="true">
+      <Representation audioSamplingRate="48000" bandwidth="64000" codecs="mp4a.40.2" id="7" mimeType="audio/mp4">
+        <BaseURL>DASH_AUDIO_128.mp4</BaseURL>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>
+""".trimIndent()
+
+        val result = parseMPD(mpd)
+
+        assertNotNull(result.video)
+        assertEquals("DASH_360.mp4", result.video?.filename)
+        assertNotNull(result.audio)
+        assertEquals("DASH_AUDIO_128.mp4", result.audio?.filename)
+    }
+    
+    @Test
     fun testMPD_6201fb9c() {
         val mpdContent = loadMPD("6201fb9c-b427-4540-901e-07abfa502742.mpd")
         val result = parseMPD(mpdContent)

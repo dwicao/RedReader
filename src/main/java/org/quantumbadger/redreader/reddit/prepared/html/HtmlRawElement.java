@@ -115,8 +115,8 @@ public abstract class HtmlRawElement {
 							startToken.src);
 
 				default:
-					return HtmlRawElementInlineErrorMessage.create(
-							"Error: Unexpected tag <" + startToken.text + "/>");
+					// Unknown tag: render nothing for it
+					return new HtmlRawElementPlainText("");
 			}
 
 		} else if(startToken.type == HtmlReader.TokenType.TAG_START) {
@@ -310,9 +310,8 @@ public abstract class HtmlRawElement {
 					break;
 
 				default:
-					return HtmlRawElementInlineErrorMessage.appendError(
-							"Error: Unexpected tag start <" + startToken.text + ">",
-							new HtmlRawElementBlock(BlockType.NORMAL_TEXT, children));
+					// Unknown tag: pass its children through without emitting raw markup
+					return new HtmlRawElementTagPassthrough(children);
 			}
 
 			return result;
@@ -327,8 +326,8 @@ public abstract class HtmlRawElement {
 					reader.getPos());
 
 		} else {
-			return HtmlRawElementInlineErrorMessage.create(
-					"Error: Unexpected token type " + startToken.type);
+			// Never happen with parsed content; degrade to an empty element
+			return new HtmlRawElementPlainText("");
 		}
 	}
 

@@ -119,32 +119,12 @@ public final class SettingsFragment extends PreferenceFragmentCompat {
 			return;
 		}
 
-		// The system gesture insets are only available once the view is
-		// attached to a window
-		final Runnable update = () -> {
-			if(General.isGestureNavigationEnabled(view)) {
-				swipeZonePref.setEnabled(false);
-				swipeZonePref.setSummary(
-						R.string.pref_behaviour_bezel_toolbar_swipezone_gesture_nav_summary);
-			}
-		};
-
-		if(view.isAttachedToWindow()) {
-			update.run();
-
-		} else {
-			view.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-				@Override
-				public void onViewAttachedToWindow(@NonNull final View v) {
-					update.run();
-				}
-
-				@Override
-				public void onViewDetachedFromWindow(@NonNull final View v) {
-					// Nothing to do
-				}
-			});
-		}
+		// The swipe overlay asks the system to exclude the swipe zones from its
+		// navigation gestures on Android 10+, so the preference stays enabled
+		// The swipe overlay asks the system to exclude the swipe zones from its
+		// navigation gestures on Android 10+ (setSystemGestureExclusionRects), so the
+		// preference stays enabled; the summary pref has been removed
+		swipeZonePref.setEnabled(true);
 	}
 
 	@Override

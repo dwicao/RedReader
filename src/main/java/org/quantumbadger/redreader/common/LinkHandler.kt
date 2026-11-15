@@ -551,7 +551,7 @@ object LinkHandler {
 
 			val typedValue = TypedValue()
 			activity.theme.resolveAttribute(
-				androidx.appcompat.R.attr.colorPrimary,
+				org.quantumbadger.redreader.R.attr.rrActionBarCol,
 				typedValue,
 				true
 			)

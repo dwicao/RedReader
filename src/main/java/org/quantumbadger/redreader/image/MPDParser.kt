@@ -53,6 +53,60 @@ private data class Representation(
     val baseURL: String?
 )
 
+private enum class MediaType {
+    VIDEO,
+    AUDIO,
+    UNKNOWN
+}
+
+// Classify an adaptation set as audio/video, using the contentType attribute when
+// present, and falling back to representation codecs and audio sampling rate.
+private fun classifyAdaptationSet(adaptationSet: AdaptationSet): MediaType {
+    // 1. The explicit contentType attribute (most MPDs)
+    adaptationSet.contentType?.let {
+        when (it.lowercase()) {
+            "video" -> return MediaType.VIDEO
+            "audio" -> return MediaType.AUDIO
+            else -> Unit
+        }
+    }
+
+    // 2. The mimeType attribute (DASH allows either)
+    //    (subset of the DASH spec: e.g. "audio/mp4" or "video/mp4")
+    //
+    // Note: we don't read mimeType from AdaptationSet directly here to keep
+    // the parse pass simple; instead we look at each Representation below.
+
+    // 3. Codec / attribute-based detection on the representations
+    for (rep in adaptationSet.representations) {
+        val codecs = rep.codecs?.lowercase()
+
+        if (codecs != null) {
+            when {
+                codecs.startsWith("mp4a") || codecs.startsWith("ac-3")
+                        || codecs.startsWith("ec-3") || codecs.startsWith("opus") -> {
+                    return MediaType.AUDIO
+                }
+                codecs.startsWith("avc1") || codecs.startsWith("avc3")
+                        || codecs.startsWith("hev1") || codecs.startsWith("hvc1")
+                        || codecs.startsWith("vp8") || codecs.startsWith("vp09")
+                        || codecs.startsWith("vp9") || codecs.startsWith("av01") -> {
+                    return MediaType.VIDEO
+                }
+            }
+        }
+
+        if (rep.audioSamplingRate != null && rep.audioSamplingRate.isNotEmpty()) {
+            return MediaType.AUDIO
+        }
+    }
+
+    // 4. Declared mimeType on the Representation (rare, but valid DASH)
+    //    (mimeType isn't captured on Representation today, so nothing further here)
+
+    return MediaType.UNKNOWN
+}
+
 fun parseMPD(mpdContent: String): MPDReadResult {
     val factory = XmlPullParserFactory.newInstance()
     factory.isNamespaceAware = true
@@ -65,8 +119,12 @@ fun parseMPD(mpdContent: String): MPDReadResult {
     val firstPeriod = mpd.periods.firstOrNull() ?: return MPDReadResult()
     
     // Find video and audio adaptation sets
-    val videoAdaptationSet = firstPeriod.adaptationSets.firstOrNull { it.contentType == "video" }
-    val audioAdaptationSet = firstPeriod.adaptationSets.firstOrNull { it.contentType == "audio" }
+    val videoAdaptationSet = firstPeriod.adaptationSets.firstOrNull {
+        classifyAdaptationSet(it) == MediaType.VIDEO
+    }
+    val audioAdaptationSet = firstPeriod.adaptationSets.firstOrNull {
+        classifyAdaptationSet(it) == MediaType.AUDIO
+    }
     
     val selectedVideo = videoAdaptationSet?.let { selectVideoRepresentation(it) }
     val selectedAudio = audioAdaptationSet?.let { selectAudioRepresentation(it) }
