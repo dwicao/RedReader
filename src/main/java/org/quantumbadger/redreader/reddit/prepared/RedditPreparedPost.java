@@ -1077,7 +1077,8 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 	// lol, reddit api
 	private static boolean hasThumbnail(final RedditParsedPost post) {
 		return isUsableThumbnailUrl(post.getThumbnailUrl())
-				|| LinkHandler.isDirectImageUrl(post.getUrl());
+				|| LinkHandler.isDirectImageUrl(post.getUrl())
+				|| post.getPreview(0, 0) != null;
 	}
 
 	public static boolean isUsableThumbnailUrl(@Nullable final UriString url) {
