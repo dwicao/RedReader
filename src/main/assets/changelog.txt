@@ -1,3 +1,14 @@
+158/1.53
+Fix comment posts/edits not showing until manual refresh
+Fix post-side toolbar not working with Android gesture navigation
+Gallery posts show thumbnails in list/grid views
+Markdown link titles ([text](url "tooltip")) are stripped instead of breaking links
+Fix video MPD parsing for posts without contentType attributes
+Fix back from notification deep-link to land on the main screen
+Fix external browser links looping back into RedReader when it is the default handler
+Prompt text for post type composer is now "Text" by default
+Album viewer header is tappable to go back
+
 157/1.52
 Refresh inbox in place (no screen flicker) when pulling to refresh or toggling unread-only
 "Mark all as read" now marks each message read individually (more reliable)
