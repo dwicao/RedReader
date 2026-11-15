@@ -450,10 +450,24 @@ object LinkHandler {
 		fromExternalIntent: Boolean
 	): Boolean {
 		if (!fromExternalIntent) {
+			// Exclude ourselves, so RedReader as the default handler for reddit links
+			// doesn't loop back into the app when the user wants an external browser
 			try {
 				val intent = Intent(Intent.ACTION_VIEW)
+				intent.addCategory(Intent.CATEGORY_APP_BROWSER)
 				intent.setData(uri)
-				activity.startActivity(intent)
+				val ownPackage = activity.packageName
+				val resolved = activity.packageManager.queryIntentActivities(intent, 0)
+					.filter { it.activityInfo.packageName != ownPackage }
+
+				if (resolved.isEmpty()) {
+					activity.startActivity(intent)
+				} else {
+					val target = Intent(intent)
+					target.setPackage(resolved.first().activityInfo.packageName)
+					activity.startActivity(target)
+				}
+
 				return true
 			} catch (e: Exception) {
 				quickToast(
