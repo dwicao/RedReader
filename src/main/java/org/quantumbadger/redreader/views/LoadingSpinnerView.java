@@ -21,15 +21,26 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.RelativeLayout.LayoutParams;
+import android.util.TypedValue;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
 import com.github.lzyzsd.circleprogress.DonutProgress;
+
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.General;
 
 public class LoadingSpinnerView extends RelativeLayout {
+
+	private static final int ANIMATIONS_DISABLED_PROGRESS_ID = generateViewId();
+
+	private static final int ANIMATIONS_DISABLED_LABEL_ID = generateViewId();
 
 	final DonutProgress mProgressView;
 
@@ -62,10 +73,38 @@ public class LoadingSpinnerView extends RelativeLayout {
 		mProgressView.initPainters();
 
 		// Animations disabled (e.g. battery saver or the accessibility setting):
-		// show a static indicator instead of an animated one
+		// show a static indicator with a label, so it is not mistaken for a stuck loader
 		if(AndroidCommon.areAnimationsDisabled(context)) {
 			mProgressView.setIndeterminate(false);
 			mProgressView.setProgress(0.3f);
+			mProgressView.setId(ANIMATIONS_DISABLED_PROGRESS_ID);
+
+			final TextView label = new TextView(context);
+			label.setId(ANIMATIONS_DISABLED_LABEL_ID);
+			label.setText(R.string.download_loading);
+			label.setTextColor(foreground);
+			label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+			label.setGravity(Gravity.CENTER);
+			label.setPadding(0, General.dpToPixels(context, 4), 0, 0);
+
+			addView(mProgressView);
+			addView(label);
+
+			final RelativeLayout.LayoutParams progressParams
+					= (RelativeLayout.LayoutParams)mProgressView.getLayoutParams();
+			progressParams.addRule(ABOVE, label.getId());
+			progressParams.addRule(CENTER_HORIZONTAL);
+
+			final RelativeLayout.LayoutParams labelParams
+					= (RelativeLayout.LayoutParams)label.getLayoutParams();
+			labelParams.addRule(CENTER_HORIZONTAL);
+			labelParams.addRule(ALIGN_PARENT_BOTTOM);
+
+			final int progressDimensionsPx = General.dpToPixels(context, 100);
+			mProgressView.getLayoutParams().width = progressDimensionsPx;
+			mProgressView.getLayoutParams().height = progressDimensionsPx;
+
+			return;
 		}
 
 		addView(mProgressView);

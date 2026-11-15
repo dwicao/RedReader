@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.quantumbadger.redreader.common
 
+import android.animation.ValueAnimator
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -234,13 +235,18 @@ object AndroidCommon {
 	}
 
     /**
-     * Whether the system's animator duration scale is 0 (animations disabled),
-     * as set by the accessibility "Remove animations" setting or the developer
-     * options' "Animator duration scale: Animation off". Works on all supported
-     * API levels.
+     * Whether the system's animations are disabled (e.g. battery saver or the accessibility
+     * "Remove animations" setting). Checked both via the animator service on API 26+ and the
+     * developer options' global animator duration scale, as the two can differ between OEM
+     * builds. Works on all supported API levels.
      */
     @JvmStatic
     fun areAnimationsDisabled(context: Context): Boolean {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !ValueAnimator.areAnimatorsEnabled()) {
+            return true
+        }
+
         val scale = Settings.Global.getFloat(
             context.contentResolver,
             Settings.Global.ANIMATOR_DURATION_SCALE,
