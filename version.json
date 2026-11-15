@@ -1,7 +1,7 @@
 {
-  "version": "1.53",
-  "versionCode": 158,
-  "apkUrl": "https://github.com/dwicao/RedReader/releases/download/v1.53/RedReader-release-signed.apk",
-  "sha256": "f2e576df80ffc9e632064173f66f7f3fb362417f8a0cf4db77a1a4528176f156",
+  "version": "1.54",
+  "versionCode": 159,
+  "apkUrl": "https://github.com/dwicao/RedReader/releases/download/v1.54/RedReader-release-signed.apk",
+  "sha256": "dcdcb6af9cf209f30edcab9370f22ac3001bda51eb8681c4787f5ad5c41f62aa",
   "size": 9757785
 }
