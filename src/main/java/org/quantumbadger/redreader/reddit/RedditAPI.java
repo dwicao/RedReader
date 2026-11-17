@@ -1004,8 +1004,9 @@ public final class RedditAPI {
 
 							for(final JsonValue value : subreddits.get()) {
 								try {
-									final RedditThing redditThing = value.asObject(RedditThing.class);
-									final RedditSubreddit subreddit = redditThing.asSubreddit();
+									final RedditSubreddit subreddit = value
+											.asObject(RedditThing.class)
+											.asSubreddit();
 									output.add(subreddit);
 								} catch(final Throwable t) {
 									// A single malformed entry must not discard the
