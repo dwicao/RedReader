@@ -17,13 +17,11 @@ plugins {
 
 dependencies {
 	implementation(project(":redreader-common"))
-	implementation(project(":redreader-datamodel"))
 
 	coreLibraryDesugaring(libs.jdk.desugar)
 
 	implementation(libs.kotlinx.serialization.json)
 	implementation(libs.kotlinx.serialization.json.okio)
-	implementation(libs.kotlin.reflect)
 
 	implementation(libs.androidx.annotation)
 	implementation(libs.androidx.appcompat)
@@ -83,8 +81,8 @@ android {
 		applicationId = "org.quantumbadger.redreader"
 		minSdk = libs.versions.sdk.min.get().toInt()
 		targetSdk = libs.versions.sdk.target.get().toInt()
-		versionCode = 160
-		versionName = "1.55"
+		versionCode = 161
+		versionName = "1.56"
 
 		vectorDrawables.generatedDensities("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi")
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

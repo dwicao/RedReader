@@ -55,7 +55,7 @@ import org.quantumbadger.redreader.common.invokeIf
 import org.quantumbadger.redreader.compose.ctx.Dest
 import org.quantumbadger.redreader.compose.ctx.GlobalNetworkRetry
 import org.quantumbadger.redreader.compose.ctx.LocalLauncher
-import org.quantumbadger.redreader.compose.ctx.RRComposeContextTest
+import org.quantumbadger.redreader.compose.ctx.RRComposePreviewContext
 import org.quantumbadger.redreader.compose.theme.LocalComposeTheme
 import org.quantumbadger.redreader.compose.theme.StyledText
 
@@ -183,7 +183,7 @@ fun RRErrorView(error: RRError) {
 @Composable
 @Preview
 private fun PreviewRRErrorView() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 		RRErrorView(
 			error = RRError(
 				title = "Error title",
@@ -196,7 +196,7 @@ private fun PreviewRRErrorView() {
 @Composable
 @Preview(widthDp = 64, heightDp = 64)
 private fun PreviewRRErrorViewSmall() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 		RRErrorView(
 			error = RRError(
 				title = "Error title",

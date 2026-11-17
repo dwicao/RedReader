@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import org.quantumbadger.redreader.compose.ctx.RRComposeContextTest
+import org.quantumbadger.redreader.compose.ctx.RRComposePreviewContext
 import org.quantumbadger.redreader.compose.theme.ComposeThemeButton
 import org.quantumbadger.redreader.compose.theme.LocalComposeTheme
 import org.quantumbadger.redreader.compose.theme.StyledText
@@ -57,7 +57,7 @@ fun RRButton(
 @Composable
 @Preview
 private fun PreviewRRButton() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 
 		val theme = LocalComposeTheme.current
 

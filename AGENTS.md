@@ -54,7 +54,6 @@ just precommit
 
 - Root project = the Android app; sources at `src/main/java/org/quantumbadger/redreader/` (non-standard: no `app/` module).
 - `libs/redreader-common` — pure-JVM Kotlin module (time/date helpers). No Android deps.
-- `libs/redreader-datamodel` — **empty placeholder module** (no sources, just build file). Included in `settings.gradle.kts`.
 - `src/test/` — JUnit 4 + Robolectric unit tests (package `org.quantumbadger.redreader.test.*`).
 - `src/androidTest/` — Espresso UI tests.
 - `config/` — static-analysis configs (`lint/`, `checkstyle/`, `pmd/`) and helper scripts (`scripts/`).
@@ -136,8 +135,7 @@ Compose is a **parallel, incremental layer**, not a rewrite. Only two screens ar
 
 - **Manifest**: almost every activity declares `configChanges="orientation|screenSize|keyboardHidden"` — activities/fragments handle config changes manually. `LinkDispatchActivity` handles all deep links *and* the OAuth redirect.
 - Application class `RedReader.kt` does heavy init (prefs, OAuth, cache prune, change-data read) on startup — order matters, don't casually reorder.
-- `libs/redreader-datamodel` has no source files; adding files there is fine but don't expect anything to exist.
-- `src/main/.../compose/ctx/RRComposeContextTest.kt` sits in **main**, not test — odd but intentional-looking; don't "fix" without checking.
+- `src/main/.../compose/ctx/RRComposePreviewContext.kt` is a `@Composable` preview wrapper used by the Compose screens, not a test — the name is historical (it was previously called `RRComposeContextTest`).
 - Alpha builds (`config/scripts/build_alpha.sh`) rewrite the package name to `...redreaderalpha` via sed — those scripts assume the maintainer's build machine; not runnable locally.
 - Translations: **never edit `res/values-*/strings.xml` or reword English strings** — translations go through Weblate; wording changes are rejected in PRs (CONTRIBUTING).
 - Lint ignores are deliberate and documented in `config/lint/lint.xml` (e.g. `GestureBackNavigation` — app uses legacy `onBackPressed()`, predictive back not opted in).

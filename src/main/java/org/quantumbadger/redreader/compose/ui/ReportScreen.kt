@@ -55,7 +55,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.quantumbadger.redreader.R
-import org.quantumbadger.redreader.compose.ctx.RRComposeContextTest
+import org.quantumbadger.redreader.compose.ctx.RRComposePreviewContext
 import org.quantumbadger.redreader.compose.net.NetRequestStatus
 import org.quantumbadger.redreader.compose.net.fetchSubredditReportFlow
 import org.quantumbadger.redreader.compose.theme.LocalComposeTheme
@@ -548,7 +548,7 @@ private fun resolvePath(
 @Composable
 @Preview
 private fun PreviewReportScreen() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 		ReportDialogSurface {
 			ReportScreenContent(
 				flow = SubredditReportFlow(
