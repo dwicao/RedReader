@@ -45,7 +45,12 @@ public class SubredditDetails implements HasUniqueId {
 	public SubredditDetails(
 			@NonNull final RedditSubreddit subreddit) throws InvalidSubredditNameException {
 		id = subreddit.getCanonicalId();
-		name = subreddit.display_name;
+		// Reddit occasionally omits display_name in search responses; fall back
+		// to the (usually present) name field so the row still renders instead
+		// of throwing and dropping the whole result set.
+		name = subreddit.display_name != null
+				? subreddit.display_name
+				: (subreddit.name != null ? subreddit.name : id.getDisplayNameLowercase());
 		url = subreddit.getUrl();
 		publicDescriptionHtmlEscaped = subreddit.public_description_html;
 		subscribers = subreddit.subscribers;

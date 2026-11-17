@@ -205,9 +205,55 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 
 		mRecyclerViewAdapter.removeAllFromGroup(GROUP_SUBREDDITS);
 
+		// Filter out blocked subreddits, same rules as the post listings. Declared
+		// here so both the "subscriptions not ready" and the "ready" branches can
+		// use them.
+		final HashSet<String> shownSubreddits = new HashSet<>(256);
+
+		final HashSet<SubredditCanonicalId> blockedSubreddits
+				= new HashSet<>(PrefsUtility.pref_blocked_subreddits());
+
+		final ArrayList<Pattern> blockedPatterns = new ArrayList<>();
+
+		for(final String expression : PrefsUtility.pref_blocked_subreddit_regexes()) {
+			try {
+				blockedPatterns.add(Pattern.compile(expression));
+
+			} catch(final PatternSyntaxException e) {
+				Log.w(TAG, "Ignoring invalid blocked subreddit regex", e);
+			}
+		}
+
 		if(mSubscriptions.get().isEmpty()) {
 
 			Log.i(TAG, "Subscriptions not downloaded yet");
+
+			// Even while subscriptions are still loading (or have failed to
+			// load), the subreddit search results must still be shown: otherwise
+			// a user with no subscriptions, or one whose subscription list
+			// could not be fetched, would never see any search results even
+			// though the search request itself succeeded.
+			final ArrayList<SubredditDetails> currentQueryResultsWhileLoading
+					= mQueryResults.get().get(currentQuery);
+
+			if(currentQueryResultsWhileLoading != null) {
+				for(final SubredditDetails subreddit : currentQueryResultsWhileLoading) {
+					if(isBlockedSubreddit(subreddit, blockedSubreddits, blockedPatterns)) {
+						continue;
+					}
+					final String name = StringUtils.asciiLowercase(subreddit.name);
+					if(shownSubreddits.add(name)) {
+						mRecyclerViewAdapter.appendToGroup(
+								GROUP_SUBREDDITS,
+								mSubredditItemCache.get(subreddit));
+					}
+				}
+			} else if(!currentQuery.trim().isEmpty()
+					&& mQueryErrorItem.get().isPresent()) {
+				mRecyclerViewAdapter.appendToGroup(
+						GROUP_SUBREDDITS,
+						mQueryErrorItem.get().get());
+			}
 
 			mLoadingItem.setHidden(false);
 			mRecyclerViewAdapter.updateHiddenStatus();
@@ -220,23 +266,6 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 			mRecyclerViewAdapter.updateHiddenStatus();
 
 		} else {
-
-			final HashSet<String> shownSubreddits = new HashSet<>(256);
-
-			// Filter out blocked subreddits, same rules as the post listings
-			final HashSet<SubredditCanonicalId> blockedSubreddits
-					= new HashSet<>(PrefsUtility.pref_blocked_subreddits());
-
-			final ArrayList<Pattern> blockedPatterns = new ArrayList<>();
-
-			for(final String expression : PrefsUtility.pref_blocked_subreddit_regexes()) {
-				try {
-					blockedPatterns.add(Pattern.compile(expression));
-
-				} catch(final PatternSyntaxException e) {
-					Log.w(TAG, "Ignoring invalid blocked subreddit regex", e);
-				}
-			}
 
 			final ArrayList<SubredditDetails> possibleSuggestions
 					= new ArrayList<>(mSubscriptions.get().get());

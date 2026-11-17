@@ -18,6 +18,7 @@
 package org.quantumbadger.redreader.reddit;
 
 import android.content.Context;
+import android.util.Log;
 import android.net.Uri;
 
 import androidx.annotation.IntDef;
@@ -863,6 +864,7 @@ public final class RedditAPI {
 
 		builder.appendQueryParameter("q", queryString);
 		builder.appendQueryParameter("limit", "100");
+		builder.appendQueryParameter("raw_json", "1");
 
 		if(PrefsUtility.pref_behaviour_nsfw()) {
 			builder.appendQueryParameter("include_over_18", "on");
@@ -1001,9 +1003,20 @@ public final class RedditAPI {
 							final ArrayList<RedditSubreddit> output = new ArrayList<>();
 
 							for(final JsonValue value : subreddits.get()) {
-								final RedditThing redditThing = value.asObject(RedditThing.class);
-								final RedditSubreddit subreddit = redditThing.asSubreddit();
-								output.add(subreddit);
+								try {
+									final RedditSubreddit subreddit = value
+											.asObject(RedditThing.class)
+											.asSubreddit();
+									output.add(subreddit);
+								} catch(final Throwable t) {
+									// A single malformed entry must not discard the
+									// whole result set.
+									Log.w("RedditAPI", "Skipping unparseable subreddit entry", t);
+								}
+							}
+
+							if(output.isEmpty()) {
+								throw new IOException("No parseable subreddits in response");
 							}
 
 							handler.notifySuccess(
