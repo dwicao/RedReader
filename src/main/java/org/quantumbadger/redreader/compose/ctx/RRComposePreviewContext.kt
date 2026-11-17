@@ -27,24 +27,24 @@ import org.quantumbadger.redreader.settings.types.AlbumViewMode
 import org.quantumbadger.redreader.settings.types.AppearanceTheme
 
 @Composable
-fun RRComposeContextTest(content: @Composable () -> Unit) {
+fun RRComposePreviewContext(content: @Composable () -> Unit) {
 
 	val prefValues = object : ComposePrefs {
-		override val appearanceTheme: Preference<AppearanceTheme> = testPref(AppearanceTheme.RED)
+		override val appearanceTheme: Preference<AppearanceTheme> = previewPref(AppearanceTheme.RED)
 		override val appearanceFontScaleGlobal = 1f
 		override val appearanceFontScaleBodyText = 1f
 		override val appearanceFontScalePosts = 1f
 		override val appearanceFontScalePostSubtitles = 1f
-		override val albumViewMode = testPref(AlbumViewMode.Cards)
-		override val albumCardShowButtons = testPref(true)
-		override val albumListShowThumbnails = testPref(true)
-		override val albumGridCropToSquare = testPref(false)
-		override val albumGridColumns = testPref(3)
-		override val albumListThumbnailSize = testPref(64)
-		override val albumListShowButtons = testPref(true)
-		override val albumGridRoundedCorners = testPref(true)
-		override val albumGridHorizontalPadding = testPref(true)
-		override val albumCompactTitle = testPref(false)
+		override val albumViewMode = previewPref(AlbumViewMode.Cards)
+		override val albumCardShowButtons = previewPref(true)
+		override val albumListShowThumbnails = previewPref(true)
+		override val albumGridCropToSquare = previewPref(false)
+		override val albumGridColumns = previewPref(3)
+		override val albumListThumbnailSize = previewPref(64)
+		override val albumListShowButtons = previewPref(true)
+		override val albumGridRoundedCorners = previewPref(true)
+		override val albumGridHorizontalPadding = previewPref(true)
+		override val albumCompactTitle = previewPref(false)
 	}
 
 	CompositionLocalProvider(
@@ -57,7 +57,7 @@ fun RRComposeContextTest(content: @Composable () -> Unit) {
 	}
 }
 
-private fun <T> testPref(value: T) = object : Preference<T> {
+private fun <T> previewPref(value: T) = object : Preference<T> {
 	override var value: T
 		get() = value
 		set(value) {}

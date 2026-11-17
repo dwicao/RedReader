@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.common.UriString
-import org.quantumbadger.redreader.compose.ctx.RRComposeContextTest
+import org.quantumbadger.redreader.compose.ctx.RRComposePreviewContext
 import org.quantumbadger.redreader.compose.prefs.LocalComposePrefs
 import org.quantumbadger.redreader.compose.theme.LocalComposeTheme
 import org.quantumbadger.redreader.compose.theme.StyledText
@@ -172,7 +172,7 @@ fun AlbumCard(
 @Composable
 @Preview(backgroundColor = 0x999999)
 fun PreviewAlbumCard() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 		AlbumCard(
 			0,
 			ImageInfo(

@@ -17,13 +17,11 @@ plugins {
 
 dependencies {
 	implementation(project(":redreader-common"))
-	implementation(project(":redreader-datamodel"))
 
 	coreLibraryDesugaring(libs.jdk.desugar)
 
 	implementation(libs.kotlinx.serialization.json)
 	implementation(libs.kotlinx.serialization.json.okio)
-	implementation(libs.kotlin.reflect)
 
 	implementation(libs.androidx.annotation)
 	implementation(libs.androidx.appcompat)

@@ -39,7 +39,7 @@ import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.common.UriString
 import org.quantumbadger.redreader.compose.ctx.Dest
 import org.quantumbadger.redreader.compose.ctx.LocalLauncher
-import org.quantumbadger.redreader.compose.ctx.RRComposeContextTest
+import org.quantumbadger.redreader.compose.ctx.RRComposePreviewContext
 import org.quantumbadger.redreader.compose.theme.ComposeThemeLinkButton
 import org.quantumbadger.redreader.compose.theme.LocalComposeTheme
 import org.quantumbadger.redreader.compose.theme.StyledText
@@ -110,7 +110,7 @@ fun RRLinkButton(
 @Composable
 @Preview
 private fun PreviewRRLinkButton() {
-	RRComposeContextTest {
+	RRComposePreviewContext {
 
 		val theme = LocalComposeTheme.current
 
