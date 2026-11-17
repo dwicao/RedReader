@@ -120,12 +120,10 @@ public final class PrefsUtility {
 
 		if(getPrefKey(R.string.pref_appearance_post_subtitle_items_key).equals(key)) {
 			mPostSubtitleItems = null;
-			mPostAgeUnits = null;
 		}
 
 		if(getPrefKey(R.string.pref_appearance_post_header_subtitle_items_key).equals(key)) {
 			mHeaderPostSubtitleItems = null;
-			mHeaderPostAgeUnits = null;
 		}
 
 		if(getPrefKey(R.string.pref_appearance_post_age_units_key).equals(key)) {
