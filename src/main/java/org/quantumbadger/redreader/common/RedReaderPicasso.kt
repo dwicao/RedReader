@@ -62,6 +62,14 @@ object RedReaderPicasso {
 	fun recreate() {
 		synchronized(this) {
 			val context = mContext ?: return
+
+			// Each instance owns a 6-thread executor, an OkHttp client and a disk
+			// cache, none of which are reference-counted. Dropping the old instance
+			// without shutting it down leaks all three on every rebuild.
+			// In-flight requests are cancelled, which is what we want when the
+			// backend configuration has just changed anyway.
+			mInstance?.shutdown()
+
 			mInstance = build(context)
 		}
 	}

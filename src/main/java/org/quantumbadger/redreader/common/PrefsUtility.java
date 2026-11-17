@@ -85,6 +85,20 @@ public final class PrefsUtility {
 	private static volatile EnumSet<AppearancePostSubtitleItem> mPostSubtitleItems
 			= null;
 
+	// Cached form of the header (post list) subtitle items preference; see
+	// appearance_post_header_subtitle_items(). The header variant is on the same
+	// per-row bind path as the one above, so it is worth caching for the same
+	// reason. Invalidated when the preference changes.
+	private static volatile EnumSet<AppearancePostSubtitleItem> mHeaderPostSubtitleItems
+			= null;
+
+	// Cached form of appearance_post_age_units(), which runs Integer.parseInt on
+	// a preference string once per subtitle build (i.e. per bound post).
+	private static volatile Integer mPostAgeUnits = null;
+
+	// Cached form of appearance_post_header_age_units(); see above.
+	private static volatile Integer mHeaderPostAgeUnits = null;
+
 	// Application context, so cannot leak
 	@SuppressLint("StaticFieldLeak")
 	private static Context appContext;
@@ -106,6 +120,20 @@ public final class PrefsUtility {
 
 		if(getPrefKey(R.string.pref_appearance_post_subtitle_items_key).equals(key)) {
 			mPostSubtitleItems = null;
+			mPostAgeUnits = null;
+		}
+
+		if(getPrefKey(R.string.pref_appearance_post_header_subtitle_items_key).equals(key)) {
+			mHeaderPostSubtitleItems = null;
+			mHeaderPostAgeUnits = null;
+		}
+
+		if(getPrefKey(R.string.pref_appearance_post_age_units_key).equals(key)) {
+			mPostAgeUnits = null;
+		}
+
+		if(getPrefKey(R.string.pref_appearance_post_header_age_units_key).equals(key)) {
+			mHeaderPostAgeUnits = null;
 		}
 	};
 
@@ -158,103 +186,126 @@ public final class PrefsUtility {
 		return sharedPrefs.getLong(getPrefKey(id), defaultValue);
 	}
 
+	/**
+	 * Every preference key resource resolves to a value sharing this prefix (see
+	 * res/values/strings.xml), so appearance preferences can be matched by
+	 * prefix rather than by listing all of them individually.
+	 */
+	private static final String PREF_APPEARANCE_KEY_PREFIX = "pref_appearance";
+
+	/**
+	 * Preferences whose change requires the current listing to be re-laid out.
+	 *
+	 * <p>Add the key resource here when a new preference affects layout.
+	 */
+	private static final int[] RELAYOUT_KEYS = {
+			R.string.pref_appearance_theme_key,
+			R.string.pref_menus_mainmenu_useritems_key,
+			R.string.pref_menus_mainmenu_shortcutitems_key,
+	};
+
+	/**
+	 * Preferences whose change requires the current listing to be refreshed.
+	 *
+	 * <p>Add the key resource here when a new preference affects listing
+	 * contents. Preferences starting with {@link #PREF_APPEARANCE_KEY_PREFIX}
+	 * are always refreshed and do not need to be listed.
+	 */
+	private static final int[] REFRESH_KEYS = {
+			R.string.pref_behaviour_fling_post_left_key,
+			R.string.pref_behaviour_fling_post_right_key,
+			R.string.pref_behaviour_nsfw_key,
+			R.string.pref_behaviour_keyword_filter_key,
+			R.string.pref_behaviour_domain_filter_key,
+			R.string.pref_comments_refresh_needed_key,
+			R.string.pref_behaviour_postcount_key,
+			R.string.pref_behaviour_mark_posts_as_read_on_scroll_key,
+			R.string.pref_behaviour_comment_min_key,
+			R.string.pref_behaviour_collapse_reaction_gifs_key,
+			R.string.pref_behaviour_reaction_gif_domains_key,
+			R.string.pref_behaviour_collapse_bot_comments_key,
+			R.string.pref_behaviour_hide_few_comments_key,
+			R.string.pref_behaviour_min_comments_key,
+			R.string.pref_behaviour_pinned_subredditsort_key,
+			R.string.pref_behaviour_blocked_subredditsort_key,
+			R.string.pref_behaviour_post_title_opens_comments_key,
+			R.string.pref_behaviour_post_tap_action_key,
+			R.string.pref_behaviour_collapse_sticky_comments_key,
+			R.string.pref_images_thumbnail_size_key,
+			R.string.pref_images_inline_image_previews_key,
+			R.string.pref_images_inline_comment_media_key,
+			R.string.pref_images_inline_post_media_key,
+			R.string.pref_images_inline_media_autoplay_key,
+			R.string.pref_images_inline_comment_media_giphy_key,
+			R.string.pref_images_inline_comment_media_max_height_key,
+			R.string.pref_images_inline_comment_media_max_height_custom_key,
+			R.string.pref_images_inline_image_previews_nsfw_key,
+			R.string.pref_images_inline_image_previews_spoiler_key,
+			R.string.pref_images_high_res_thumbnails_key,
+			R.string.pref_accessibility_separate_body_text_lines_key,
+			R.string.pref_accessibility_min_comment_height_key,
+			R.string.pref_accessibility_say_comment_indent_level_key,
+			R.string.pref_accessibility_concise_mode_key,
+			R.string.pref_reddit_client_id_override_key,
+	};
+
+	/**
+	 * Preferences whose change requires the activity to be restarted.
+	 *
+	 * <p>Add the key resource here when a new preference only takes effect at
+	 * startup.
+	 */
+	private static final int[] RESTART_KEYS = {
+			R.string.pref_appearance_twopane_key,
+			R.string.pref_appearance_theme_key,
+			R.string.pref_appearance_navbar_color_key,
+			R.string.pref_appearance_hide_username_main_menu_key,
+			R.string.pref_appearance_android_status_key,
+			R.string.pref_appearance_comments_show_floating_toolbar_key,
+			R.string.pref_appearance_bottom_toolbar_key,
+			R.string.pref_appearance_hide_toolbar_on_scroll_key,
+			R.string.pref_behaviour_bezel_toolbar_swipezone_key,
+			R.string.pref_behaviour_enable_swipe_refresh_key,
+			R.string.pref_behaviour_block_screenshots_key,
+			R.string.pref_behaviour_keep_screen_awake_key,
+			R.string.pref_menus_show_multireddit_main_menu_key,
+			R.string.pref_menus_show_subscribed_subreddits_main_menu_key,
+			R.string.pref_menus_mainmenu_dev_announcements_key,
+	};
+
+	/**
+	 * True if any of the given key resources resolves to the given key.
+	 *
+	 * <p>Keys are declared as resource ids rather than string literals so that a
+	 * rename in strings.xml is a compile error here instead of a silently
+	 * de-synchronised list.
+	 */
+	private static boolean matchesAnyKey(
+			final Context context,
+			final int[] keyResources,
+			final String key) {
+
+		for(final int keyResource : keyResources) {
+			if(context.getString(keyResource).equals(key)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	public static boolean isReLayoutRequired(final Context context, final String key) {
-		return context.getString(R.string.pref_appearance_theme_key).equals(key)
-				|| context.getString(R.string.pref_menus_mainmenu_useritems_key)
-				.equals(key)
-				|| context.getString(R.string.pref_menus_mainmenu_shortcutitems_key)
-				.equals(key);
+		return matchesAnyKey(context, RELAYOUT_KEYS, key);
 	}
 
 	public static boolean isRefreshRequired(final Context context, final String key) {
-		return key.startsWith("pref_appearance")
-				|| key.equals(context.getString(R.string.pref_behaviour_fling_post_left_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_fling_post_right_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_nsfw_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_keyword_filter_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_domain_filter_key))
-				|| key.equals(context.getString(R.string.pref_comments_refresh_needed_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_postcount_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_mark_posts_as_read_on_scroll_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_comment_min_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_collapse_reaction_gifs_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_reaction_gif_domains_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_collapse_bot_comments_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_hide_few_comments_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_min_comments_key))
-				|| key.equals(context.getString(R.string.pref_behaviour_pinned_subredditsort_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_blocked_subredditsort_key))
-				|| key.equals(context.getString(
-						R.string.pref_appearance_hide_headertoolbar_commentlist_key))
-				|| key.equals(context.getString(
-						R.string.pref_appearance_hide_headertoolbar_postlist_key))
-				|| key.equals(context.getString(
-					R.string.pref_appearance_hide_comments_from_blocked_users_key))
-				|| key.equals(context.getString(R.string.pref_appearance_indentlines_colorful_key))
-				|| key.equals(context.getString(
-						R.string.pref_appearance_highlight_own_username_key))
-				|| key.equals(context.getString(R.string.pref_images_thumbnail_size_key))
-				|| key.equals(context.getString(R.string.pref_images_inline_image_previews_key))
-				|| key.equals(context.getString(R.string.pref_images_inline_comment_media_key))
-				|| key.equals(context.getString(R.string.pref_images_inline_post_media_key))
-				|| key.equals(context.getString(R.string.pref_images_inline_media_autoplay_key))
-				|| key.equals(context.getString(
-						R.string.pref_images_inline_comment_media_giphy_key))
-				|| key.equals(context.getString(
-						R.string.pref_images_inline_comment_media_max_height_key))
-				|| key.equals(context.getString(
-						R.string.pref_images_inline_comment_media_max_height_custom_key))
-				|| key.equals(context.getString(
-						R.string.pref_images_inline_image_previews_nsfw_key))
-				|| key.equals(context.getString(
-						R.string.pref_images_inline_image_previews_spoiler_key))
-				|| key.equals(context.getString(R.string.pref_images_high_res_thumbnails_key))
-				|| key.equals(context.getString(
-						R.string.pref_accessibility_separate_body_text_lines_key))
-				|| key.equals(context.getString(
-						R.string.pref_accessibility_min_comment_height_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_post_title_opens_comments_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_post_tap_action_key))
-				|| key.equals(context.getString(
-						R.string.pref_accessibility_say_comment_indent_level_key))
-				|| key.equals(context.getString(
-						R.string.pref_behaviour_collapse_sticky_comments_key))
-				|| key.equals(context.getString(
-						R.string.pref_accessibility_concise_mode_key))
-				|| key.equals(context.getString(
-						R.string.pref_appearance_post_hide_subreddit_header_key))
+		return key.startsWith(PREF_APPEARANCE_KEY_PREFIX)
 				|| key.equals(REDDIT_USER_AGREEMENT_PREF)
-				|| key.equals(context.getString(R.string.pref_reddit_client_id_override_key));
+				|| matchesAnyKey(context, REFRESH_KEYS, key);
 	}
 
 	public static boolean isRestartRequired(final Context context, final String key) {
-		return context.getString(R.string.pref_appearance_twopane_key).equals(key)
-				|| context.getString(R.string.pref_appearance_theme_key).equals(key)
-				|| context.getString(R.string.pref_appearance_navbar_color_key).equals(key)
-				|| context.getString(R.string.pref_behaviour_bezel_toolbar_swipezone_key)
-						.equals(key)
-				|| context.getString(R.string.pref_appearance_hide_username_main_menu_key)
-						.equals(key)
-				|| context.getString(R.string.pref_appearance_android_status_key).equals(key)
-				|| context.getString(R.string.pref_appearance_comments_show_floating_toolbar_key)
-						.equals(key)
-				|| context.getString(R.string.pref_behaviour_enable_swipe_refresh_key).equals(key)
-				|| context.getString(R.string.pref_menus_show_multireddit_main_menu_key).equals(key)
-				|| context.getString(R.string.pref_menus_show_subscribed_subreddits_main_menu_key)
-						.equals(key)
-				|| context.getString(R.string.pref_menus_mainmenu_dev_announcements_key).equals(key)
-				|| context.getString(R.string.pref_appearance_bottom_toolbar_key).equals(key)
-				|| context.getString(R.string.pref_appearance_hide_toolbar_on_scroll_key)
-						.equals(key)
-				|| context.getString(R.string.pref_behaviour_block_screenshots_key).equals(key)
-				|| context.getString(R.string.pref_behaviour_keep_screen_awake_key).equals(key);
+		return matchesAnyKey(context, RESTART_KEYS, key);
 	}
 
 	public static void init(final Context context) {
@@ -279,6 +330,9 @@ public final class PrefsUtility {
 		}
 
 		mPostSubtitleItems = null;
+		mHeaderPostSubtitleItems = null;
+		mPostAgeUnits = null;
+		mHeaderPostAgeUnits = null;
 
 		General.initAppConfig(context);
 
@@ -873,13 +927,26 @@ public final class PrefsUtility {
 	}
 
 	public static int appearance_post_age_units() {
+
+		final Integer cached = mPostAgeUnits;
+
+		if(cached != null) {
+			return cached;
+		}
+
+		final int result;
+
 		try {
-			return Integer.parseInt(getString(
+			result = Integer.parseInt(getString(
 					R.string.pref_appearance_post_age_units_key,
 					"2"));
 		} catch(final Throwable e) {
 			return 2;
 		}
+
+		mPostAgeUnits = result;
+
+		return result;
 	}
 
 	public static boolean appearance_post_subtitle_items_use_different_settings() {
@@ -889,6 +956,14 @@ public final class PrefsUtility {
 	}
 
 	public static EnumSet<AppearancePostSubtitleItem> appearance_post_header_subtitle_items() {
+
+		// Cached for the same reason as appearance_post_subtitle_items(): read
+		// several times per bound post when the header uses different settings.
+		final EnumSet<AppearancePostSubtitleItem> cached = mHeaderPostSubtitleItems;
+
+		if(cached != null) {
+			return cached;
+		}
 
 		final Set<String> strings = getStringSet(
 				R.string.pref_appearance_post_header_subtitle_items_key,
@@ -900,17 +975,32 @@ public final class PrefsUtility {
 			result.add(AppearancePostSubtitleItem.valueOf(StringUtils.asciiUppercase(s)));
 		}
 
+		mHeaderPostSubtitleItems = result;
+
 		return result;
 	}
 
 	public static int appearance_post_header_age_units() {
+
+		final Integer cached = mHeaderPostAgeUnits;
+
+		if(cached != null) {
+			return cached;
+		}
+
+		final int result;
+
 		try {
-			return Integer.parseInt(getString(
+			result = Integer.parseInt(getString(
 					R.string.pref_appearance_post_header_age_units_key,
 					"2"));
 		} catch(final Throwable e) {
 			return 2;
 		}
+
+		mHeaderPostAgeUnits = result;
+
+		return result;
 	}
 
 	public static boolean appearance_post_show_comments_button() {

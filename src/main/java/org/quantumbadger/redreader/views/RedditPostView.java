@@ -133,6 +133,10 @@ public final class RedditPostView extends FlingableItemView
 
 	private boolean mGridOriginalShown;
 
+	// Last bottom margin applied by setBottomMargin(), so a re-bind that wants the
+	// same margin can skip the layout pass. -1 means "not applied yet".
+	private int mBottomMarginPixels = -1;
+
 	private int mUsageId = 0;
 
 	@Nullable private InlinePreviewLoader mPreviewLoader = null;
@@ -715,14 +719,20 @@ public final class RedditPostView extends FlingableItemView
 
 	private void setBottomMargin(final boolean enabled) {
 
+		// setLayoutParams() invalidates layout on the whole parent chain, and this
+		// is called on every bind, so skip it when the margin is already correct.
+		final int newBottomMargin = enabled ? General.dpToPixels(mActivity, 6) : 0;
+
+		if(mBottomMarginPixels == newBottomMargin) {
+			return;
+		}
+
+		mBottomMarginPixels = newBottomMargin;
+
 		final MarginLayoutParams layoutParams
 				= (MarginLayoutParams)mOuterView.getLayoutParams();
 
-		if(enabled) {
-			layoutParams.bottomMargin = General.dpToPixels(mActivity, 6);
-		} else {
-			layoutParams.bottomMargin = 0;
-		}
+		layoutParams.bottomMargin = newBottomMargin;
 
 		mOuterView.setLayoutParams(layoutParams);
 	}
