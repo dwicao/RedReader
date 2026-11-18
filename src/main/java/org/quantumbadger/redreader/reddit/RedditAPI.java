@@ -861,7 +861,7 @@ public final class RedditAPI {
 				cm,
 				user,
 				queryString,
-				context,
+				(AppCompatActivity)context,
 				handler,
 				after,
 				true);
@@ -882,7 +882,7 @@ public final class RedditAPI {
 			@NonNull final CacheManager cm,
 			@NonNull final RedditAccount user,
 			@NonNull final String queryString,
-			@NonNull final Context context,
+			@NonNull final AppCompatActivity context,
 			@NonNull final APIResponseHandler.ValueResponseHandler<
 					SubredditListResponse> handler,
 			@NonNull final Optional<String> after,
