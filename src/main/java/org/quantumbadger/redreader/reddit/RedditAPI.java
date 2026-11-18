@@ -18,7 +18,6 @@
 package org.quantumbadger.redreader.reddit;
 
 import android.content.Context;
-import android.util.Log;
 import android.net.Uri;
 
 import androidx.annotation.IntDef;
