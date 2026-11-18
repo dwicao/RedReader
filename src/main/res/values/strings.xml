@@ -1827,6 +1827,7 @@
 	<string name="find_location_button_goto_user">User</string>
 	<string name="find_location_button_goto_url">URL</string>
 	<string name="find_location_button_search_posts">Search Posts</string>
+	<string name="subreddit_search_no_results">No subreddits found. Try a different search, or use the buttons above.</string>
 
 	<!-- 2022-06-27 -->
 	<string name="pref_appearance_post_hide_subreddit_header_key">pref_appearance_post_hide_subreddit_header</string>

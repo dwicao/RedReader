@@ -22,8 +22,10 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -104,6 +106,9 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 
 	@NonNull private final ThreadCheckedVar<Optional<GroupedRecyclerViewItemRRError>>
 			mQueryErrorItem = new ThreadCheckedVar<>(Optional.empty());
+
+	@Nullable private GroupedRecyclerViewAdapter.Item<RecyclerView.ViewHolder>
+			mNoResultsItem = null;
 
 	private GroupedRecyclerViewAdapter mRecyclerViewAdapter;
 	private static final int GROUP_QUICK_LINKS = 0;
@@ -350,6 +355,18 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 			final boolean queryEmpty = currentQuery.trim().isEmpty();
 			final boolean queryResultsPresent = currentQueryResults != null;
 			final boolean queryError = mQueryErrorItem.get().isPresent();
+
+			// Reddit can legitimately return zero matches. Say so rather than
+			// leaving a blank screen, which looks like a failure.
+			if(!queryEmpty
+					&& queryResultsPresent
+					&& !queryError
+					&& shownSubreddits.isEmpty()) {
+
+				mRecyclerViewAdapter.appendToGroup(
+						GROUP_SUBREDDITS,
+						getNoResultsItem());
+			}
 
 			final boolean loadingVisible = SubredditSearchUiState.isLoadingVisible(
 					true,
@@ -631,6 +648,45 @@ public class SubredditSearchActivity extends ViewsBaseActivity implements
 		super.onDestroy();
 		mSubredditSubscriptionListenerContext.apply(
 				RedditSubredditSubscriptionManager.ListenerContext::removeListener);
+	}
+
+	@NonNull
+	private GroupedRecyclerViewAdapter.Item<RecyclerView.ViewHolder> getNoResultsItem() {
+
+		if(mNoResultsItem == null) {
+
+			mNoResultsItem = new GroupedRecyclerViewAdapter.Item<
+					RecyclerView.ViewHolder>() {
+
+				@Override
+				public Class<?> getViewType() {
+					return TextView.class;
+				}
+
+				@Override
+				public RecyclerView.ViewHolder onCreateViewHolder(
+						final ViewGroup viewGroup) {
+
+					final TextView textView = (TextView)LayoutInflater
+							.from(viewGroup.getContext())
+							.inflate(R.layout.list_item_1_text, viewGroup, false);
+
+					textView.setText(R.string.subreddit_search_no_results);
+
+					return new RecyclerView.ViewHolder(textView) {};
+				}
+
+				@Override
+				public void onBindViewHolder(final RecyclerView.ViewHolder viewHolder) {}
+
+				@Override
+				public boolean isHidden() {
+					return false;
+				}
+			};
+		}
+
+		return mNoResultsItem;
 	}
 
 	private boolean isBlockedSubreddit(

@@ -18,7 +18,6 @@
 package org.quantumbadger.redreader.reddit;
 
 import android.content.Context;
-import android.util.Log;
 import android.net.Uri;
 
 import androidx.annotation.IntDef;
@@ -857,12 +856,59 @@ public final class RedditAPI {
 					SubredditListResponse> handler,
 			@NonNull final Optional<String> after) {
 
+		searchSubredditsInternal(
+				cm,
+				user,
+				queryString,
+				(AppCompatActivity)context,
+				handler,
+				after,
+				true);
+	}
+
+	/**
+	 * Runs one subreddit search request.
+	 *
+	 * <p>The dedicated {@code /subreddits/search} listing is tried as a fallback
+	 * only: through the OAuth API it currently returns an empty listing for many
+	 * queries, whereas {@code /api/subreddit_autocomplete_v2} searches the same
+	 * subreddits and returns an equivalent listing of {@code t5} things.
+	 *
+	 * @param allowFallback whether to retry through {@code /subreddits/search}
+	 *                      when this attempt yields no results
+	 */
+	private static void searchSubredditsInternal(
+			@NonNull final CacheManager cm,
+			@NonNull final RedditAccount user,
+			@NonNull final String queryString,
+			@NonNull final AppCompatActivity context,
+			@NonNull final APIResponseHandler.ValueResponseHandler<
+					SubredditListResponse> handler,
+			@NonNull final Optional<String> after,
+			final boolean allowFallback) {
+
 		final TimeDuration maxCacheAgeMs = TimeDuration.minutes(1);
 
-		final Uri.Builder builder = Constants.Reddit.getUriBuilder(
-				"/subreddits/search.json");
+		final Uri.Builder builder;
 
-		builder.appendQueryParameter("q", queryString);
+		if(allowFallback) {
+			builder = Constants.Reddit.getUriBuilder(
+					"/api/subreddit_autocomplete_v2.json");
+
+			builder.appendQueryParameter("query", queryString);
+
+			// Subreddits only: the endpoint otherwise mixes in user profiles,
+			// which this screen cannot render.
+			builder.appendQueryParameter("include_profiles", "false");
+
+		} else {
+			builder = Constants.Reddit.getUriBuilder("/subreddits/search.json");
+
+			builder.appendQueryParameter("q", queryString);
+
+			after.apply(value -> builder.appendQueryParameter("after", value));
+		}
+
 		builder.appendQueryParameter("limit", "100");
 		builder.appendQueryParameter("raw_json", "1");
 
@@ -870,16 +916,71 @@ public final class RedditAPI {
 			builder.appendQueryParameter("include_over_18", "on");
 		}
 
-		after.apply(value -> builder.appendQueryParameter("after", value));
-
 		final UriString uri = UriString.from(builder.build());
+
+		final APIResponseHandler.ValueResponseHandler<SubredditListResponse>
+				wrappedHandler;
+
+		if(allowFallback) {
+			wrappedHandler = new APIResponseHandler.ValueResponseHandler<
+					SubredditListResponse>(context) {
+
+				@Override
+				protected void onSuccess(
+						@NonNull final SubredditListResponse value) {
+
+					if(value.subreddits.isEmpty()) {
+						searchSubredditsInternal(
+								cm,
+								user,
+								queryString,
+								context,
+								handler,
+								after,
+								false);
+
+					} else {
+						handler.notifySuccess(value);
+					}
+				}
+
+				@Override
+				protected void onCallbackException(final Throwable t) {
+
+					// Surface it as a failure rather than swallowing it: the caller
+					// only knows how to report RRErrors.
+					handler.notifyFailure(General.getGeneralErrorForFailure(
+							context,
+							CacheRequest.RequestFailureType.PARSE,
+							t,
+							null,
+							uri,
+							Optional.empty()));
+				}
+
+				@Override
+				protected void onFailure(@NonNull final RRError error) {
+					searchSubredditsInternal(
+							cm,
+							user,
+							queryString,
+							context,
+							handler,
+							after,
+							false);
+				}
+			};
+
+		} else {
+			wrappedHandler = handler;
+		}
 
 		requestSubredditList(
 				cm,
 				uri,
 				user,
 				context,
-				handler,
+				wrappedHandler,
 				new DownloadStrategyIfTimestampOutsideBounds(
 						TimestampBound.notOlderThan(maxCacheAgeMs)));
 	}
@@ -1002,6 +1103,8 @@ public final class RedditAPI {
 
 							final ArrayList<RedditSubreddit> output = new ArrayList<>();
 
+							Throwable firstFailure = null;
+
 							for(final JsonValue value : subreddits.get()) {
 								try {
 									final RedditSubreddit subreddit = value
@@ -1011,12 +1114,20 @@ public final class RedditAPI {
 								} catch(final Throwable t) {
 									// A single malformed entry must not discard the
 									// whole result set.
-									Log.w("RedditAPI", "Skipping unparseable subreddit entry", t);
+									if(firstFailure == null) {
+										firstFailure = t;
+									}
 								}
 							}
 
-							if(output.isEmpty()) {
-								throw new IOException("No parseable subreddits in response");
+							// An empty listing is a normal "no results" response, not a
+							// parse failure. Only report an error when the response did
+							// contain entries but none of them could be parsed, and
+							// include the underlying reason so it is diagnosable.
+							if(output.isEmpty() && firstFailure != null) {
+								throw new IOException(
+										"No subreddit entries could be parsed",
+										firstFailure);
 							}
 
 							handler.notifySuccess(
