@@ -246,8 +246,14 @@ public final class RedditPostView extends FlingableItemView
 				}
 				if(msg.obj == null) {
 					// Thumbnail download failed
-					if(mGridMode) {
+					if(mGridMode && mGridFallbackTarget == null) {
 						mGridLoadingSpinner.setVisibility(GONE);
+						final Drawable current = mThumbnailView.getDrawable();
+						if(current == null || current.getIntrinsicWidth() < 1) {
+							mGridImageArea.setVisibility(GONE);
+							mInnerView.setMinimumHeight(
+									General.dpToPixels(mActivity, 64));
+						}
 					}
 					return;
 				}
@@ -256,17 +262,14 @@ public final class RedditPostView extends FlingableItemView
 				if(!mGridMode || !mGridOriginalShown) {
 					mThumbnailView.setImageBitmap(bitmap);
 					if(mGridMode) {
-						applyGridThumbnailPolicy(bitmap);
-					}
-				}
-				if(mGridMode) {
-					mGridLoadingSpinner.setVisibility(GONE);
-
-					if(isGridVideo(mPost)) {
+						mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 						applyGridColumnImageAspect(
 								bitmap.getWidth(),
 								bitmap.getHeight());
 					}
+				}
+				if(mGridMode) {
+					mGridLoadingSpinner.setVisibility(GONE);
 				}
 			}
 		};
@@ -454,7 +457,7 @@ public final class RedditPostView extends FlingableItemView
 				mPreviewLoader = null;
 			}
 
-			mThumbnailView.setImageBitmap(null);
+			mThumbnailView.setImageDrawable(null);
 			mImagePreviewImageView.setImageBitmap(null);
 			mImagePreviewPlayOverlay.setVisibility(GONE);
 			mPostErrors.removeAllViews();
@@ -795,16 +798,6 @@ public final class RedditPostView extends FlingableItemView
 				DisplayUtils.getWindowVisibleDisplayFrame(mActivity).width() / 2);
 	}
 
-	// Tiny sources must not be upscaled into a blurry mess: show them at
-	// native size, centered on the card background, instead.
-	private void applyGridThumbnailPolicy(@Nullable final Bitmap bitmap) {
-		if(bitmap != null && bitmap.getWidth() < getGridCardSize()) {
-			mThumbnailView.setScaleType(ImageView.ScaleType.CENTER);
-		} else {
-			mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-		}
-	}
-
 	private void downloadGridPreview(
 			@NonNull final RedditPreparedPost post,
 			final int usageId) {
@@ -838,34 +831,34 @@ public final class RedditPostView extends FlingableItemView
 		}
 
 		mThumbnailView.setVisibility(VISIBLE);
-		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
 		// Size the card image to the image's real aspect ratio, so the whole
-		// image is visible without cropping. Reset the holder to a
+		// image is visible without gaps. Reset the holder to a
 		// constraint-sized height so the ratio is actually applied (a previous
 		// bind may have left an explicit fixed height behind).
-		final ConstraintLayout.LayoutParams imageHolderLayoutParams
-				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
-
-		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-		imageHolderLayoutParams.height = 0;
-
-		imageHolderLayoutParams.dimensionRatio
-				= String.valueOf((float)preview.width / (float)preview.height);
-		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+		applyGridColumnImageAspect(preview.width, preview.height);
 
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
 		startGridLoadTimeout(post, usageId);
 
-		// Load the preview through Picasso with fit(), which downsamples the
-		// decoded bitmap to the card's actual size (a fraction of the screen
-		// width) instead of decoding the full-resolution image into memory.
+		// Compute target decode bounds from the preview's own aspect ratio and
+		// card width rather than Picasso's fit(), which would read stale
+		// dimensions from a recycled ImageView before layout runs.
+		final int targetWidth = getGridCardSize();
+		final int targetHeight = Math.min(
+				2048,
+				Math.max(
+						1,
+						Math.round(targetWidth * ((float)preview.height / (float)preview.width))));
+
 		RedReaderPicasso.INSTANCE.get(mActivity)
 				.load(preview.url.value)
-				.fit()
+				.resize(targetWidth, targetHeight)
 				.centerInside()
+				.onlyScaleDown()
 				.into(mThumbnailView, new Callback() {
 					@Override
 					public void onSuccess() {
@@ -877,6 +870,15 @@ public final class RedditPostView extends FlingableItemView
 						cancelGridLoadTimeout();
 
 						mGridLoadingSpinner.setVisibility(GONE);
+
+						final Drawable drawable = mThumbnailView.getDrawable();
+						if(drawable != null
+								&& drawable.getIntrinsicWidth() > 0
+								&& drawable.getIntrinsicHeight() > 0) {
+							applyGridColumnImageAspect(
+									drawable.getIntrinsicWidth(),
+									drawable.getIntrinsicHeight());
+						}
 
 						if(isGridVideo(post)) {
 							mGridPlayOverlay.setVisibility(VISIBLE);
@@ -912,7 +914,7 @@ public final class RedditPostView extends FlingableItemView
 		}
 
 		mThumbnailView.setVisibility(VISIBLE);
-		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
@@ -921,13 +923,7 @@ public final class RedditPostView extends FlingableItemView
 		mGridOriginalShown = false;
 
 		// Provisional 16:9 aspect ratio, corrected once the image is loaded.
-		final ConstraintLayout.LayoutParams imageHolderLayoutParams
-				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
-
-		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-		imageHolderLayoutParams.height = 0;
-		imageHolderLayoutParams.dimensionRatio = "16:9";
-		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+		applyGridColumnImageAspect(16, 9);
 
 		final boolean[] triedStandardThumb = {false};
 
@@ -958,10 +954,9 @@ public final class RedditPostView extends FlingableItemView
 					return;
 				}
 
-				imageHolderLayoutParams.dimensionRatio
-						= String.valueOf((float)width / (float)height);
-				mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+				applyGridColumnImageAspect(width, height);
 
+				mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 				mThumbnailView.setImageBitmap(bitmap);
 				mGridLoadingSpinner.setVisibility(GONE);
 				mGridPlayOverlay.setVisibility(VISIBLE);
@@ -1041,6 +1036,8 @@ public final class RedditPostView extends FlingableItemView
 		// Image pages (imgur albums, gif hosts...) link to a page rather than
 		// the media itself: resolve to the direct media URL first.
 		mThumbnailView.setVisibility(VISIBLE);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+		applyGridColumnImageAspect(1, 1);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
@@ -1101,7 +1098,7 @@ public final class RedditPostView extends FlingableItemView
 			final boolean showPlayOverlay) {
 
 		mThumbnailView.setVisibility(VISIBLE);
-		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
@@ -1110,21 +1107,14 @@ public final class RedditPostView extends FlingableItemView
 		mGridOriginalShown = false;
 
 		final Bitmap placeholder = post.getThumbnail(this, mUsageId);
-		if(placeholder != null) {
+		if(placeholder != null && placeholder.getWidth() > 0 && placeholder.getHeight() > 0) {
 			mThumbnailView.setImageBitmap(placeholder);
+			applyGridColumnImageAspect(placeholder.getWidth(), placeholder.getHeight());
+		} else {
+			// Provisional square aspect ratio, corrected once the image is loaded.
+			applyGridColumnImageAspect(1, 1);
 		}
 		post.ensureThumbnail(mActivity, mThumbnailSizePrefPixels);
-
-		// Provisional square aspect ratio, corrected once the image is loaded.
-		// Reset the holder to a constraint-sized height so the ratio actually
-		// applies (a previous bind may have left an explicit fixed height).
-		final ConstraintLayout.LayoutParams imageHolderLayoutParams
-				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
-
-		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-		imageHolderLayoutParams.height = 0;
-		imageHolderLayoutParams.dimensionRatio = "1:1";
-		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
 
 		// Decode at roughly the card size rather than the full-resolution
 		// image, so memory stays low; the loaded bitmap's dimensions give the
@@ -1161,10 +1151,9 @@ public final class RedditPostView extends FlingableItemView
 					return;
 				}
 
-				imageHolderLayoutParams.dimensionRatio
-						= String.valueOf((float)width / (float)height);
-				mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+				applyGridColumnImageAspect(width, height);
 
+				mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 				mThumbnailView.setImageBitmap(bitmap);
 				mGridLoadingSpinner.setVisibility(GONE);
 
@@ -1252,7 +1241,7 @@ public final class RedditPostView extends FlingableItemView
 		}
 
 		mThumbnailView.setVisibility(VISIBLE);
-		mThumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 		mGridLoadingSpinner.setVisibility(VISIBLE);
 		mGridPlayOverlay.setVisibility(GONE);
 
@@ -1261,13 +1250,7 @@ public final class RedditPostView extends FlingableItemView
 		mGridOriginalShown = false;
 
 		// Provisional 16:9 aspect ratio, corrected once the image is loaded.
-		final ConstraintLayout.LayoutParams imageHolderLayoutParams
-				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
-
-		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-		imageHolderLayoutParams.height = 0;
-		imageHolderLayoutParams.dimensionRatio = "16:9";
-		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+		applyGridColumnImageAspect(16, 9);
 
 		fetchCrosspostParentPreview(post, parentFullname, previewWidth, usageId);
 	}
@@ -1450,10 +1433,17 @@ public final class RedditPostView extends FlingableItemView
 		final ConstraintLayout.LayoutParams imageHolderLayoutParams
 				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
 
+		final String ratio = String.valueOf((float)imageWidthPx / (float)imageHeightPx);
+
+		if(imageHolderLayoutParams.width == ViewGroup.LayoutParams.MATCH_PARENT
+				&& imageHolderLayoutParams.height == 0
+				&& ratio.equals(imageHolderLayoutParams.dimensionRatio)) {
+			return;
+		}
+
 		imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
 		imageHolderLayoutParams.height = 0;
-		imageHolderLayoutParams.dimensionRatio
-				= String.valueOf((float)imageWidthPx / (float)imageHeightPx);
+		imageHolderLayoutParams.dimensionRatio = ratio;
 
 		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
 	}
@@ -1467,22 +1457,10 @@ public final class RedditPostView extends FlingableItemView
 		mGridLoadingSpinner.setVisibility(GONE);
 		mGridPlayOverlay.setVisibility(GONE);
 
-		// The strip is shown at full card width: request the thumbnail at card
-		// size rather than the small list-strip size, so it isn't upscaled
+		// The card image is shown at full card width: request the thumbnail at
+		// card size rather than the small list-strip size, so it isn't upscaled
 		// from a tiny bitmap.
 		final int cardSize = getGridCardSize();
-
-		// A fixed-height strip, as used before the high-res grid previews
-		final ConstraintLayout.LayoutParams imageHolderLayoutParams
-				= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
-
-		imageHolderLayoutParams.dimensionRatio = null;
-		mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
-
-		General.setLayoutWidthHeight(
-				mGridImageHolder,
-				ViewGroup.LayoutParams.MATCH_PARENT,
-				General.dpToPixels(mActivity, GRID_THUMBNAIL_HEIGHT_DP));
 
 		final Bitmap thumbnail = post.getThumbnail(this, usageId);
 
@@ -1502,19 +1480,30 @@ public final class RedditPostView extends FlingableItemView
 
 		mThumbnailView.setImageBitmap(thumbnail);
 		mThumbnailView.setVisibility(VISIBLE);
-		applyGridThumbnailPolicy(thumbnail);
+		mThumbnailView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+		if(thumbnail != null && thumbnail.getWidth() > 0 && thumbnail.getHeight() > 0) {
+			applyGridColumnImageAspect(
+					thumbnail.getWidth(),
+					thumbnail.getHeight());
+		} else {
+			// Provisional height while the fallback thumbnail downloads; replaced
+			// with the bitmap's exact aspect ratio as soon as it arrives.
+			final ConstraintLayout.LayoutParams imageHolderLayoutParams
+					= (ConstraintLayout.LayoutParams)mGridImageHolder.getLayoutParams();
+
+			imageHolderLayoutParams.dimensionRatio = null;
+			imageHolderLayoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+			imageHolderLayoutParams.height
+					= General.dpToPixels(mActivity, GRID_THUMBNAIL_HEIGHT_DP);
+			mGridImageHolder.setLayoutParams(imageHolderLayoutParams);
+		}
 
 		if(isGridVideo(post)) {
 			mGridPlayOverlay.setVisibility(VISIBLE);
 		}
 
 		if(post.isVideoPreview()) {
-
-			if(thumbnail != null) {
-				applyGridColumnImageAspect(
-						thumbnail.getWidth(),
-						thumbnail.getHeight());
-			}
 
 			// Reddit supplies a still frame for hosted videos; use it when present.
 			// Extracting a frame from the video instead means downloading the whole
@@ -1528,6 +1517,9 @@ public final class RedditPostView extends FlingableItemView
 				post.ensureVideoPoster(
 						mActivity,
 						Math.max(mThumbnailSizePrefPixels, 720));
+				if(thumbnail == null) {
+					mGridLoadingSpinner.setVisibility(VISIBLE);
+				}
 			}
 
 		} else {
