@@ -547,7 +547,8 @@ public final class CustomSubreddits {
 		if(cursor.consume(']')) {
 			return result;
 		}
-		while(cursor.hasRemaining()) {
+		boolean hasMore = true;
+		while(hasMore && cursor.hasRemaining()) {
 			cursor.skipWhitespace();
 			final Entry parsed = parseEntryObject(cursor);
 			if(parsed == null) {
@@ -557,15 +558,13 @@ public final class CustomSubreddits {
 				result.add(parsed);
 			}
 			cursor.skipWhitespace();
-			if(cursor.consume(',')) {
-				continue;
-			}
 			if(cursor.consume(']')) {
-				return result;
+				hasMore = false;
+			} else if(!cursor.consume(',')) {
+				return Collections.emptyList();
 			}
-			return Collections.emptyList();
 		}
-		return Collections.emptyList();
+		return hasMore ? Collections.emptyList() : result;
 	}
 
 	@Nullable
@@ -578,7 +577,8 @@ public final class CustomSubreddits {
 		String subreddits = null;
 		cursor.skipWhitespace();
 		if(!cursor.consume('}')) {
-			while(cursor.hasRemaining()) {
+			boolean hasMore = true;
+			while(hasMore && cursor.hasRemaining()) {
 				cursor.skipWhitespace();
 				final String key = cursor.readString();
 				if(key == null) {
@@ -604,12 +604,13 @@ public final class CustomSubreddits {
 					subreddits = val;
 				}
 				cursor.skipWhitespace();
-				if(cursor.consume(',')) {
-					continue;
-				}
 				if(cursor.consume('}')) {
-					break;
+					hasMore = false;
+				} else if(!cursor.consume(',')) {
+					return null;
 				}
+			}
+			if(hasMore) {
 				return null;
 			}
 		}

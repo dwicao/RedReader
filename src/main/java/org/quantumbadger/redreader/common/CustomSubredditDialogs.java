@@ -202,7 +202,7 @@ public final class CustomSubredditDialogs {
 	public static void showItemActionMenu(
 			@NonNull final AppCompatActivity activity,
 			@NonNull final CustomSubreddits.Entry entry) {
-		final String[] items = new String[] {
+		final String[] items = {
 				activity.getString(R.string.action_edit),
 				activity.getString(R.string.action_copy_link),
 				activity.getString(R.string.action_share),
