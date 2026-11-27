@@ -42,6 +42,8 @@ import org.quantumbadger.redreader.account.RedditAccount;
 import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.Constants;
+import org.quantumbadger.redreader.common.CustomSubredditDialogs;
+import org.quantumbadger.redreader.common.CustomSubreddits;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.Optional;
@@ -82,17 +84,19 @@ public class MainMenuListingManager {
 	private static final int GROUP_USER_HEADER = 2;
 	private static final int GROUP_USER_ITEMS = 3;
 	private static final int GROUP_ANNOUNCEMENTS = 4;
-	private static final int GROUP_PINNED_SUBREDDITS_HEADER = 5;
-	private static final int GROUP_PINNED_SUBREDDITS_ITEMS = 6;
-	private static final int GROUP_BLOCKED_SUBREDDITS_HEADER = 7;
-	private static final int GROUP_BLOCKED_SUBREDDITS_ITEMS = 8;
-	private static final int GROUP_MULTIREDDITS_HEADER = 9;
-	private static final int GROUP_MULTIREDDITS_ITEMS = 10;
-	private static final int GROUP_SUBREDDITS_HEADER = 11;
-	private static final int GROUP_SUBREDDITS_ITEMS = 12;
+	private static final int GROUP_CUSTOM_SUBREDDITS_HEADER = 5;
+	private static final int GROUP_CUSTOM_SUBREDDITS_ITEMS = 6;
+	private static final int GROUP_PINNED_SUBREDDITS_HEADER = 7;
+	private static final int GROUP_PINNED_SUBREDDITS_ITEMS = 8;
+	private static final int GROUP_BLOCKED_SUBREDDITS_HEADER = 9;
+	private static final int GROUP_BLOCKED_SUBREDDITS_ITEMS = 10;
+	private static final int GROUP_MULTIREDDITS_HEADER = 11;
+	private static final int GROUP_MULTIREDDITS_ITEMS = 12;
+	private static final int GROUP_SUBREDDITS_HEADER = 13;
+	private static final int GROUP_SUBREDDITS_ITEMS = 14;
 
 	@NonNull private final GroupedRecyclerViewAdapter mAdapter
-			= new GroupedRecyclerViewAdapter(13);
+			= new GroupedRecyclerViewAdapter(15);
 	@NonNull private final Context mContext;
 	@NonNull private final AppCompatActivity mActivity;
 
@@ -151,6 +155,7 @@ public class MainMenuListingManager {
 		final Drawable rrIconUpvote;
 		final Drawable rrIconDownvote;
 		final Drawable rrIconAccountSearch;
+		final Drawable rrIconAdd;
 
 		{
 			final TypedArray attr = activity.obtainStyledAttributes(new int[] {
@@ -162,7 +167,8 @@ public class MainMenuListingManager {
 					R.attr.rrIconCross,
 					R.attr.rrIconArrowUpBold,
 					R.attr.rrIconArrowDownBold,
-					R.attr.rrIconAccountSearch
+					R.attr.rrIconAccountSearch,
+					R.attr.rrIconAdd
 			});
 
 			rrIconPerson = AppCompatResources.getDrawable(activity, attr.getResourceId(0, 0));
@@ -180,6 +186,9 @@ public class MainMenuListingManager {
 			rrIconAccountSearch = Objects.requireNonNull(AppCompatResources.getDrawable(
 					activity,
 					attr.getResourceId(8, 0)));
+			rrIconAdd = Objects.requireNonNull(AppCompatResources.getDrawable(
+					activity,
+					attr.getResourceId(9, 0)));
 
 			attr.recycle();
 		}
@@ -241,18 +250,25 @@ public class MainMenuListingManager {
 					return true;
 				};
 
+				final View.OnClickListener addListener = view ->
+						CustomSubredditDialogs.showCreateDialog(
+								mActivity,
+								null,
+								entry -> mListener.onSelected(
+										SubredditPostListURL.getCombination(entry.subreddits)));
+
 				mAdapter.appendToGroup(
 						GROUP_MAIN_ITEMS,
 						new GroupedRecyclerViewItemListItemView(
 								null,
-								mContext.getString(R.string.mainmenu_custom),
+								mContext.getString(R.string.mainmenu_custom_subreddits),
 								null,
 								false,
 								clickListener,
 								longClickListener,
-								Optional.empty(),
-								Optional.empty(),
-								Optional.empty()));
+								Optional.of(rrIconAdd),
+								Optional.of(addListener),
+								Optional.of(mActivity.getString(R.string.custom_subreddits_add))));
 			}
 
 			{
@@ -467,6 +483,8 @@ public class MainMenuListingManager {
 			}
 		}
 
+		setCustomSubreddits();
+
 		setPinnedSubreddits();
 
 		if(PrefsUtility.pref_appearance_show_blocked_subreddits_main_menu()) {
@@ -516,6 +534,53 @@ public class MainMenuListingManager {
 						= new GroupedRecyclerViewItemFrameLayout(
 						subredditsLoadingSpinnerView);
 				mAdapter.appendToGroup(GROUP_SUBREDDITS_ITEMS, subredditsLoadingItem);
+			}
+		}
+	}
+
+	// Rebuild just the custom-subreddits section, keeping scroll position
+	public void refreshCustomSubreddits() {
+		setCustomSubreddits();
+	}
+
+	private void setCustomSubreddits() {
+
+		final List<CustomSubreddits.Entry> entries = CustomSubreddits.getAll(mActivity);
+
+		mAdapter.removeAllFromGroup(GROUP_CUSTOM_SUBREDDITS_ITEMS);
+		mAdapter.removeAllFromGroup(GROUP_CUSTOM_SUBREDDITS_HEADER);
+
+		if(!entries.isEmpty()) {
+
+			mAdapter.appendToGroup(
+					GROUP_CUSTOM_SUBREDDITS_HEADER,
+					new GroupedRecyclerViewItemListSectionHeaderView(
+							mActivity.getString(R.string.mainmenu_custom_subreddits)));
+
+			boolean isFirst = true;
+
+			for(final CustomSubreddits.Entry entry : entries) {
+				final String label = entry.displayName();
+				final View.OnClickListener clickListener = view -> mListener.onSelected(
+						SubredditPostListURL.getCombination(entry.subreddits));
+				final View.OnLongClickListener longClickListener = view -> {
+					CustomSubredditDialogs.showItemActionMenu(mActivity, entry);
+					return true;
+				};
+
+				mAdapter.appendToGroup(
+						GROUP_CUSTOM_SUBREDDITS_ITEMS,
+						new GroupedRecyclerViewItemListItemView(
+								null,
+								label,
+								ScreenreaderPronunciation.getPronunciation(mContext, label),
+								isFirst,
+								clickListener,
+								longClickListener,
+								Optional.empty(),
+								Optional.empty(),
+								Optional.empty()));
+				isFirst = false;
 			}
 		}
 	}

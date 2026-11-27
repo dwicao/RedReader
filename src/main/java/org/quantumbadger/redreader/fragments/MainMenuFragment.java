@@ -32,6 +32,7 @@ import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.activities.OptionsMenuUtility;
 import org.quantumbadger.redreader.adapters.MainMenuListingManager;
 import org.quantumbadger.redreader.adapters.MainMenuSelectionListener;
+import org.quantumbadger.redreader.common.CustomSubreddits;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.SharedPrefsWrapper;
@@ -250,6 +251,11 @@ public class MainMenuFragment extends RRFragment implements
 	public void onSharedPreferenceChanged(
 			@NonNull final SharedPrefsWrapper sharedPreferences,
 			@NonNull final String key) {
+
+		if(CustomSubreddits.PREF_KEY.equals(key)) {
+			mManager.refreshCustomSubreddits();
+			return;
+		}
 
 		if(!key.equals(getActivity().getString(R.string.pref_pinned_subreddits_key))) {
 			return;

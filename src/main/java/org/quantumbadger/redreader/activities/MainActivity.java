@@ -20,7 +20,6 @@ package org.quantumbadger.redreader.activities;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
-import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -32,7 +31,6 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.Spinner;
 
@@ -51,7 +49,7 @@ import org.quantumbadger.redreader.account.RedditAccountManager;
 import org.quantumbadger.redreader.adapters.MainMenuSelectionListener;
 import org.quantumbadger.redreader.common.AndroidCommon;
 import org.quantumbadger.redreader.common.Constants;
-import org.quantumbadger.redreader.common.CustomSubreddits;
+import org.quantumbadger.redreader.common.CustomSubredditDialogs;
 import org.quantumbadger.redreader.common.DialogUtils;
 import org.quantumbadger.redreader.common.FeatureFlagHandler;
 import org.quantumbadger.redreader.common.General;
@@ -340,13 +338,7 @@ public class MainActivity extends RefreshableActivity
 				break;
 
 			case MainMenuFragment.MENU_MENU_ACTION_CUSTOM_SUBREDDITS: {
-				final String combination = CustomSubreddits.get(this);
-
-				if(combination.isEmpty()) {
-					showCustomSubredditsDialog();
-				} else {
-					onSelected(SubredditPostListURL.getCombination(combination));
-				}
+				CustomSubredditDialogs.showListPickerDialog(this, this);
 				break;
 			}
 
@@ -522,55 +514,11 @@ public class MainActivity extends RefreshableActivity
 	@Override
 	public void onLongSelected(final @MainMenuFragment.MainMenuAction int type) {
 		if(type == MainMenuFragment.MENU_MENU_ACTION_CUSTOM_SUBREDDITS) {
-			showCustomSubredditsDialog();
+			CustomSubredditDialogs.showCreateDialog(
+					this,
+					null,
+					entry -> onSelected(SubredditPostListURL.getCombination(entry.subreddits)));
 		}
-	}
-
-	private void showCustomSubredditsDialog() {
-
-		final EditText editText = new EditText(this);
-		AndroidCommon.applyKeyboardPrivacy(editText);
-		editText.setInputType(
-				InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-		editText.setMinLines(3);
-		editText.setText(CustomSubreddits.get(this));
-
-		final FrameLayout container = new FrameLayout(this);
-		final int padding = General.dpToPixels(this, 20);
-		container.setPadding(padding, padding / 2, padding, padding / 2);
-		container.addView(editText);
-		General.setLayoutMatchWidthWrapHeight(editText);
-
-		new MaterialAlertDialogBuilder(this)
-				.setTitle(R.string.mainmenu_custom)
-				.setView(container)
-				.setPositiveButton(R.string.action_save, (dialog, which) -> {
-					final String raw = editText.getText().toString();
-
-					if(raw.trim().isEmpty()) {
-						General.quickToast(
-								this,
-								R.string.mainmenu_custom_empty_search_query);
-						return;
-					}
-
-					final String normalized = CustomSubreddits.normalize(raw);
-
-					if(normalized == null) {
-						General.quickToast(
-								this,
-								R.string.mainmenu_custom_invalid_name);
-						return;
-					}
-
-					CustomSubreddits.set(this, normalized);
-					onSelected(SubredditPostListURL.getCombination(normalized));
-				})
-				.setNeutralButton(
-						R.string.dialog_clear,
-						(dialog, which) -> CustomSubreddits.set(this, ""))
-				.setNegativeButton(R.string.dialog_cancel, null)
-				.show();
 	}
 
 	private void openCustomLocation(

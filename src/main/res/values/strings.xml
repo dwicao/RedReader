@@ -2193,4 +2193,21 @@
 	<string name="pref_accessibility_long_press_delay_1000ms">1000ms (1 second)</string>
 	<string name="pref_accessibility_long_press_delay_1500ms">1500ms (1.5 seconds)</string>
 	<string name="pref_accessibility_long_press_delay_2000ms">2000ms (2 seconds)</string>
+
+	<!-- Multiple Custom Subreddits -->
+	<string name="mainmenu_custom_subreddits">Custom Subreddits</string>
+	<string name="custom_subreddits_add">New custom subreddit</string>
+	<string name="custom_subreddits_edit">Edit custom subreddit</string>
+	<string name="custom_subreddits_name_hint">Name (optional, e.g. Tech)</string>
+	<string name="custom_subreddits_list_hint">Subreddits (e.g. pics+funny or URL)</string>
+	<string name="custom_subreddits_delete_confirm_message">Delete \"%1$s\"?</string>
+	<string name="custom_subreddits_empty_list">Please enter at least one subreddit.</string>
+	<string name="custom_subreddits_added_to">Added %1$s to %2$s</string>
+	<string name="custom_subreddits_removed_from">Removed %1$s from %2$s</string>
+	<string name="custom_subreddits_updated">Updated custom subreddits</string>
+	<string name="action_custom_subreddits_add">Add to custom subreddit</string>
+	<string name="action_custom_subreddits_manage">Custom subreddits…</string>
+	<string name="action_custom_subreddits_manage_count">Custom subreddits (%1$d)</string>
+	<string name="action_custom_subreddit_add_to">Add to %1$s</string>
+	<string name="action_custom_subreddit_remove_from">Remove from %1$s</string>
 </resources>

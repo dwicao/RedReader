@@ -43,6 +43,7 @@ import org.quantumbadger.redreader.activities.WebViewActivity
 import org.quantumbadger.redreader.cache.CacheManager
 import org.quantumbadger.redreader.common.AndroidCommon
 import org.quantumbadger.redreader.common.Constants
+import org.quantumbadger.redreader.common.CustomSubredditDialogs
 import org.quantumbadger.redreader.common.CustomSubreddits
 import org.quantumbadger.redreader.common.FileUtils
 import org.quantumbadger.redreader.common.General
@@ -112,8 +113,7 @@ object RedditPostActions {
 		SUBSCRIBE(R.string.action_subscribe_subreddit),
 		UNSUBSCRIBE(R.string.action_unsubscribe_subreddit),
 		CROSSPOST_ORIGIN(R.string.action_crosspost_origin),
-		CUSTOM_SUBSCRIBE(R.string.action_subscribe_subreddit),
-		CUSTOM_UNSUBSCRIBE(R.string.action_unsubscribe_subreddit),
+		CUSTOM_SUBREDDITS(R.string.action_custom_subreddits_manage),
 		FAVOURITE(R.string.action_favourite)
 
 	}
@@ -702,29 +702,41 @@ object RedditPostActions {
 				throw RuntimeException(e)
 			}
 
-			Action.CUSTOM_SUBSCRIBE -> {
-				val subredditCanonicalId = SubredditCanonicalId(post.src.subreddit)
-				if (!CustomSubreddits.isMember(activity,
-						subredditCanonicalId.toString())) {
-					CustomSubreddits.add(activity,
-						subredditCanonicalId.toString())
-					General.quickToast(activity,
-						activity.getString(
-							R.string.subscription_successful,
-							subredditCanonicalId.toString()))
-				}
-			}
-
-			Action.CUSTOM_UNSUBSCRIBE -> {
-				val subredditCanonicalId = SubredditCanonicalId(post.src.subreddit)
-				if (CustomSubreddits.isMember(activity,
-						subredditCanonicalId.toString())) {
-					CustomSubreddits.remove(activity,
-						subredditCanonicalId.toString())
-					General.quickToast(activity,
-						activity.getString(
-							R.string.unsubscription_successful,
-							subredditCanonicalId.toString()))
+			Action.CUSTOM_SUBREDDITS -> {
+				val canonicalId = SubredditCanonicalId(post.src.subreddit)
+				val subredditName = canonicalId.toString()
+				val bareName = canonicalId.displayNameLowercase
+				val customLists = CustomSubreddits.getAll(activity)
+				if (customLists.isEmpty()) {
+					CustomSubredditDialogs.showCreateDialog(activity, bareName, null)
+				} else if (customLists.size == 1) {
+					val onlyList = customLists[0]
+					if (onlyList.contains(subredditName)) {
+						CustomSubreddits.removeSubreddit(activity, onlyList.id, subredditName)
+						General.quickToast(
+							activity,
+							activity.getString(
+								R.string.custom_subreddits_removed_from,
+								subredditName,
+								onlyList.displayName()
+							)
+						)
+					} else {
+						CustomSubreddits.addSubreddit(activity, onlyList.id, subredditName)
+						General.quickToast(
+							activity,
+							activity.getString(
+								R.string.custom_subreddits_added_to,
+								subredditName,
+								onlyList.displayName()
+							)
+						)
+					}
+				} else {
+					CustomSubredditDialogs.showSubredditMembershipDialog(
+						activity,
+						subredditName
+					)
 				}
 			}
 		}
@@ -906,23 +918,43 @@ object RedditPostActions {
 						}
 					}
 				}
-				if (CustomSubreddits.isMember(activity,
-						subredditCanonicalId.toString())) {
+				val customLists = CustomSubreddits.getAll(activity)
+				val subredditName = subredditCanonicalId.toString()
+				if (customLists.isEmpty()) {
 					menu.add(
 						RPVMenuItem(
 							activity,
-							R.string.action_unsubscribe_subreddit,
-							Action.CUSTOM_UNSUBSCRIBE
+							R.string.action_custom_subreddits_add,
+							Action.CUSTOM_SUBREDDITS
+						)
+					)
+				} else if (customLists.size == 1) {
+					val onlyList = customLists[0]
+					val labelRes = if (onlyList.contains(subredditName)) {
+						R.string.action_custom_subreddit_remove_from
+					} else {
+						R.string.action_custom_subreddit_add_to
+					}
+					menu.add(
+						RPVMenuItem(
+							activity.getString(labelRes, onlyList.displayName()),
+							Action.CUSTOM_SUBREDDITS
 						)
 					)
 				} else {
-					menu.add(
-						RPVMenuItem(
-							activity,
-							R.string.action_subscribe_subreddit,
-							Action.CUSTOM_SUBSCRIBE
-						)
+					val memberCount = CustomSubreddits.countMembership(
+						activity,
+						subredditName
 					)
+					val title = if (memberCount > 0) {
+						activity.getString(
+							R.string.action_custom_subreddits_manage_count,
+							memberCount
+						)
+					} else {
+						activity.getString(R.string.action_custom_subreddits_manage)
+					}
+					menu.add(RPVMenuItem(title, Action.CUSTOM_SUBREDDITS))
 				}
 			} catch (ex: InvalidSubredditNameException) {
 				throw java.lang.RuntimeException(ex)
