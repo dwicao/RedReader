@@ -17,33 +17,47 @@
 
 package org.quantumbadger.redreader.activities;
 
-import android.graphics.Color;
+import android.content.res.TypedArray;
+import android.graphics.Bitmap;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.annotation.Nullable;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.squareup.picasso.Callback;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 
 import org.quantumbadger.redreader.R;
 import org.quantumbadger.redreader.cache.CacheManager;
 import org.quantumbadger.redreader.common.AndroidCommon;
+import org.quantumbadger.redreader.common.DisplayUtils;
 import org.quantumbadger.redreader.common.General;
 import org.quantumbadger.redreader.common.LinkHandler;
 import org.quantumbadger.redreader.common.PrefsUtility;
 import org.quantumbadger.redreader.common.RedReaderPicasso;
 import org.quantumbadger.redreader.common.StringUtils;
+import org.quantumbadger.redreader.common.UriString;
 import org.quantumbadger.redreader.common.time.TimestampUTC;
 import org.quantumbadger.redreader.reddit.DomainPostFilter;
 import org.quantumbadger.redreader.reddit.KeywordPostFilter;
@@ -69,35 +83,59 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 	private TextView mEmptyView;
 	private RecyclerView mRecyclerView;
 	private MenuItem mViewModeItem;
+	private FavouriteAdapter mAdapter;
 
 	@Override
-	protected int baseActivityNavigationBarColour() {
-		return Color.rgb(0x55, 0x55, 0x55);
+	protected boolean baseActivityContentExtendsBehindNavigationBar() {
+		return true;
 	}
 
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 
-		PrefsUtility.applySettingsTheme(this);
+		PrefsUtility.applyTheme(this);
 
 		super.onCreate(savedInstanceState);
 
+		final TypedArray typedArray = obtainStyledAttributes(new int[] {
+				R.attr.rrListBackgroundCol,
+				R.attr.rrMainTextCol
+		});
+		final int mainTextCol;
+		try {
+			getWindow().setBackgroundDrawable(
+					new ColorDrawable(typedArray.getColor(0, 0)));
+			mainTextCol = typedArray.getColor(1, 0);
+		} finally {
+			typedArray.recycle();
+		}
+
 		setTitle(R.string.favourites_title);
 
-		final LinearLayout root = new LinearLayout(this);
-		root.setOrientation(LinearLayout.VERTICAL);
+		final FrameLayout root = new FrameLayout(this);
 
 		mEmptyView = new TextView(this);
 		mEmptyView.setText(R.string.favourites_empty);
+		mEmptyView.setTextColor(mainTextCol);
 		mEmptyView.setGravity(Gravity.CENTER);
 		final int padding = General.dpToPixels(this, 24);
 		mEmptyView.setPadding(padding, padding, padding, padding);
 
 		mRecyclerView = new RecyclerView(this);
-		mRecyclerView.setLayoutManager(new GridLayoutManager(this, 1));
+		mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+		mRecyclerView.setClipToPadding(false);
+		General.applySystemBarPadding(mRecyclerView);
 
-		root.addView(mEmptyView);
-		root.addView(mRecyclerView);
+		root.addView(
+				mEmptyView,
+				new FrameLayout.LayoutParams(
+						ViewGroup.LayoutParams.MATCH_PARENT,
+						ViewGroup.LayoutParams.MATCH_PARENT));
+		root.addView(
+				mRecyclerView,
+				new FrameLayout.LayoutParams(
+						ViewGroup.LayoutParams.MATCH_PARENT,
+						ViewGroup.LayoutParams.MATCH_PARENT));
 
 		setBaseActivityListing(root);
 	}
@@ -218,7 +256,9 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 				.show();
 	}
 
-	private void showRemoveConfirmDialog(final RedditParsedPost post) {
+	private void showRemoveConfirmDialog(
+			final RedditParsedPost post,
+			final int adapterPosition) {
 		new MaterialAlertDialogBuilder(this)
 				.setTitle(R.string.favourite_remove_confirm_title)
 				.setMessage(getString(
@@ -232,10 +272,20 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 					General.quickToast(
 							this,
 							R.string.favourite_removed);
-					reloadPosts();
+					if(mAdapter != null && adapterPosition != RecyclerView.NO_POSITION) {
+						mAdapter.removeAt(adapterPosition);
+						updateEmptyVisibility(mAdapter.getItemCount() == 0);
+					} else {
+						reloadPosts();
+					}
 				})
 				.setNegativeButton(R.string.dialog_cancel, null)
 				.show();
+	}
+
+	private void updateEmptyVisibility(final boolean isEmpty) {
+		mEmptyView.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+		mRecyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
 	}
 
 	private void reloadPosts() {
@@ -281,19 +331,32 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 					return;
 				}
 
-				if(mRecyclerView.getLayoutManager() instanceof GridLayoutManager) {
-					((GridLayoutManager)mRecyclerView.getLayoutManager())
-							.setSpanCount(mode.getColumns());
-				}
-
-				mRecyclerView.setAdapter(new FavouriteAdapter(posts, mode));
-
-				mEmptyView.setVisibility(
-						posts.isEmpty() ? View.VISIBLE : View.GONE);
-				mRecyclerView.setVisibility(
-						posts.isEmpty() ? View.GONE : View.VISIBLE);
+				applyLayoutManager(mode);
+				mAdapter = new FavouriteAdapter(posts, mode);
+				mRecyclerView.setAdapter(mAdapter);
+				updateEmptyVisibility(posts.isEmpty());
 			});
 		}).start();
+	}
+
+	private void applyLayoutManager(@NonNull final FavouriteViewMode mode) {
+		final int columns = mode.getColumns();
+		final RecyclerView.LayoutManager current = mRecyclerView.getLayoutManager();
+		if(columns > 1) {
+			if(current instanceof StaggeredGridLayoutManager) {
+				final StaggeredGridLayoutManager staggered
+						= (StaggeredGridLayoutManager)current;
+				if(staggered.getSpanCount() != columns) {
+					staggered.setSpanCount(columns);
+				}
+			} else {
+				mRecyclerView.setLayoutManager(new StaggeredGridLayoutManager(
+						columns,
+						StaggeredGridLayoutManager.VERTICAL));
+			}
+		} else if(!(current instanceof LinearLayoutManager)) {
+			mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+		}
 	}
 
 	private void openPost(final RedditParsedPost post) {
@@ -304,7 +367,9 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 						PostCommentListingURL.suggestedOrderFor(post)).toUriString());
 	}
 
-	private void toggleUpvote(final RedditPreparedPost post) {
+	private void toggleUpvote(
+			final RedditPreparedPost post,
+			final int adapterPosition) {
 		if(post.isUpvoted()) {
 			RedditPostActions.INSTANCE.onActionMenuItemSelected(
 					post,
@@ -316,19 +381,76 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 					this,
 					RedditPostActions.Action.UPVOTE);
 		}
-		reloadPosts();
+		if(mAdapter != null && adapterPosition != RecyclerView.NO_POSITION) {
+			mAdapter.notifyItemChanged(adapterPosition);
+		}
+	}
+
+	private int getScreenWidthPx() {
+		final int frameWidth = DisplayUtils.getWindowVisibleDisplayFrame(this).width();
+		if(frameWidth > 0) {
+			return frameWidth;
+		}
+		return getResources().getDisplayMetrics().widthPixels;
 	}
 
 	private class FavouriteAdapter extends RecyclerView.Adapter<FavouriteViewHolder> {
 
 		private final List<RedditPreparedPost> posts;
 		private final FavouriteViewMode mode;
+		private final int[] subtitleThemeColors;
+		private final int titleColor;
+		private final int dividerColor;
+		private final int upvoteColor;
+		private final int buttonTextColor;
 
 		FavouriteAdapter(
 				final List<RedditPreparedPost> posts,
 				final FavouriteViewMode mode) {
 			this.posts = posts;
 			this.mode = mode;
+
+			final TypedArray attr = obtainStyledAttributes(new int[] {
+					R.attr.rrPostSubtitleBoldCol,
+					R.attr.rrPostSubtitleUpvoteCol,
+					R.attr.rrPostSubtitleDownvoteCol,
+					R.attr.rrFlairBackCol,
+					R.attr.rrFlairTextCol,
+					R.attr.rrGoldTextCol,
+					R.attr.rrGoldBackCol,
+					R.attr.rrCrosspostTextCol,
+					R.attr.rrCrosspostBackCol,
+					R.attr.rrLockedpostTextCol,
+					R.attr.rrLockedpostBackCol,
+					R.attr.rrPostTitleCol,
+					R.attr.rrListDividerCol,
+					R.attr.rrPostCommentsButtonTextCol
+			});
+			subtitleThemeColors = new int[] {
+					attr.getColor(0, 255),
+					attr.getColor(1, 255),
+					attr.getColor(2, 255),
+					attr.getColor(3, 255),
+					attr.getColor(4, 255),
+					attr.getColor(5, 255),
+					attr.getColor(6, 255),
+					attr.getColor(7, 255),
+					attr.getColor(8, 255),
+					attr.getColor(9, 255),
+					attr.getColor(10, 255)
+			};
+			upvoteColor = subtitleThemeColors[1];
+			titleColor = attr.getColor(11, 0);
+			dividerColor = attr.getColor(12, 0);
+			buttonTextColor = attr.getColor(13, 0);
+			attr.recycle();
+		}
+
+		void removeAt(final int position) {
+			if(position >= 0 && position < posts.size()) {
+				posts.remove(position);
+				notifyItemRemoved(position);
+			}
 		}
 
 		@Override
@@ -349,7 +471,7 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 				final int viewType) {
 
 			if(viewType == VIEW_TYPE_GRID) {
-				return makeGridHolder();
+				return makeGridHolder(parent);
 			} else if(viewType == VIEW_TYPE_THUMB) {
 				return makeThumbHolder();
 			} else {
@@ -365,59 +487,53 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 			final RedditPreparedPost prepared = posts.get(position);
 			final RedditParsedPost post = prepared.src;
 
+			cancelImageLoads(holder);
+			final int bindUsageId = ++holder.usageId;
+
 			holder.title.setText(post.getTitle());
+			holder.subtitle.setText(prepared.buildSubtitle(
+					FavouritePostsActivity.this,
+					false,
+					false,
+					subtitleThemeColors));
+			holder.subtitle.setMaxLines(mode == FavouriteViewMode.LIST ? 5 : 3);
+			holder.subtitle.setEllipsize(TextUtils.TruncateAt.END);
 
-			if(holder.subtitle != null) {
-				holder.subtitle.setText(prepared.buildSubtitle(
-						FavouritePostsActivity.this,
-						false));
-				holder.subtitle.setMaxLines(mode == FavouriteViewMode.LIST ? 5 : 3);
-				holder.subtitle.setEllipsize(TextUtils.TruncateAt.END);
+			if(holder.getItemViewType() == VIEW_TYPE_GRID) {
+				bindGridImage(holder, prepared, bindUsageId);
+				bindGridOverlayBadges(holder, prepared);
+			} else if(holder.image != null) {
+				bindListThumbnail(holder, post);
 			}
 
-			if(holder.image != null) {
-				RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
-						.cancelRequest(holder.image);
-				if(post.getThumbnailUrl() != null) {
-					RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
-							.load(post.getThumbnailUrl().value)
-							.fit()
-							.centerCrop()
-							.into(holder.image);
-				} else {
-					holder.image.setImageDrawable(null);
-				}
+			holder.voteText.setText(FavouritePostStore.INSTANCE.formatScoreCompact(
+					prepared.computeScore()));
+			if(prepared.isUpvoted()) {
+				holder.voteIcon.setColorFilter(upvoteColor, PorterDuff.Mode.SRC_IN);
+				holder.voteText.setTextColor(upvoteColor);
+			} else {
+				holder.voteIcon.clearColorFilter();
+				holder.voteText.setTextColor(buttonTextColor);
 			}
+			holder.voteButton.setContentDescription(getString(
+					prepared.isUpvoted()
+							? R.string.action_vote_remove
+							: R.string.action_upvote));
+			holder.voteButton.setOnClickListener(view -> toggleUpvote(
+					prepared,
+					holder.getBindingAdapterPosition()));
 
-			if(holder.voteButton != null) {
-				holder.voteButton.setText(String.format(
-						Locale.US,
-						"\u25B2 %s",
-						FavouritePostStore.INSTANCE.formatScoreCompact(
-								prepared.computeScore())));
-				holder.voteButton.setContentDescription(getString(
-						prepared.isUpvoted()
-								? R.string.action_vote_remove
-								: R.string.action_upvote));
-				holder.voteButton.setOnClickListener(
-						view -> toggleUpvote(prepared));
-			}
+			final int commentCount = post.getCommentCount();
+			holder.commentsText.setText(String.valueOf(commentCount));
+			holder.commentsButton.setContentDescription(getString(
+					R.string.action_comments_with_count,
+					commentCount));
+			holder.commentsButton.setOnClickListener(view -> openPost(post));
 
-			if(holder.commentsButton != null) {
-				final int commentCount = post.getCommentCount();
-				holder.commentsButton.setText(String.valueOf(commentCount));
-				holder.commentsButton.setContentDescription(getString(
-						R.string.action_comments_with_count,
-						commentCount));
-				holder.commentsButton.setOnClickListener(
-						view -> openPost(post));
-			}
-
-			holder.itemView.setOnClickListener(
-					view -> openPost(post));
+			holder.itemView.setOnClickListener(view -> openPost(post));
 
 			AndroidCommon.setExtendedLongClickListener(holder.itemView, view -> {
-				showRemoveConfirmDialog(post);
+				showRemoveConfirmDialog(post, holder.getBindingAdapterPosition());
 				return true;
 			});
 		}
@@ -429,112 +545,483 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 
 		@Override
 		public void onViewRecycled(@NonNull final FavouriteViewHolder holder) {
-			if(holder.image != null) {
-				RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
-						.cancelRequest(holder.image);
-			}
+			holder.usageId++;
+			cancelImageLoads(holder);
 			super.onViewRecycled(holder);
 		}
 
-		private LinearLayout makeButtonRow(
-				final Button voteButton,
-				final Button commentsButton) {
-
-			final LinearLayout buttons = new LinearLayout(
+		private void cancelImageLoads(@NonNull final FavouriteViewHolder holder) {
+			final Picasso picasso = RedReaderPicasso.INSTANCE.get(
 					FavouritePostsActivity.this);
-			buttons.setOrientation(LinearLayout.HORIZONTAL);
+			if(holder.image != null) {
+				picasso.cancelRequest(holder.image);
+				holder.image.setImageDrawable(null);
+			}
+			if(holder.activeTarget != null) {
+				picasso.cancelRequest(holder.activeTarget);
+				holder.activeTarget = null;
+			}
+		}
 
-			final LinearLayout.LayoutParams buttonParams
-					= new LinearLayout.LayoutParams(
-							0,
-							LinearLayout.LayoutParams.WRAP_CONTENT,
-							1f);
+		private void bindGridOverlayBadges(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditPreparedPost prepared) {
+			if(holder.imageCount != null) {
+				final int count = prepared.src.getGalleryImageCount();
+				if(count > 1) {
+					//noinspection SetTextI18n
+					holder.imageCount.setText("[1/" + count + "]");
+					holder.imageCount.setVisibility(View.VISIBLE);
+				} else {
+					holder.imageCount.setVisibility(View.GONE);
+				}
+			}
+			if(holder.playOverlay != null) {
+				holder.playOverlay.setVisibility(View.GONE);
+			}
+		}
 
-			buttons.addView(voteButton, buttonParams);
-			buttons.addView(commentsButton, buttonParams);
+		private void bindListThumbnail(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditParsedPost post) {
+			final int thumbSize = General.dpToPixels(
+					FavouritePostsActivity.this, 72);
+			final UriString source = resolveBestImageUrl(post, thumbSize * 2);
+			if(source != null) {
+				holder.image.setVisibility(View.VISIBLE);
+				RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
+						.load(source.value)
+						.resize(thumbSize, thumbSize)
+						.centerCrop()
+						.onlyScaleDown()
+						.into(holder.image);
+			} else {
+				holder.image.setVisibility(View.GONE);
+			}
+		}
 
-			return buttons;
+		private void bindGridImage(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditPreparedPost prepared,
+				final int usageId) {
+
+			final RedditParsedPost post = prepared.src;
+			final int screenWidth = getScreenWidthPx();
+			final int previewWidth = Math.min(1080, Math.max(640, screenWidth));
+			final int cardWidth = Math.max(
+					General.dpToPixels(FavouritePostsActivity.this, 180),
+					screenWidth / Math.max(1, mode.getColumns()));
+
+			final RedditParsedPost.ImagePreviewDetails preview
+					= findPreviewDetails(post, previewWidth);
+
+			final boolean isVideo = prepared.isVideoPreview()
+					|| post.getYoutubeId() != null;
+
+			if(preview != null && preview.width >= 10 && preview.height >= 10) {
+				showGridPreview(holder, prepared, preview, cardWidth, isVideo, usageId);
+				return;
+			}
+
+			if(post.getYoutubeId() != null) {
+				loadYoutubeGridImage(
+						holder,
+						post,
+						post.getYoutubeId(),
+						cardWidth,
+						usageId);
+				return;
+			}
+
+			loadGridFallbackUrl(holder, prepared, cardWidth, isVideo, usageId);
+		}
+
+		private void showGridPreview(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditPreparedPost prepared,
+				@NonNull final RedditParsedPost.ImagePreviewDetails preview,
+				final int cardWidth,
+				final boolean isVideo,
+				final int usageId) {
+
+			holder.imageArea.setVisibility(View.VISIBLE);
+			holder.image.setVisibility(View.VISIBLE);
+			holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+			applyGridImageAspect(holder, preview.width, preview.height);
+
+			final int targetHeight = Math.min(
+					2048,
+					Math.max(
+							1,
+							Math.round(cardWidth
+									* ((float)preview.height / (float)preview.width))));
+
+			RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
+					.load(preview.url.value)
+					.resize(cardWidth, targetHeight)
+					.centerInside()
+					.onlyScaleDown()
+					.into(holder.image, new Callback() {
+						@Override
+						public void onSuccess() {
+							if(holder.usageId != usageId) {
+								return;
+							}
+							final Drawable d = holder.image.getDrawable();
+							if(d != null
+									&& d.getIntrinsicWidth() > 0
+									&& d.getIntrinsicHeight() > 0) {
+								applyGridImageAspect(
+										holder,
+										d.getIntrinsicWidth(),
+										d.getIntrinsicHeight());
+							}
+							if(isVideo && holder.playOverlay != null) {
+								holder.playOverlay.setVisibility(View.VISIBLE);
+							}
+						}
+
+						@Override
+						public void onError(final Exception e) {
+							if(holder.usageId != usageId) {
+								return;
+							}
+							loadGridFallbackUrl(
+									holder,
+									prepared,
+									cardWidth,
+									isVideo,
+									usageId);
+						}
+					});
+		}
+
+		private void loadYoutubeGridImage(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditParsedPost post,
+				@NonNull final String youtubeId,
+				final int cardWidth,
+				final int usageId) {
+
+			holder.imageArea.setVisibility(View.VISIBLE);
+			holder.image.setVisibility(View.VISIBLE);
+			holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+			applyGridImageAspect(holder, 16, 9);
+
+			final String maxRes = "https://i.ytimg.com/vi/"
+					+ youtubeId
+					+ "/maxresdefault.jpg";
+			final String hqRes = "https://i.ytimg.com/vi/"
+					+ youtubeId
+					+ "/hqdefault.jpg";
+
+			loadBitmapWithTarget(
+					holder,
+					maxRes,
+					cardWidth,
+					true,
+					usageId,
+					() -> loadBitmapWithTarget(
+							holder,
+							hqRes,
+							cardWidth,
+							true,
+							usageId,
+							() -> {
+								final UriString thumb = post.getThumbnailUrl();
+								if(RedditPreparedPost.isUsableThumbnailUrl(thumb)) {
+									loadBitmapWithTarget(
+											holder,
+											thumb.value,
+											cardWidth,
+											true,
+											usageId,
+											() -> holder.imageArea.setVisibility(View.GONE));
+								} else {
+									holder.imageArea.setVisibility(View.GONE);
+								}
+							}));
+		}
+
+		private void loadGridFallbackUrl(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final RedditPreparedPost prepared,
+				final int cardWidth,
+				final boolean isVideo,
+				final int usageId) {
+
+			final RedditParsedPost post = prepared.src;
+			final UriString postUrl = post.getUrl();
+			final UriString thumbUrl = post.getThumbnailUrl();
+			final boolean isDirect = LinkHandler.isDirectImageUrl(postUrl);
+			final boolean hasThumb = RedditPreparedPost.isUsableThumbnailUrl(thumbUrl);
+
+			if(!isDirect && !hasThumb) {
+				holder.imageArea.setVisibility(View.GONE);
+				return;
+			}
+
+			holder.imageArea.setVisibility(View.VISIBLE);
+			holder.image.setVisibility(View.VISIBLE);
+			holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+			applyGridImageAspect(holder, 16, 9);
+
+			if(isDirect && postUrl != null) {
+				loadBitmapWithTarget(
+						holder,
+						postUrl.value,
+						cardWidth,
+						isVideo,
+						usageId,
+						() -> {
+							if(hasThumb) {
+								loadBitmapWithTarget(
+										holder,
+										thumbUrl.value,
+										cardWidth,
+										isVideo,
+										usageId,
+										() -> holder.imageArea.setVisibility(View.GONE));
+							} else {
+								holder.imageArea.setVisibility(View.GONE);
+							}
+						});
+			} else if(hasThumb) {
+				loadBitmapWithTarget(
+						holder,
+						thumbUrl.value,
+						cardWidth,
+						isVideo,
+						usageId,
+						() -> holder.imageArea.setVisibility(View.GONE));
+			}
+		}
+
+		private void loadBitmapWithTarget(
+				@NonNull final FavouriteViewHolder holder,
+				@NonNull final String url,
+				final int targetSize,
+				final boolean showPlay,
+				final int usageId,
+				@NonNull final Runnable onFallback) {
+
+			final int decodeMax = Math.max(640, targetSize);
+			final Target target = new Target() {
+				@Override
+				public void onBitmapLoaded(
+						@NonNull final Bitmap bitmap,
+						@NonNull final Picasso.LoadedFrom from) {
+					if(holder.usageId != usageId) {
+						return;
+					}
+					holder.activeTarget = null;
+					if(bitmap.getWidth() < 10 || bitmap.getHeight() < 10) {
+						onFallback.run();
+						return;
+					}
+					applyGridImageAspect(
+							holder,
+							bitmap.getWidth(),
+							bitmap.getHeight());
+					holder.image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+					holder.image.setImageBitmap(bitmap);
+					if(showPlay && holder.playOverlay != null) {
+						holder.playOverlay.setVisibility(View.VISIBLE);
+					}
+				}
+
+				@Override
+				public void onBitmapFailed(
+						@NonNull final Exception e,
+						@Nullable final Drawable errorDrawable) {
+					if(holder.usageId != usageId) {
+						return;
+					}
+					holder.activeTarget = null;
+					onFallback.run();
+				}
+
+				@Override
+				public void onPrepareLoad(@Nullable final Drawable placeHolderDrawable) {
+					// Placeholder intentionally left blank
+				}
+			};
+
+			holder.activeTarget = target;
+			RedReaderPicasso.INSTANCE.get(FavouritePostsActivity.this)
+					.load(url)
+					.resize(decodeMax, decodeMax)
+					.centerInside()
+					.onlyScaleDown()
+					.into(target);
+		}
+
+		private void applyGridImageAspect(
+				@NonNull final FavouriteViewHolder holder,
+				final int widthPx,
+				final int heightPx) {
+			if(holder.imageHolder == null || widthPx < 1 || heightPx < 1) {
+				return;
+			}
+			final ConstraintLayout.LayoutParams params
+					= (ConstraintLayout.LayoutParams)holder.imageHolder.getLayoutParams();
+			final String ratio = String.valueOf((float)widthPx / (float)heightPx);
+			if(params.width == ViewGroup.LayoutParams.MATCH_PARENT
+					&& params.height == 0
+					&& ratio.equals(params.dimensionRatio)) {
+				return;
+			}
+			params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+			params.height = 0;
+			params.dimensionRatio = ratio;
+			holder.imageHolder.setLayoutParams(params);
+		}
+
+		@Nullable
+		private RedditParsedPost.ImagePreviewDetails findPreviewDetails(
+				@NonNull final RedditParsedPost post,
+				final int previewWidth) {
+			final RedditParsedPost.ImagePreviewDetails own
+					= post.getPreview(previewWidth, 0);
+			if(own != null && own.width >= 10 && own.height >= 10) {
+				return own;
+			}
+			final List<RedditPost> parents = post.getSrc().getCrosspost_parent_list();
+			if(parents != null) {
+				for(final RedditPost parent : parents) {
+					final RedditParsedPost parsedParent = new RedditParsedPost(
+							FavouritePostsActivity.this,
+							parent,
+							false);
+					final RedditParsedPost.ImagePreviewDetails parentPreview
+							= parsedParent.getPreview(previewWidth, 0);
+					if(parentPreview != null
+							&& parentPreview.width >= 10
+							&& parentPreview.height >= 10) {
+						return parentPreview;
+					}
+				}
+			}
+			return null;
+		}
+
+		@Nullable
+		private UriString resolveBestImageUrl(
+				@NonNull final RedditParsedPost post,
+				final int previewWidth) {
+			final RedditParsedPost.ImagePreviewDetails preview
+					= findPreviewDetails(post, previewWidth);
+			if(preview != null) {
+				return preview.url;
+			}
+			if(post.getYoutubeId() != null) {
+				return new UriString(
+						"https://i.ytimg.com/vi/"
+								+ post.getYoutubeId()
+								+ "/hqdefault.jpg");
+			}
+			return RedditPreparedPost.resolveThumbnailSource(
+					null,
+					post.getThumbnailUrl(),
+					post.getUrl(),
+					LinkHandler.isDirectImageUrl(post.getUrl()));
+		}
+
+		private View inflateActionBar(@NonNull final ViewGroup parent) {
+			return LayoutInflater.from(FavouritePostsActivity.this).inflate(
+					R.layout.favourite_post_action_bar,
+					parent,
+					false);
+		}
+
+		private View makeDivider() {
+			final View divider = new View(FavouritePostsActivity.this);
+			divider.setLayoutParams(new LinearLayout.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT,
+					General.dpToPixels(FavouritePostsActivity.this, 1)));
+			divider.setBackgroundColor(dividerColor);
+			return divider;
 		}
 
 		private FavouriteViewHolder makeListHolder() {
 
-			final LinearLayout layout = new LinearLayout(
-					FavouritePostsActivity.this);
+			final LinearLayout layout = new LinearLayout(FavouritePostsActivity.this);
 			layout.setOrientation(LinearLayout.VERTICAL);
+			layout.setBackgroundResource(R.drawable.rr_postlist_item_selector_main);
+			layout.setLayoutParams(new RecyclerView.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT));
 
-			final int rowPadding = General.dpToPixels(
-					FavouritePostsActivity.this, 12);
-			layout.setPadding(rowPadding, rowPadding, rowPadding, rowPadding);
+			final LinearLayout textBlock = new LinearLayout(FavouritePostsActivity.this);
+			textBlock.setOrientation(LinearLayout.VERTICAL);
+			final int hPad = General.dpToPixels(FavouritePostsActivity.this, 12);
+			final int vPad = General.dpToPixels(FavouritePostsActivity.this, 10);
+			textBlock.setPadding(hPad, vPad, hPad, vPad);
 
-			final TextView titleView = new TextView(
-					FavouritePostsActivity.this);
-			titleView.setTextSize(16);
+			final TextView titleView = new TextView(FavouritePostsActivity.this);
+			titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+			titleView.setTextColor(titleColor);
 
-			final TextView subtitleView = new TextView(
-					FavouritePostsActivity.this);
-			subtitleView.setTextSize(13);
+			final TextView subtitleView = new TextView(FavouritePostsActivity.this);
+			subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+			subtitleView.setPadding(0, General.dpToPixels(FavouritePostsActivity.this, 4), 0, 0);
 
-			final Button voteButton = new Button(FavouritePostsActivity.this);
-			final Button commentsButton = new Button(FavouritePostsActivity.this);
+			textBlock.addView(titleView);
+			textBlock.addView(subtitleView);
 
-			layout.addView(titleView);
-			layout.addView(subtitleView);
-			layout.addView(makeButtonRow(voteButton, commentsButton));
+			final View actionBar = inflateActionBar(layout);
+			layout.addView(textBlock);
+			layout.addView(actionBar);
+			layout.addView(makeDivider());
 
 			return new FavouriteViewHolder(
 					layout,
 					null,
+					null,
+					null,
+					null,
+					null,
 					titleView,
 					subtitleView,
-					voteButton,
-					commentsButton);
+					actionBar);
 		}
 
 		private FavouriteViewHolder makeThumbHolder() {
 
-			final LinearLayout layout = new LinearLayout(
-					FavouritePostsActivity.this);
+			final LinearLayout layout = new LinearLayout(FavouritePostsActivity.this);
 			layout.setOrientation(LinearLayout.VERTICAL);
+			layout.setBackgroundResource(R.drawable.rr_postlist_item_selector_main);
+			layout.setLayoutParams(new RecyclerView.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.WRAP_CONTENT));
 
-			final int rowPadding = General.dpToPixels(
-					FavouritePostsActivity.this, 12);
-			layout.setPadding(rowPadding, rowPadding, 0, rowPadding);
-
-			final LinearLayout topRow = new LinearLayout(
-					FavouritePostsActivity.this);
+			final LinearLayout topRow = new LinearLayout(FavouritePostsActivity.this);
 			topRow.setOrientation(LinearLayout.HORIZONTAL);
 			topRow.setGravity(Gravity.CENTER_VERTICAL);
-			topRow.setPadding(0, 0, rowPadding, 0);
 
-			final ImageView imageView = new ImageView(
-					FavouritePostsActivity.this);
-			final int thumbSize = General.dpToPixels(
-					FavouritePostsActivity.this, 72);
-			imageView.setLayoutParams(new LinearLayout.LayoutParams(
-					thumbSize,
-					thumbSize));
+			final ImageView imageView = new ImageView(FavouritePostsActivity.this);
+			final int thumbSize = General.dpToPixels(FavouritePostsActivity.this, 72);
+			imageView.setLayoutParams(new LinearLayout.LayoutParams(thumbSize, thumbSize));
 			imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 
-			final LinearLayout texts = new LinearLayout(
-					FavouritePostsActivity.this);
+			final LinearLayout texts = new LinearLayout(FavouritePostsActivity.this);
 			texts.setOrientation(LinearLayout.VERTICAL);
 			texts.setLayoutParams(new LinearLayout.LayoutParams(
 					0,
 					LinearLayout.LayoutParams.WRAP_CONTENT,
 					1f));
-			final int textPadding = General.dpToPixels(
-					FavouritePostsActivity.this, 12);
-			texts.setPadding(textPadding, 0, 0, 0);
+			final int pad = General.dpToPixels(FavouritePostsActivity.this, 10);
+			texts.setPadding(pad, pad, pad, pad);
 
-			final TextView titleView = new TextView(
-					FavouritePostsActivity.this);
-			titleView.setTextSize(16);
+			final TextView titleView = new TextView(FavouritePostsActivity.this);
+			titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+			titleView.setTextColor(titleColor);
 			titleView.setMaxLines(3);
 			titleView.setEllipsize(TextUtils.TruncateAt.END);
 
-			final TextView subtitleView = new TextView(
-					FavouritePostsActivity.this);
-			subtitleView.setTextSize(13);
+			final TextView subtitleView = new TextView(FavouritePostsActivity.this);
+			subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+			subtitleView.setPadding(0, General.dpToPixels(FavouritePostsActivity.this, 3), 0, 0);
 			subtitleView.setMaxLines(3);
 			subtitleView.setEllipsize(TextUtils.TruncateAt.END);
 
@@ -544,89 +1031,83 @@ public class FavouritePostsActivity extends ViewsBaseActivity {
 			topRow.addView(imageView);
 			topRow.addView(texts);
 
-			final Button voteButton = new Button(FavouritePostsActivity.this);
-			final Button commentsButton = new Button(FavouritePostsActivity.this);
-
+			final View actionBar = inflateActionBar(layout);
 			layout.addView(topRow);
-			layout.addView(makeButtonRow(voteButton, commentsButton));
+			layout.addView(actionBar);
+			layout.addView(makeDivider());
 
 			return new FavouriteViewHolder(
 					layout,
+					null,
+					null,
 					imageView,
+					null,
+					null,
 					titleView,
 					subtitleView,
-					voteButton,
-					commentsButton);
+					actionBar);
 		}
 
-		private FavouriteViewHolder makeGridHolder() {
+		private FavouriteViewHolder makeGridHolder(@NonNull final ViewGroup parent) {
 
-			final LinearLayout layout = new LinearLayout(
-					FavouritePostsActivity.this);
-			layout.setOrientation(LinearLayout.VERTICAL);
-
-			final int cellPadding = General.dpToPixels(
-					FavouritePostsActivity.this, 4);
-			layout.setPadding(cellPadding, cellPadding, cellPadding, cellPadding);
-
-			final ImageView imageView = new ImageView(
-					FavouritePostsActivity.this);
-			imageView.setLayoutParams(new LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.MATCH_PARENT,
-					General.dpToPixels(FavouritePostsActivity.this, 120)));
-			imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-
-			final TextView titleView = new TextView(
-					FavouritePostsActivity.this);
-			titleView.setTextSize(13);
-			titleView.setMaxLines(2);
-			titleView.setEllipsize(TextUtils.TruncateAt.END);
-
-			final TextView subtitleView = new TextView(
-					FavouritePostsActivity.this);
-			subtitleView.setTextSize(12);
-
-			final Button voteButton = new Button(FavouritePostsActivity.this);
-			final Button commentsButton = new Button(FavouritePostsActivity.this);
-			voteButton.setTextSize(12);
-			commentsButton.setTextSize(12);
-
-			layout.addView(imageView);
-			layout.addView(titleView);
-			layout.addView(subtitleView);
-			layout.addView(makeButtonRow(voteButton, commentsButton));
+			final View view = LayoutInflater.from(FavouritePostsActivity.this).inflate(
+					R.layout.favourite_post_grid,
+					parent,
+					false);
 
 			return new FavouriteViewHolder(
-					layout,
-					imageView,
-					titleView,
-					subtitleView,
-					voteButton,
-					commentsButton);
+					view,
+					view.findViewById(R.id.fav_grid_image_area),
+					view.findViewById(R.id.fav_grid_image_holder),
+					view.findViewById(R.id.fav_grid_image),
+					view.findViewById(R.id.fav_grid_play_overlay),
+					view.findViewById(R.id.fav_grid_image_count),
+					view.findViewById(R.id.fav_grid_title),
+					view.findViewById(R.id.fav_grid_subtitle),
+					view);
 		}
 	}
 
-	private static class FavouriteViewHolder extends RecyclerView.ViewHolder {
+	static class FavouriteViewHolder extends RecyclerView.ViewHolder {
 
-		private final ImageView image;
-		private final TextView title;
-		private final TextView subtitle;
-		private final Button voteButton;
-		private final Button commentsButton;
+		final View imageArea;
+		final FrameLayout imageHolder;
+		final ImageView image;
+		final View playOverlay;
+		final TextView imageCount;
+		final TextView title;
+		final TextView subtitle;
+		final View voteButton;
+		final ImageView voteIcon;
+		final TextView voteText;
+		final View commentsButton;
+		final TextView commentsText;
+		int usageId;
+		Target activeTarget;
 
 		FavouriteViewHolder(
 				final View itemView,
-				final ImageView image,
+				@Nullable final View imageArea,
+				@Nullable final FrameLayout imageHolder,
+				@Nullable final ImageView image,
+				@Nullable final View playOverlay,
+				@Nullable final TextView imageCount,
 				final TextView title,
 				final TextView subtitle,
-				final Button voteButton,
-				final Button commentsButton) {
+				final View actionContainer) {
 			super(itemView);
+			this.imageArea = imageArea;
+			this.imageHolder = imageHolder;
 			this.image = image;
+			this.playOverlay = playOverlay;
+			this.imageCount = imageCount;
 			this.title = title;
 			this.subtitle = subtitle;
-			this.voteButton = voteButton;
-			this.commentsButton = commentsButton;
+			this.voteButton = actionContainer.findViewById(R.id.fav_vote_button);
+			this.voteIcon = actionContainer.findViewById(R.id.fav_vote_icon);
+			this.voteText = actionContainer.findViewById(R.id.fav_vote_text);
+			this.commentsButton = actionContainer.findViewById(R.id.fav_comments_button);
+			this.commentsText = actionContainer.findViewById(R.id.fav_comments_text);
 		}
 	}
 
