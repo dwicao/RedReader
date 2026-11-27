@@ -1212,7 +1212,8 @@ public class PostListingFragment extends RRFragment
 											showSubredditName,
 											downloadThisThumbnail,
 											allowHighResThumbnails,
-											downloadThisPreview);
+											downloadThisPreview,
+											mPostLayout.columnCount > 1);
 
 									// Skip adding this post (go to next iteration) if it
 									// has been clicked on AND read posts should be hidden

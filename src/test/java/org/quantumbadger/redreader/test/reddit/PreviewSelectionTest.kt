@@ -162,4 +162,18 @@ class PreviewSelectionTest {
 			select(rung("orig", 2000, 1500), ladder, 1080)?.url?.value,
 			select(rung("orig", 2000, 1500), ladder.reversed(), 1080)?.url?.value)
 	}
+
+	@Test
+	fun prefersModerateSourceOverTinyRung() {
+		val picked = select(
+			source = rung("orig", 600, 450),
+			rungs = listOf(
+				rung("108", 108, 81),
+				rung("216", 216, 162),
+				rung("320", 320, 240)
+			),
+			minWidth = 1080)
+
+		assertEquals("orig", picked?.url?.value)
+	}
 }

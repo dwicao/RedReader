@@ -794,8 +794,10 @@ public final class RedditPostView extends FlingableItemView
 
 	private int getGridCardSize() {
 		return Math.max(
-				mThumbnailSizePrefPixels,
-				DisplayUtils.getWindowVisibleDisplayFrame(mActivity).width() / 2);
+				720,
+				Math.max(
+						mThumbnailSizePrefPixels,
+						DisplayUtils.getWindowVisibleDisplayFrame(mActivity).width() / 2));
 	}
 
 	private void downloadGridPreview(
@@ -849,7 +851,7 @@ public final class RedditPostView extends FlingableItemView
 		// dimensions from a recycled ImageView before layout runs.
 		final int targetWidth = getGridCardSize();
 		final int targetHeight = Math.min(
-				2048,
+				4096,
 				Math.max(
 						1,
 						Math.round(targetWidth * ((float)preview.height / (float)preview.width))));
@@ -869,6 +871,7 @@ public final class RedditPostView extends FlingableItemView
 
 						cancelGridLoadTimeout();
 
+						mGridOriginalShown = true;
 						mGridLoadingSpinner.setVisibility(GONE);
 
 						final Drawable drawable = mThumbnailView.getDrawable();
@@ -1107,14 +1110,13 @@ public final class RedditPostView extends FlingableItemView
 		mGridOriginalShown = false;
 
 		final Bitmap placeholder = post.getThumbnail(this, mUsageId);
-		if(placeholder != null && placeholder.getWidth() > 0 && placeholder.getHeight() > 0) {
+		if(placeholder != null && placeholder.getWidth() >= 300 && placeholder.getHeight() > 0) {
 			mThumbnailView.setImageBitmap(placeholder);
 			applyGridColumnImageAspect(placeholder.getWidth(), placeholder.getHeight());
 		} else {
 			// Provisional square aspect ratio, corrected once the image is loaded.
 			applyGridColumnImageAspect(1, 1);
 		}
-		post.ensureThumbnail(mActivity, mThumbnailSizePrefPixels);
 
 		// Decode at roughly the card size rather than the full-resolution
 		// image, so memory stays low; the loaded bitmap's dimensions give the
@@ -1192,7 +1194,7 @@ public final class RedditPostView extends FlingableItemView
 
 		RedReaderPicasso.INSTANCE.get(mActivity)
 				.load(url.value)
-				.resize(targetSize, targetSize)
+				.resize(targetSize, 4096)
 				.centerInside()
 				.onlyScaleDown()
 				.into(target);
@@ -1524,10 +1526,15 @@ public final class RedditPostView extends FlingableItemView
 
 		} else {
 
-			post.ensureThumbnail(mActivity, cardSize);
+			final boolean started = post.ensureGridThumbnail(mActivity, cardSize);
 
-			if(thumbnail == null && post.hasThumbnail) {
-				mGridLoadingSpinner.setVisibility(VISIBLE);
+			if(thumbnail == null) {
+				if(started) {
+					mGridLoadingSpinner.setVisibility(VISIBLE);
+				} else {
+					mGridImageArea.setVisibility(GONE);
+					mInnerView.setMinimumHeight(General.dpToPixels(mActivity, 64));
+				}
 			}
 		}
 	}

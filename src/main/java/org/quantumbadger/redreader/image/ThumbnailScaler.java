@@ -91,4 +91,23 @@ public final class ThumbnailScaler {
 				Math.round(scale * image.getHeight()),
 				true);
 	}
+
+	public static Bitmap scaleDownOnly(final Bitmap image, final int maxDimensionPx) {
+
+		final int width = image.getWidth();
+		final int height = image.getHeight();
+		final int largest = Math.max(width, height);
+
+		if(largest <= maxDimensionPx || maxDimensionPx < 1) {
+			return image;
+		}
+
+		final float scale = (float)maxDimensionPx / (float)largest;
+
+		return Bitmap.createScaledBitmap(
+				image,
+				Math.max(1, Math.round(scale * width)),
+				Math.max(1, Math.round(scale * height)),
+				true);
+	}
 }

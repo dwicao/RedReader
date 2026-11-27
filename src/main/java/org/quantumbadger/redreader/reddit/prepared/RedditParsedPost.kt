@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import org.quantumbadger.redreader.R
 import org.quantumbadger.redreader.common.General
 import org.quantumbadger.redreader.common.PrefsUtility
+import org.quantumbadger.redreader.common.StringUtils
 import org.quantumbadger.redreader.common.UriString
 import org.quantumbadger.redreader.reddit.PostCommentSort
 import org.quantumbadger.redreader.reddit.kthings.MaybeParseError
@@ -126,16 +127,16 @@ class RedditParsedPost(
 			return UriString.fromNullable(raw?.takeIf { it.isNotEmpty() })
 		}
 
-	// A still frame for the video, which Reddit supplies alongside the video. Using
-	// this instead of extracting a frame from the video itself avoids downloading
-	// the whole (multi-megabyte) file just to produce one image.
+	// A still frame for the video, when Reddit supplies an image URL alongside it.
+	// Video streams (.mp4/.m3u8/.webm) are skipped so Picasso doesn't try to decode
+	// video bytes as an image.
 	val videoPosterImage: ImagePreviewDetails?
 		get() {
 			val preview = src.preview?.reddit_video_preview ?: return null
 
 			val url = preview.scrubber_media_url?.decoded
 				?: preview.fallback_url?.decoded
-			if(url.isNullOrEmpty()) {
+			if(url.isNullOrEmpty() || isVideoFileUrl(url)) {
 				return null
 			}
 
@@ -144,6 +145,14 @@ class RedditParsedPost(
 				preview.width ?: 0,
 				preview.height ?: 0)
 		}
+
+	private fun isVideoFileUrl(url: String): Boolean {
+		val path = StringUtils.asciiLowercase(url.substringBefore('?').substringBefore('#'))
+		return path.endsWith(".mp4")
+			|| path.endsWith(".m3u8")
+			|| path.endsWith(".webm")
+			|| path.endsWith(".mpd")
+	}
 
 	val suggestedCommentSort: PostCommentSort?
 		get() = if (src.suggested_sort == null) {
@@ -373,10 +382,20 @@ class RedditParsedPost(
 			}
 		}
 
-		// Only fall back to the full resolution source when the ladder offered
-		// nothing usable at all.
-		if (best == null && source != null && isUsablePreviewDetails(source, source)) {
-			best = source
+		// Only fall back to the source when the ladder offered nothing usable, or
+		// when the best rung is still below the requested width and the source itself
+		// fits within a reasonable card budget (avoiding upscaling a tiny 320px rung
+		// when the original is e.g. 500-1080px, while still excluding multi-megabyte
+		// 3000px+ originals).
+		if (source != null && isUsablePreviewDetails(source, source)) {
+			if (best == null) {
+				best = source
+			} else if (best.width < minWidth
+				&& source.width <= maxOf(minWidth, 1080)
+				&& source.width > best.width
+			) {
+				best = source
+			}
 		}
 
 		return best?.run {

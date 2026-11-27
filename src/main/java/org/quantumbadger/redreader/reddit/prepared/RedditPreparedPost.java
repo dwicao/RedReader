@@ -89,6 +89,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 	public final boolean mIsProbablyAnImage;
 
 	private final boolean mShowInlinePreviews;
+	private final boolean mAllowHighResThumbnails;
 
 	// TODO make it possible to turn off in-memory caching when out of memory
 	private volatile Bitmap thumbnailCache = null;
@@ -124,10 +125,35 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			final boolean showThumbnails,
 			final boolean allowHighResThumbnails,
 			final boolean showInlinePreviews) {
+		this(
+				context,
+				cm,
+				listId,
+				post,
+				timestamp,
+				showSubreddit,
+				showThumbnails,
+				allowHighResThumbnails,
+				showInlinePreviews,
+				false);
+	}
+
+	public RedditPreparedPost(
+			final Context context,
+			final CacheManager cm,
+			final int listId,
+			final RedditParsedPost post,
+			final TimestampUTC timestamp,
+			final boolean showSubreddit,
+			final boolean showThumbnails,
+			final boolean allowHighResThumbnails,
+			final boolean showInlinePreviews,
+			final boolean gridMode) {
 
 		this.src = post;
 		this.showSubreddit = showSubreddit;
 		mShowInlinePreviews = showInlinePreviews;
+		mAllowHighResThumbnails = allowHighResThumbnails;
 
 		final RedditAccount user = RedditAccountManager.getInstance(context).getDefaultAccount();
 		mChangeDataManager = RedditChangeDataManager.getInstance(user);
@@ -144,9 +170,15 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				context,
 				PrefsUtility.images_thumbnail_size_dp());
 
-		if(hasThumbnail && hasThumbnail(post) && !shouldShowInlinePreview()
+		if(!gridMode && hasThumbnail && hasThumbnail(post) && !shouldShowInlinePreview()
 				&& claimThumbnailRequest(thumbnailWidth)) {
-			downloadThumbnail(context, allowHighResThumbnails, thumbnailWidth, cm, listId);
+			downloadThumbnail(
+					context,
+					allowHighResThumbnails,
+					thumbnailWidth,
+					cm,
+					listId,
+					false);
 		}
 
 		lastChange = timestamp;
@@ -311,7 +343,7 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				return null;
 			}
 
-			final Bitmap scaled = ThumbnailScaler.scale(frame, maxDimensionPx);
+			final Bitmap scaled = ThumbnailScaler.scaleDownOnly(frame, maxDimensionPx);
 
 			if(scaled != frame) {
 				frame.recycle();
@@ -392,7 +424,42 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 		Log.d(TAG, "MediaTrace: loading thumbnail " + src.getThumbnailUrl());
 
-		downloadThumbnail(context, false, sizePixels, CacheManager.getInstance(context), 0);
+		downloadThumbnail(
+				context,
+				false,
+				sizePixels,
+				CacheManager.getInstance(context),
+				0,
+				false);
+	}
+
+	public boolean ensureGridThumbnail(final Context context, final int sizePixels) {
+
+		final boolean canUsePreview = mAllowHighResThumbnails
+				&& src.getPreview(sizePixels, sizePixels) != null;
+
+		if(!canUsePreview && !isUsableThumbnailUrl(src.getThumbnailUrl())) {
+			return false;
+		}
+
+		if(thumbnailCache != null && sizePixels <= mThumbnailCacheSize) {
+			return true;
+		}
+
+		if(!claimThumbnailRequest(sizePixels)) {
+			return true;
+		}
+
+		Log.d(TAG, "MediaTrace: loading grid thumbnail " + src.getThumbnailUrl());
+
+		downloadThumbnail(
+				context,
+				mAllowHighResThumbnails,
+				sizePixels,
+				CacheManager.getInstance(context),
+				0,
+				true);
+		return true;
 	}
 
 	private boolean claimThumbnailRequest(final int sizePixels) {
@@ -1133,7 +1200,8 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 			final boolean allowHighRes,
 			final int sizePixels,
 			final CacheManager cm,
-			final int listId) {
+			final int listId,
+			final boolean preserveAspectNoUpscale) {
 
 		final RedditParsedPost.ImagePreviewDetails preview = allowHighRes
 				? src.getPreview(sizePixels, sizePixels)
@@ -1182,7 +1250,10 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 							final boolean fromCache,
 							@Nullable final String mimetype) {
 
-						onThumbnailStreamAvailable(factory, sizePixels);
+						onThumbnailStreamAvailable(
+								factory,
+								sizePixels,
+								preserveAspectNoUpscale);
 					}
 
 					@Override
@@ -1292,7 +1363,8 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 
 	private void onThumbnailStreamAvailable(
 			final GenericFactory<SeekableInputStream, IOException> factory,
-			final int desiredSizePixels) {
+			final int desiredSizePixels,
+			final boolean preserveAspectNoUpscale) {
 
 		try(SeekableInputStream seekableInputStream = factory.create()) {
 
@@ -1327,7 +1399,9 @@ public final class RedditPreparedPost implements RedditChangeDataManager.Listene
 				}
 				return;
 			}
-			thumbnailCache = ThumbnailScaler.scale(data, desiredSizePixels);
+			thumbnailCache = preserveAspectNoUpscale
+					? ThumbnailScaler.scaleDownOnly(data, desiredSizePixels)
+					: ThumbnailScaler.scale(data, desiredSizePixels);
 			mThumbnailCacheSize = desiredSizePixels;
 			if(thumbnailCache != data) {
 				data.recycle();
